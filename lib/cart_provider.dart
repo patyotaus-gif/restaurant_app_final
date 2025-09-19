@@ -50,6 +50,9 @@ class CartProvider with ChangeNotifier {
   double _discount = 0.0;
   String _discountType = 'none';
   Promotion? _appliedPromotion;
+  bool _serviceChargeEnabled = false;
+  double _serviceChargeRate = 0.10; // default 10%
+  double _tipAmount = 0.0;
 
   Map<String, CartItem> get items => {..._items};
   OrderType? get orderType => _orderType;
@@ -59,6 +62,9 @@ class CartProvider with ChangeNotifier {
   double get discount => _discount;
   String get discountType => _discountType;
   Promotion? get appliedPromotion => _appliedPromotion;
+  bool get serviceChargeEnabled => _serviceChargeEnabled;
+  double get serviceChargeRate => _serviceChargeRate;
+  double get tipAmount => _tipAmount;
 
   bool get isCustomerBirthdayMonth {
     if (_customer == null || _customer!.birthDate == null) {
@@ -77,9 +83,17 @@ class CartProvider with ChangeNotifier {
     return total;
   }
 
+  double get serviceChargeAmount {
+    if (!_serviceChargeEnabled) return 0.0;
+    final base = subtotal - _discount;
+    final baseNonNegative = base < 0 ? 0 : base;
+    return baseNonNegative * _serviceChargeRate;
+  }
+
   double get totalAmount {
-    final total = subtotal - _discount;
-    return total < 0 ? 0 : total;
+    final base = subtotal - _discount;
+    final baseNonNegative = base < 0 ? 0 : base;
+    return baseNonNegative + serviceChargeAmount + _tipAmount;
   }
 
   int get totalQuantity {
@@ -126,6 +140,17 @@ class CartProvider with ChangeNotifier {
     if (promoQuery.docs.isEmpty) return "Invalid or inactive promotion code.";
 
     final promo = Promotion.fromFirestore(promoQuery.docs.first);
+    final validationMessage = promo.rules.validate(
+      subtotal: subtotal,
+      itemCount: totalQuantity,
+      categories: categoriesInCart,
+      orderType: _orderType?.name,
+    );
+
+    if (validationMessage != null) {
+      return validationMessage;
+    }
+
     double calculatedDiscount = 0;
 
     if (promo.type == 'percentage') {
@@ -168,6 +193,7 @@ class CartProvider with ChangeNotifier {
       type: 'percentage',
       value: percentage,
       isActive: true,
+      rules: const PromotionRules(),
     );
     notifyListeners();
   }
@@ -199,6 +225,7 @@ class CartProvider with ChangeNotifier {
       type: 'fixed',
       value: itemToDiscount.price,
       isActive: true,
+      rules: const PromotionRules(),
     );
 
     final customerRef = FirebaseFirestore.instance
@@ -219,11 +246,37 @@ class CartProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  void setServiceChargeEnabled(bool value) {
+    if (_serviceChargeEnabled == value) return;
+    _serviceChargeEnabled = value;
+    notifyListeners();
+  }
+
+  void setServiceChargeRate(double rate) {
+    final normalizedRate = rate.clamp(0.0, 1.0);
+    final normalizedDouble = normalizedRate is double
+        ? normalizedRate
+        : (normalizedRate as num).toDouble();
+    if (_serviceChargeRate == normalizedDouble) return;
+    _serviceChargeRate = normalizedDouble;
+    notifyListeners();
+  }
+
+  void setTipAmount(double amount) {
+    final sanitizedAmount = amount < 0 ? 0 : amount;
+    if (_tipAmount == sanitizedAmount) return;
+    _tipAmount = sanitizedAmount;
+    notifyListeners();
+  }
+
   void clear() {
     _items = {};
     _orderType = null;
     _orderIdentifier = null;
     _customer = null;
+    _serviceChargeEnabled = false;
+    _serviceChargeRate = 0.10;
+    _tipAmount = 0.0;
     removeDiscount();
     notifyListeners();
   }
@@ -286,6 +339,7 @@ class CartProvider with ChangeNotifier {
   void selectDineIn(int tableNumber) {
     _orderType = OrderType.dineIn;
     _orderIdentifier = 'Table $tableNumber';
+    _tipAmount = 0.0;
     notifyListeners();
   }
 
@@ -294,6 +348,8 @@ class CartProvider with ChangeNotifier {
     int currentCounter = prefs.getInt('takeawayCounter') ?? 1;
     _orderType = OrderType.takeaway;
     _orderIdentifier = 'Takeaway #$currentCounter';
+    _serviceChargeEnabled = false;
+    _tipAmount = 0.0;
     await prefs.setInt('takeawayCounter', currentCounter + 1);
     notifyListeners();
   }
@@ -303,6 +359,8 @@ class CartProvider with ChangeNotifier {
     int currentCounter = prefs.getInt('retailCounter') ?? 1;
     _orderType = OrderType.retail;
     _orderIdentifier = 'Retail #$currentCounter';
+    _serviceChargeEnabled = false;
+    _tipAmount = 0.0;
     await prefs.setInt('retailCounter', currentCounter + 1);
     notifyListeners();
   }
@@ -312,12 +370,28 @@ class CartProvider with ChangeNotifier {
     await prefs.setInt('takeawayCounter', 1);
   }
 
-  void loadOrder(Map<String, CartItem> items, String identifier) {
+  void loadOrder(
+    Map<String, CartItem> items,
+    String identifier, {
+    bool serviceChargeEnabled = false,
+    double? serviceChargeRate,
+    double tipAmount = 0.0,
+  }) {
     _items = items;
     _orderIdentifier = identifier;
-    _orderType = identifier.startsWith('Table')
-        ? OrderType.dineIn
-        : OrderType.takeaway;
+    if (identifier.startsWith('Table')) {
+      _orderType = OrderType.dineIn;
+    } else if (identifier.startsWith('Retail')) {
+      _orderType = OrderType.retail;
+    } else {
+      _orderType = OrderType.takeaway;
+    }
+    _serviceChargeEnabled =
+        serviceChargeEnabled && _orderType == OrderType.dineIn;
+    if (serviceChargeRate != null) {
+      setServiceChargeRate(serviceChargeRate);
+    }
+    _tipAmount = tipAmount;
     notifyListeners();
   }
 }

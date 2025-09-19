@@ -92,7 +92,14 @@ class _OrderDashboardPageState extends State<OrderDashboardPage> {
           loadedItems[itemKey] = cartItem;
         }
 
-        cart.loadOrder(loadedItems, orderData['orderIdentifier']);
+        cart.loadOrder(
+          loadedItems,
+          orderData['orderIdentifier'],
+          serviceChargeEnabled: orderData['serviceChargeEnabled'] ?? false,
+          serviceChargeRate: (orderData['serviceChargeRate'] as num?)
+              ?.toDouble(),
+          tipAmount: (orderData['tipAmount'] as num?)?.toDouble() ?? 0.0,
+        );
 
         if (customerId != null) {
           final customerDoc = await FirebaseFirestore.instance

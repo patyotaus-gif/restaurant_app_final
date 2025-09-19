@@ -20,6 +20,22 @@ class CartPage extends StatefulWidget {
 class _CartPageState extends State<CartPage> {
   final _tableNumberController = TextEditingController();
   final _promoCodeController = TextEditingController();
+  final TextEditingController _serviceChargePercentController =
+      TextEditingController();
+  final TextEditingController _tipAmountController = TextEditingController();
+  int _splitCount = 1;
+
+  String _formatNumber(double value) {
+    var text = value.toStringAsFixed(2);
+    if (!text.contains('.')) return text;
+    while (text.endsWith('0')) {
+      text = text.substring(0, text.length - 1);
+    }
+    if (text.endsWith('.')) {
+      text = text.substring(0, text.length - 1);
+    }
+    return text;
+  }
 
   @override
   void initState() {
@@ -31,12 +47,17 @@ class _CartPageState extends State<CartPage> {
         '',
       );
     }
+    _serviceChargePercentController.text =
+        _formatNumber(cart.serviceChargeRate * 100);
+    _tipAmountController.text = cart.tipAmount.toStringAsFixed(2);
   }
 
   @override
   void dispose() {
     _tableNumberController.dispose();
     _promoCodeController.dispose();
+    _serviceChargePercentController.dispose();
+    _tipAmountController.dispose();
     super.dispose();
   }
 
@@ -70,6 +91,13 @@ class _CartPageState extends State<CartPage> {
       'discountType': cart.discountType,
       'promotionCode': cart.appliedPromotion?.code,
       'promotionDescription': cart.appliedPromotion?.description,
+      'serviceChargeEnabled': cart.serviceChargeEnabled,
+      'serviceChargeRate': cart.serviceChargeRate,
+      'serviceChargeAmount': cart.serviceChargeAmount,
+      'tipAmount': cart.tipAmount,
+      'splitCount': _splitCount,
+      'splitAmountPerGuest':
+          _splitCount <= 0 ? cart.totalAmount : cart.totalAmount / _splitCount,
       'pointsRedeemed': cart.discountType == 'points'
           ? (cart.discount * 10).floor()
           : 0,
@@ -95,48 +123,7 @@ class _CartPageState extends State<CartPage> {
   }
 
   Widget _buildSyncStatus(SyncQueueService syncQueue) {
-    final isOffline = !syncQueue.isOnline;
-    final pending = syncQueue.pendingCount;
-    final error = syncQueue.lastError;
-
-    if (!isOffline && pending == 0 && error == null) {
-      return const SizedBox.shrink();
-    }
-
-    Color background;
-    IconData icon;
-    String message;
-
-    if (isOffline) {
-      background = Colors.orange.shade100;
-      icon = Icons.wifi_off;
-      message = pending > 0
-          ? 'Offline mode: $pending order(s) are queued for sync.'
-          : 'Offline mode: new orders will sync automatically when back online.';
-    } else if (pending > 0) {
-      background = Colors.blue.shade100;
-      icon = Icons.sync;
-      message = 'Syncing $pending pending order(s)...';
-    } else {
-      background = Colors.red.shade100;
-      icon = Icons.error_outline;
-      message = 'Sync error: ${error ?? 'Please try again.'}';
-    }
-
-    return Container(
-      width: double.infinity,
-      color: background,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: Row(
-        children: [
-          Icon(icon, color: Colors.black54),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              message,
-              style: const TextStyle(fontWeight: FontWeight.w600),
-            ),
-          ),
+@@ -140,107 +168,129 @@ class _CartPageState extends State<CartPage> {
           if (!isOffline && (pending > 0 || error != null))
             TextButton(
               onPressed: () => syncQueue.triggerSync(),
@@ -162,6 +149,11 @@ class _CartPageState extends State<CartPage> {
         context,
       ).showSnackBar(SnackBar(content: Text(message)));
       cart.clear();
+      if (mounted) {
+        setState(() {
+          _splitCount = 1;
+        });
+      }
       if (Navigator.of(context).canPop()) {
         Navigator.of(context).pop();
       }
@@ -212,6 +204,11 @@ class _CartPageState extends State<CartPage> {
       final identifierForCheckout = orderData['orderIdentifier'];
 
       cart.clear();
+      if (mounted) {
+        setState(() {
+          _splitCount = 1;
+        });
+      }
 
       Navigator.of(context).push(
         MaterialPageRoute(
@@ -219,6 +216,18 @@ class _CartPageState extends State<CartPage> {
             orderId: orderIdForCheckout,
             totalAmount: totalAmountForCheckout,
             orderIdentifier: identifierForCheckout,
+            subtotal:
+                (orderData['subtotal'] as num?)?.toDouble() ?? cart.subtotal,
+            discountAmount:
+                (orderData['discount'] as num?)?.toDouble() ?? cart.discount,
+            serviceChargeAmount:
+                (orderData['serviceChargeAmount'] as num?)?.toDouble() ?? 0.0,
+            serviceChargeRate:
+                (orderData['serviceChargeRate'] as num?)?.toDouble() ?? 0.0,
+            tipAmount: (orderData['tipAmount'] as num?)?.toDouble() ?? 0.0,
+            splitCount: (orderData['splitCount'] as int?) ?? 1,
+            splitAmountPerGuest:
+                (orderData['splitAmountPerGuest'] as num?)?.toDouble(),
           ),
         ),
       );
@@ -244,40 +253,7 @@ class _CartPageState extends State<CartPage> {
         subtitle: Text('Get a discount of $maxDiscount Baht'),
         trailing: ElevatedButton(
           onPressed: cart.discountType != 'none'
-              ? null
-              : () => cart.applyPointsDiscount(),
-          child: const Text('Apply'),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPromotionSection(CartProvider cart) {
-    if (cart.discountType != 'none') {
-      String discountLabel = 'Discount';
-      if (cart.discountType == 'promotion') {
-        discountLabel = "Promotion (${cart.appliedPromotion?.code ?? ''})";
-      } else if (cart.discountType == 'points') {
-        discountLabel = 'Points Redemption';
-      } else if (cart.discountType == 'manual') {
-        discountLabel = 'Manual Discount';
-      }
-
-      return ListTile(
-        title: Text(
-          discountLabel,
-          style: TextStyle(color: Colors.green.shade800),
-        ),
-        trailing: Text(
-          '- ${cart.discount.toStringAsFixed(2)} บาท',
-          style: TextStyle(color: Colors.green.shade800),
-        ),
-        leading: IconButton(
-          icon: const Icon(Icons.clear, size: 18),
-          onPressed: () => cart.removeDiscount(),
-        ),
-      );
-    }
+@@ -281,50 +331,226 @@ class _CartPageState extends State<CartPage> {
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
@@ -299,6 +275,182 @@ class _CartPageState extends State<CartPage> {
             child: const Text('Apply'),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildServiceChargeSection(CartProvider cart) {
+    if (cart.orderType != OrderType.dineIn) {
+      return const SizedBox.shrink();
+    }
+
+    final percentText = _formatNumber(cart.serviceChargeRate * 100);
+    if (_serviceChargePercentController.text != percentText) {
+      _serviceChargePercentController.text = percentText;
+    }
+
+    return Column(
+      children: [
+        SwitchListTile.adaptive(
+          title: const Text('Service Charge'),
+          subtitle: Text(
+            cart.serviceChargeEnabled
+                ? '+ ${cart.serviceChargeAmount.toStringAsFixed(2)} บาท'
+                : 'Tap to add a service charge',
+          ),
+          value: cart.serviceChargeEnabled,
+          onChanged: (value) {
+            cart.setServiceChargeEnabled(value);
+          },
+        ),
+        if (cart.serviceChargeEnabled)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _serviceChargePercentController,
+                    decoration: const InputDecoration(
+                      labelText: 'Service Charge %',
+                      suffixText: '%',
+                    ),
+                    keyboardType:
+                        const TextInputType.numberWithOptions(decimal: true),
+                    onChanged: (value) {
+                      final parsed = double.tryParse(value);
+                      if (parsed != null) {
+                        cart.setServiceChargeRate(parsed / 100);
+                      } else if (value.trim().isEmpty) {
+                        cart.setServiceChargeRate(0);
+                      }
+                    },
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  '+ ${cart.serviceChargeAmount.toStringAsFixed(2)} บาท',
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildTipSection(CartProvider cart) {
+    if (cart.orderType != OrderType.dineIn) {
+      return const SizedBox.shrink();
+    }
+
+    final tipText = cart.tipAmount.toStringAsFixed(2);
+    if (_tipAmountController.text != tipText) {
+      _tipAmountController.text = tipText;
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Tip',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _tipAmountController,
+            decoration: const InputDecoration(
+              labelText: 'Tip Amount',
+              prefixText: '฿ ',
+            ),
+            keyboardType:
+                const TextInputType.numberWithOptions(decimal: true),
+            onChanged: (value) {
+              final parsed = double.tryParse(value);
+              if (parsed != null) {
+                cart.setTipAmount(parsed);
+              } else if (value.trim().isEmpty) {
+                cart.setTipAmount(0);
+              }
+            },
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            children: [
+              for (final percent in [0, 5, 10, 15])
+                OutlinedButton(
+                  onPressed: () {
+                    final base = cart.subtotal - cart.discount;
+                    final baseNonNegative = base < 0 ? 0 : base;
+                    cart.setTipAmount(baseNonNegative * (percent / 100));
+                  },
+                  child: Text('$percent%'),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSplitBillSection(CartProvider cart) {
+    if (cart.orderType != OrderType.dineIn) {
+      return const SizedBox.shrink();
+    }
+
+    final perGuest = cart.totalAmount / (_splitCount <= 0 ? 1 : _splitCount);
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+      child: Card(
+        elevation: 0,
+        color: Colors.blueGrey.shade50,
+        child: Padding(
+          padding: const EdgeInsets.all(12.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Split Bill',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Number of guests'),
+                  Row(
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.remove_circle_outline),
+                        onPressed: _splitCount > 1
+                            ? () => setState(() {
+                                  _splitCount--;
+                                })
+                            : null,
+                      ),
+                      Text('$_splitCount'),
+                      IconButton(
+                        icon: const Icon(Icons.add_circle_outline),
+                        onPressed: () => setState(() {
+                          _splitCount++;
+                        }),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Each guest pays: ${perGuest.toStringAsFixed(2)} บาท',
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -328,23 +480,7 @@ class _CartPageState extends State<CartPage> {
                 child: _buildPointsSection(cart),
               ),
               Card(
-                margin: const EdgeInsets.all(15),
-                child: Padding(
-                  padding: const EdgeInsets.all(8),
-                  child: Column(
-                    children: [
-                      if (cart.orderType == OrderType.dineIn)
-                        TextField(
-                          controller: _tableNumberController,
-                          decoration: const InputDecoration(
-                            labelText: 'หมายเลขโต๊ะ (Table No.)',
-                          ),
-                          keyboardType: TextInputType.number,
-                        )
-                      else if (cart.orderType == OrderType.takeaway ||
-                          cart.orderType == OrderType.retail)
-                        ListTile(
-                          title: const Text(
+@@ -348,72 +574,93 @@ class _CartPageState extends State<CartPage> {
                             'Order Number',
                             style: TextStyle(color: Colors.grey),
                           ),
@@ -370,6 +506,26 @@ class _CartPageState extends State<CartPage> {
                         ),
                       ),
                       _buildPromotionSection(cart),
+                      _buildServiceChargeSection(cart),
+                      _buildTipSection(cart),
+                      if (cart.serviceChargeEnabled)
+                        ListTile(
+                          title: Text(
+                            'Service Charge (${_formatNumber(cart.serviceChargeRate * 100)}%)',
+                          ),
+                          trailing: Text(
+                            '+ ${cart.serviceChargeAmount.toStringAsFixed(2)} บาท',
+                            style: const TextStyle(color: Colors.deepOrange),
+                          ),
+                        ),
+                      if (cart.tipAmount > 0)
+                        ListTile(
+                          title: const Text('Tip'),
+                          trailing: Text(
+                            '+ ${cart.tipAmount.toStringAsFixed(2)} บาท',
+                            style: const TextStyle(color: Colors.deepOrange),
+                          ),
+                        ),
                       const Divider(),
                       ListTile(
                         title: const Text(
@@ -392,6 +548,7 @@ class _CartPageState extends State<CartPage> {
                   ),
                 ),
               ),
+              _buildSplitBillSection(cart),
               Expanded(
                 child: ListView.builder(
                   itemCount: cart.items.length,
