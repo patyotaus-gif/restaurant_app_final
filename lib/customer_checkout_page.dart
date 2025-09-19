@@ -2,9 +2,11 @@
 
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:provider/provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'cart_provider.dart';
 import 'models/promotion_model.dart';
+import 'services/sync_queue_service.dart';
 
 class CustomerCheckoutPage extends StatefulWidget {
   final String tableNumber;
@@ -29,6 +31,54 @@ class CustomerCheckoutPage extends StatefulWidget {
 class _CustomerCheckoutPageState extends State<CustomerCheckoutPage> {
   final _phoneController = TextEditingController();
   bool _isLoading = false;
+
+  Widget _buildSyncBanner(SyncQueueService syncQueue) {
+    final offline = !syncQueue.isOnline;
+    final pending = syncQueue.pendingCount;
+    final error = syncQueue.lastError;
+
+    if (!offline && pending == 0 && error == null) {
+      return const SizedBox.shrink();
+    }
+
+    Color background;
+    IconData icon;
+    String message;
+
+    if (offline) {
+      background = Colors.orange.shade100;
+      icon = Icons.wifi_off;
+      message = pending > 0
+          ? 'You are offline. $pending order(s) will sync automatically.'
+          : 'You are offline. New orders will sync once reconnected.';
+    } else if (pending > 0) {
+      background = Colors.blue.shade100;
+      icon = Icons.sync;
+      message = 'Syncing $pending pending order(s)...';
+    } else {
+      background = Colors.red.shade100;
+      icon = Icons.error_outline;
+      message = 'Sync error: ${error ?? 'Please try again.'}';
+    }
+
+    return Container(
+      width: double.infinity,
+      color: background,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Row(
+        children: [
+          Icon(icon, color: Colors.black54),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              message,
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   String _generatePromptPayPayload(double amount) {
     const promptPayId = "0812345678";
@@ -58,8 +108,10 @@ class _CustomerCheckoutPageState extends State<CustomerCheckoutPage> {
       (total, item) => total + (item.price * item.quantity),
     );
 
+    final syncQueue = context.read<SyncQueueService>();
+
     try {
-      await FirebaseFirestore.instance.collection('orders').add({
+      final result = await syncQueue.enqueueAdd('orders', {
         'items': orderItems,
         'subtotal': subtotal,
         'total': widget.totalAmount,
@@ -76,13 +128,16 @@ class _CustomerCheckoutPageState extends State<CustomerCheckoutPage> {
       });
 
       if (mounted) {
+        final isSynced = result.isSynced;
         showDialog(
           context: context,
           barrierDismissible: false,
           builder: (ctx) => AlertDialog(
-            title: const Text('Payment Confirmed!'),
-            content: const Text(
-              'Thank you! Your order is complete. A receipt will be sent shortly.',
+            title: Text(isSynced ? 'Payment Confirmed!' : 'Payment Queued'),
+            content: Text(
+              isSynced
+                  ? 'Thank you! Your order is complete. A receipt will be sent shortly.'
+                  : 'You are offline. Your payment has been queued and will sync automatically when connected.',
             ),
             actions: [
               TextButton(
@@ -100,6 +155,9 @@ class _CustomerCheckoutPageState extends State<CustomerCheckoutPage> {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text('Error: $e')));
+      }
+    } finally {
+      if (mounted) {
         setState(() {
           _isLoading = false;
         });
@@ -121,57 +179,65 @@ class _CustomerCheckoutPageState extends State<CustomerCheckoutPage> {
         title: Text('Checkout for Table ${widget.tableNumber}'),
         backgroundColor: Colors.green,
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          children: [
-            const Text(
-              'Scan QR to Pay',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 20),
-            Card(
-              elevation: 8,
-              child: QrImageView(
-                data: qrData,
-                version: QrVersions.auto,
-                size: 250.0,
-                backgroundColor: Colors.white,
-              ),
-            ),
-            const SizedBox(height: 30),
-            Text(
-              'Total Amount: ${widget.totalAmount.toStringAsFixed(2)} บาท',
-              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 40),
-            const Text('Enter your phone number for a digital receipt:'),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _phoneController,
-              decoration: const InputDecoration(
-                labelText: 'Phone Number',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.phone),
-              ),
-              keyboardType: TextInputType.phone,
-            ),
-            const SizedBox(height: 40),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                icon: const Icon(Icons.check_circle),
-                label: const Text('I HAVE PAID - CONFIRM'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
+      body: Consumer<SyncQueueService>(
+        builder: (context, syncQueue, child) {
+          return SingleChildScrollView(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              children: [
+                _buildSyncBanner(syncQueue),
+                const Text(
+                  'Scan QR to Pay',
+                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                 ),
-                onPressed: _isLoading ? null : _confirmPayment,
-              ),
+                const SizedBox(height: 20),
+                Card(
+                  elevation: 8,
+                  child: QrImageView(
+                    data: qrData,
+                    version: QrVersions.auto,
+                    size: 250.0,
+                    backgroundColor: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 30),
+                Text(
+                  'Total Amount: ${widget.totalAmount.toStringAsFixed(2)} บาท',
+                  style: const TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 40),
+                const Text('Enter your phone number for a digital receipt:'),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: _phoneController,
+                  decoration: const InputDecoration(
+                    labelText: 'Phone Number',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.phone),
+                  ),
+                  keyboardType: TextInputType.phone,
+                ),
+                const SizedBox(height: 40),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    icon: const Icon(Icons.check_circle),
+                    label: const Text('I HAVE PAID - CONFIRM'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                    ),
+                    onPressed: _isLoading ? null : _confirmPayment,
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }

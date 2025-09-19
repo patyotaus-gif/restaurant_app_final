@@ -95,14 +95,18 @@ class CartProvider with ChangeNotifier {
   }
 
   void setCustomer(DocumentSnapshot? customerDoc) {
+    final previousCustomerId = _customer?.id;
+
     if (customerDoc == null) {
       _customer = null;
     } else {
       _customer = Customer.fromFirestore(customerDoc);
     }
 
-    if (_customer?.id != customerDoc?.id) {
-      removeDiscount();
+    if (previousCustomerId != _customer?.id) {
+      _discount = 0.0;
+      _discountType = 'none';
+      _appliedPromotion = null;
     }
     notifyListeners();
   }

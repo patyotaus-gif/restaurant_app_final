@@ -21,11 +21,14 @@ class NotificationProvider extends ChangeNotifier {
     _sub?.cancel(); // ยกเลิกของเก่าก่อนเสมอ
     _sub = repo.watch().listen((list) {
       _items = list;
-      _latestUnseen = list.firstWhere(
-        (n) => !n.isSeen(uid),
-        // แก้ไข: ให้คืนค่า null ถ้าไม่เจอเลย เพื่อป้องกัน error
-        orElse: () => null as AppNotification,
-      );
+      AppNotification? firstUnseen;
+      for (final notification in list) {
+        if (!notification.isSeen(uid)) {
+          firstUnseen = notification;
+          break;
+        }
+      }
+      _latestUnseen = firstUnseen;
       notifyListeners();
     });
   }

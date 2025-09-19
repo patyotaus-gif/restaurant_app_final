@@ -16,6 +16,7 @@ import 'theme_provider.dart';
 import 'stock_provider.dart';
 import 'notifications_repository.dart';
 import 'notification_provider.dart';
+import 'services/sync_queue_service.dart';
 import 'customer_menu_page.dart';
 import 'role_selection_page.dart';
 import 'pin_login_page.dart';
@@ -211,6 +212,9 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (ctx) => AuthService()),
         ChangeNotifierProvider(create: (ctx) => ThemeProvider()),
         ChangeNotifierProvider(create: (ctx) => StockProvider()),
+        ChangeNotifierProvider(
+          create: (_) => SyncQueueService(FirebaseFirestore.instance),
+        ),
         Provider<NotificationsRepository>(
           create: (_) => NotificationsRepository(FirebaseFirestore.instance),
         ),

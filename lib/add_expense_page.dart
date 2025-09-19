@@ -49,11 +49,9 @@ class _AddExpensePageState extends State<AddExpensePage> {
         }
       } catch (e) {
         if (mounted) {
+          final errorMessage = 'Failed to save expense: $e';
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Failed to save expense: $e'),
-              backgroundColor: Colors.red,
-            ),
+            SnackBar(content: Text(errorMessage), backgroundColor: Colors.red),
           );
         }
       } finally {

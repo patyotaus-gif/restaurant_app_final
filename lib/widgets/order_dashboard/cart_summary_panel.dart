@@ -8,6 +8,7 @@ import '../../cart_provider.dart';
 import '../../checkout_page.dart';
 import '../customer_header_widget.dart';
 import '../../models/punch_card_model.dart';
+import '../../services/sync_queue_service.dart';
 
 class CartSummaryPanel extends StatefulWidget {
   const CartSummaryPanel({super.key});
@@ -25,7 +26,63 @@ class _CartSummaryPanelState extends State<CartSummaryPanel> {
     super.dispose();
   }
 
-  Future<String> _createOrUpdateOrder(CartProvider cart) async {
+  Widget _buildSyncStatus(SyncQueueService syncQueue) {
+    final offline = !syncQueue.isOnline;
+    final pending = syncQueue.pendingCount;
+    final error = syncQueue.lastError;
+
+    if (!offline && pending == 0 && error == null) {
+      return const SizedBox.shrink();
+    }
+
+    Color background;
+    IconData icon;
+    String message;
+
+    if (offline) {
+      background = Colors.orange.shade100;
+      icon = Icons.wifi_off;
+      message = pending > 0
+          ? 'Offline mode: $pending queued order(s) will sync later.'
+          : 'Offline mode: new orders will sync when online.';
+    } else if (pending > 0) {
+      background = Colors.blue.shade100;
+      icon = Icons.sync;
+      message = 'Syncing $pending pending order(s)...';
+    } else {
+      background = Colors.red.shade100;
+      icon = Icons.error_outline;
+      message = 'Sync error: ${error ?? 'Please retry.'}';
+    }
+
+    return Container(
+      width: double.infinity,
+      color: background,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Row(
+        children: [
+          Icon(icon, color: Colors.black54),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              message,
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+          ),
+          if (!offline && (pending > 0 || error != null))
+            TextButton(
+              onPressed: () => syncQueue.triggerSync(),
+              child: const Text('Retry'),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Future<String?> _createOrUpdateOrder(
+    CartProvider cart,
+    SyncQueueService syncQueue,
+  ) async {
     final itemsToSave = cart.items.values
         .map(
           (item) => {
@@ -59,6 +116,11 @@ class _CartSummaryPanelState extends State<CartSummaryPanel> {
       'customerName': cart.customer?.name,
     };
 
+    if (!syncQueue.isOnline) {
+      await syncQueue.enqueueAdd('orders', orderPayload);
+      return null;
+    }
+
     final snapshot = await FirebaseFirestore.instance
         .collection('orders')
         .where('orderIdentifier', isEqualTo: cart.orderIdentifier)
@@ -74,10 +136,8 @@ class _CartSummaryPanelState extends State<CartSummaryPanel> {
           .update(orderPayload);
       return orderId;
     } else {
-      final newOrderDoc = await FirebaseFirestore.instance
-          .collection('orders')
-          .add(orderPayload);
-      return newOrderDoc.id;
+      final result = await syncQueue.enqueueAdd('orders', orderPayload);
+      return result.remoteDocumentId;
     }
   }
 
@@ -93,12 +153,17 @@ class _CartSummaryPanelState extends State<CartSummaryPanel> {
       return;
     }
 
+    final syncQueue = context.read<SyncQueueService>();
+
     try {
-      await _createOrUpdateOrder(cart);
+      await _createOrUpdateOrder(cart, syncQueue);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Order sent to kitchen!')),
-        ); // <-- FIXED
+        final message = syncQueue.isOnline
+            ? 'Order sent to kitchen!'
+            : 'Offline: order queued and will sync automatically.';
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(message))); // <-- FIXED
         cart.clear();
         context.go('/order-type-selection');
       }
@@ -106,7 +171,7 @@ class _CartSummaryPanelState extends State<CartSummaryPanel> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error sending order: $e')),
-        ); // <-- FIXED
+        ); // <-- FIXED //
       }
     }
   }
@@ -157,6 +222,9 @@ class _CartSummaryPanelState extends State<CartSummaryPanel> {
       ),
       body: Column(
         children: <Widget>[
+          Consumer<SyncQueueService>(
+            builder: (context, syncQueue, child) => _buildSyncStatus(syncQueue),
+          ),
           const CustomerHeaderWidget(),
           const Divider(height: 1),
           _buildPromotionSection(cart),

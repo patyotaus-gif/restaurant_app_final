@@ -21,7 +21,6 @@ class RetailPosPage extends StatefulWidget {
 
 class _RetailPosPageState extends State<RetailPosPage> {
   final MobileScannerController _scannerController = MobileScannerController();
-  // --- FIX: Corrected the typo here ---
   final AudioPlayer _audioPlayer = AudioPlayer();
   final _barcodeStreamController = StreamController<String>();
   StreamSubscription<String>? _barcodeSubscription;
@@ -71,6 +70,7 @@ class _RetailPosPageState extends State<RetailPosPage> {
       } else {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
+            // <-- FIXED
             SnackBar(
               content: Text('Product with barcode [$code] not found.'),
               backgroundColor: Colors.red,
@@ -81,6 +81,7 @@ class _RetailPosPageState extends State<RetailPosPage> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
+          // <-- FIXED
           SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
         );
       }

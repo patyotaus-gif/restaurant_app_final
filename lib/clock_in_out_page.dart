@@ -38,7 +38,6 @@ class _ClockInOutPageState extends State<ClockInOutPage> {
     // ------------------------------------
 
     final pinController = TextEditingController();
-    final scaffoldMessenger = ScaffoldMessenger.of(context);
 
     showDialog(
       context: context,
@@ -69,7 +68,7 @@ class _ClockInOutPageState extends State<ClockInOutPage> {
                         .doc(latestRecord.id)
                         .update({'clockOutTime': Timestamp.now()});
 
-                    scaffoldMessenger.showSnackBar(
+                    ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(content: Text('${employee.name} clocked out.')),
                     );
                   } else {
@@ -80,14 +79,14 @@ class _ClockInOutPageState extends State<ClockInOutPage> {
                       'clockOutTime': null,
                     });
 
-                    scaffoldMessenger.showSnackBar(
+                    ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(content: Text('${employee.name} clocked in.')),
                     );
                   }
 
                   setState(() {});
                 } catch (e) {
-                  scaffoldMessenger.showSnackBar(
+                  ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text('Error: $e'),
                       backgroundColor: Colors.red,
@@ -95,9 +94,9 @@ class _ClockInOutPageState extends State<ClockInOutPage> {
                   );
                 }
               } else {
-                scaffoldMessenger.showSnackBar(
-                  const SnackBar(content: Text('Invalid PIN!')),
-                );
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(const SnackBar(content: Text('Invalid PIN!')));
               }
             },
             child: const Text('Confirm'),

@@ -8,6 +8,7 @@ import 'checkout_page.dart';
 import 'models/product_model.dart';
 import 'auth_service.dart';
 import 'widgets/manager_approval_dialog.dart';
+import 'services/sync_queue_service.dart';
 
 class CartPage extends StatefulWidget {
   const CartPage({super.key});
@@ -93,40 +94,140 @@ class _CartPageState extends State<CartPage> {
     };
   }
 
-  void _sendToKitchen(CartProvider cart) {
+  Widget _buildSyncStatus(SyncQueueService syncQueue) {
+    final isOffline = !syncQueue.isOnline;
+    final pending = syncQueue.pendingCount;
+    final error = syncQueue.lastError;
+
+    if (!isOffline && pending == 0 && error == null) {
+      return const SizedBox.shrink();
+    }
+
+    Color background;
+    IconData icon;
+    String message;
+
+    if (isOffline) {
+      background = Colors.orange.shade100;
+      icon = Icons.wifi_off;
+      message = pending > 0
+          ? 'Offline mode: $pending order(s) are queued for sync.'
+          : 'Offline mode: new orders will sync automatically when back online.';
+    } else if (pending > 0) {
+      background = Colors.blue.shade100;
+      icon = Icons.sync;
+      message = 'Syncing $pending pending order(s)...';
+    } else {
+      background = Colors.red.shade100;
+      icon = Icons.error_outline;
+      message = 'Sync error: ${error ?? 'Please try again.'}';
+    }
+
+    return Container(
+      width: double.infinity,
+      color: background,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Row(
+        children: [
+          Icon(icon, color: Colors.black54),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              message,
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+          ),
+          if (!isOffline && (pending > 0 || error != null))
+            TextButton(
+              onPressed: () => syncQueue.triggerSync(),
+              child: const Text('Retry'),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _sendToKitchen(CartProvider cart) async {
     final orderData = _prepareOrderData(cart);
     if (orderData == null) return;
-    FirebaseFirestore.instance.collection('orders').add(orderData);
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Order sent to kitchen!')));
-    cart.clear();
-    Navigator.of(context).pop();
+    final syncQueue = context.read<SyncQueueService>();
+
+    try {
+      final result = await syncQueue.enqueueAdd('orders', orderData);
+      if (!mounted) return;
+      final message = result.isSynced
+          ? 'Order sent to kitchen!'
+          : 'Offline: order queued and will sync automatically.';
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
+      cart.clear();
+      if (Navigator.of(context).canPop()) {
+        Navigator.of(context).pop();
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to send order: $e')));
+    }
   }
 
   Future<void> _goToCheckout(CartProvider cart) async {
     final orderData = _prepareOrderData(cart);
     if (orderData == null) return;
-    final docRef = await FirebaseFirestore.instance
-        .collection('orders')
-        .add(orderData);
-    if (!mounted) return;
+    final syncQueue = context.read<SyncQueueService>();
 
-    final orderIdForCheckout = docRef.id;
-    final totalAmountForCheckout = orderData['total'];
-    final identifierForCheckout = orderData['orderIdentifier'];
-
-    cart.clear();
-
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => CheckoutPage(
-          orderId: orderIdForCheckout,
-          totalAmount: totalAmountForCheckout,
-          orderIdentifier: identifierForCheckout,
+    if (!syncQueue.isOnline) {
+      await syncQueue.enqueueAdd('orders', orderData);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Offline mode: order queued. Checkout will be available once reconnected.',
+          ),
         ),
-      ),
-    );
+      );
+      cart.clear();
+      if (Navigator.of(context).canPop()) {
+        Navigator.of(context).pop();
+      }
+      return;
+    }
+
+    try {
+      final result = await syncQueue.enqueueAdd('orders', orderData);
+      if (!mounted) return;
+      if (!result.isSynced || result.remoteDocumentId == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Unable to create order. Please try again.'),
+          ),
+        );
+        return;
+      }
+
+      final orderIdForCheckout = result.remoteDocumentId!;
+      final totalAmountForCheckout = orderData['total'];
+      final identifierForCheckout = orderData['orderIdentifier'];
+
+      cart.clear();
+
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => CheckoutPage(
+            orderId: orderIdForCheckout,
+            totalAmount: totalAmountForCheckout,
+            orderIdentifier: identifierForCheckout,
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Unable to start checkout: $e')));
+    }
   }
 
   Widget _buildPointsSection(CartProvider cart) {
@@ -215,12 +316,13 @@ class _CartPageState extends State<CartPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<CartProvider>(
-      builder: (context, cart, child) {
+    return Consumer2<CartProvider, SyncQueueService>(
+      builder: (context, cart, syncQueue, child) {
         return Scaffold(
           appBar: AppBar(title: const Text('ตะกร้าสินค้า (Current Order)')),
           body: Column(
             children: <Widget>[
+              _buildSyncStatus(syncQueue),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 15.0),
                 child: _buildPointsSection(cart),

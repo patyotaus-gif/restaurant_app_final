@@ -43,12 +43,13 @@ class _PinLoginPageState extends State<PinLoginPage> {
     final success = await authService.loginWithPin(_pin);
 
     if (success) {
-      // --- FIX: Change destination to the new selection page ---
       if (mounted) context.go('/order-type-selection');
     } else {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
+          // <-- FIXED: showSnackBar
           const SnackBar(
+            // <-- FIXED: SnackBar
             content: Text('Invalid PIN. Please try again.'),
             backgroundColor: Colors.red,
           ),
@@ -59,7 +60,7 @@ class _PinLoginPageState extends State<PinLoginPage> {
         _isLoading = false;
       });
     }
-  }
+  } // <-- FIXED: Added missing '}' here
 
   @override
   Widget build(BuildContext context) {
@@ -104,8 +105,9 @@ class _PinLoginPageState extends State<PinLoginPage> {
                 ),
                 itemBuilder: (context, index) {
                   if (index == 9) return const SizedBox.shrink();
-                  if (index == 10)
+                  if (index == 10) {
                     return _buildKeypadButton('0', _onNumberPressed);
+                  }
                   if (index == 11) {
                     return _buildKeypadButton(
                       '⌫',

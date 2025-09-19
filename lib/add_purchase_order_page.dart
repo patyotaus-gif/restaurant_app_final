@@ -37,8 +37,6 @@ class _AddPurchaseOrderPageState extends State<AddPurchaseOrderPage> {
   }
 
   void _addIngredientToPO() async {
-    // In a real app, you might have a dedicated search page.
-    // For now, we'll show a dialog with all ingredients.
     final allIngredients = await FirebaseFirestore.instance
         .collection('ingredients')
         .get();
@@ -63,7 +61,6 @@ class _AddPurchaseOrderPageState extends State<AddPurchaseOrderPage> {
                 title: Text(ingredient.name),
                 onTap: () {
                   setState(() {
-                    // Avoid adding duplicates
                     if (!_poItems.any(
                       (item) => item.ingredient.id == ingredient.id,
                     )) {
@@ -86,11 +83,11 @@ class _AddPurchaseOrderPageState extends State<AddPurchaseOrderPage> {
     });
   }
 
-  Future<void> _savePurchaseOrder() async {
+  // Notice context is now passed into this function
+  Future<void> _savePurchaseOrder(BuildContext scaffoldContext) async {
     if (_supplierController.text.isEmpty || _poItems.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(scaffoldContext).showSnackBar(
         const SnackBar(
-          // <-- FIXED
           content: Text('Please fill in supplier and add at least one item.'),
           backgroundColor: Colors.red,
         ),
@@ -109,9 +106,8 @@ class _AddPurchaseOrderPageState extends State<AddPurchaseOrderPage> {
       final quantity = double.tryParse(item.quantityController.text) ?? 0;
       final cost = double.tryParse(item.costController.text) ?? 0;
       if (quantity <= 0 || cost <= 0) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        ScaffoldMessenger.of(scaffoldContext).showSnackBar(
           const SnackBar(
-            // <-- FIXED
             content: Text(
               'Please enter valid quantity and cost for all items.',
             ),
@@ -138,13 +134,12 @@ class _AddPurchaseOrderPageState extends State<AddPurchaseOrderPage> {
         'timestamp': Timestamp.now(),
         'totalAmount': totalAmount,
         'items': itemsToSave,
-        'status': 'completed', // Status for received goods
+        'status': 'completed',
       });
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        ScaffoldMessenger.of(scaffoldContext).showSnackBar(
           const SnackBar(
-            // <-- FIXED
             content: Text('Purchase Order saved successfully!'),
             backgroundColor: Colors.green,
           ),
@@ -153,9 +148,8 @@ class _AddPurchaseOrderPageState extends State<AddPurchaseOrderPage> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        ScaffoldMessenger.of(scaffoldContext).showSnackBar(
           SnackBar(
-            // <-- FIXED
             content: Text('Failed to save PO: $e'),
             backgroundColor: Colors.red,
           ),
@@ -176,9 +170,16 @@ class _AddPurchaseOrderPageState extends State<AddPurchaseOrderPage> {
       appBar: AppBar(
         title: const Text('Add Purchase Order'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.save),
-            onPressed: _isLoading ? null : _savePurchaseOrder,
+          // This Builder gives us a new context that is "under" the Scaffold
+          Builder(
+            builder: (scaffoldContext) {
+              return IconButton(
+                icon: const Icon(Icons.save),
+                onPressed: _isLoading
+                    ? null
+                    : () => _savePurchaseOrder(scaffoldContext),
+              );
+            },
           ),
         ],
       ),
