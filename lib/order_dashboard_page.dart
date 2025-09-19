@@ -99,6 +99,7 @@ class _OrderDashboardPageState extends State<OrderDashboardPage> {
           serviceChargeRate: (orderData['serviceChargeRate'] as num?)
               ?.toDouble(),
           tipAmount: (orderData['tipAmount'] as num?)?.toDouble() ?? 0.0,
+          splitCount: (orderData['splitCount'] as num?)?.toInt() ?? 1,
         );
 
         if (customerId != null) {

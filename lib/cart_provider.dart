@@ -53,6 +53,7 @@ class CartProvider with ChangeNotifier {
   bool _serviceChargeEnabled = false;
   double _serviceChargeRate = 0.10; // default 10%
   double _tipAmount = 0.0;
+  int _splitCount = 1;
 
   Map<String, CartItem> get items => {..._items};
   OrderType? get orderType => _orderType;
@@ -65,6 +66,12 @@ class CartProvider with ChangeNotifier {
   bool get serviceChargeEnabled => _serviceChargeEnabled;
   double get serviceChargeRate => _serviceChargeRate;
   double get tipAmount => _tipAmount;
+  int get splitCount => _splitCount;
+
+  double get splitAmountPerGuest {
+    final normalizedCount = _splitCount <= 0 ? 1 : _splitCount;
+    return normalizedCount == 0 ? totalAmount : totalAmount / normalizedCount;
+  }
 
   bool get isCustomerBirthdayMonth {
     if (_customer == null || _customer!.birthDate == null) {
@@ -269,6 +276,22 @@ class CartProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  void setSplitCount(int count) {
+    final sanitized = count < 1 ? 1 : count;
+    if (_splitCount == sanitized) return;
+    _splitCount = sanitized;
+    notifyListeners();
+  }
+
+  void incrementSplitCount() {
+    setSplitCount(_splitCount + 1);
+  }
+
+  void decrementSplitCount() {
+    if (_splitCount <= 1) return;
+    setSplitCount(_splitCount - 1);
+  }
+
   void clear() {
     _items = {};
     _orderType = null;
@@ -277,6 +300,7 @@ class CartProvider with ChangeNotifier {
     _serviceChargeEnabled = false;
     _serviceChargeRate = 0.10;
     _tipAmount = 0.0;
+    _splitCount = 1;
     removeDiscount();
     notifyListeners();
   }
@@ -340,6 +364,7 @@ class CartProvider with ChangeNotifier {
     _orderType = OrderType.dineIn;
     _orderIdentifier = 'Table $tableNumber';
     _tipAmount = 0.0;
+    _splitCount = 1;
     notifyListeners();
   }
 
@@ -350,6 +375,7 @@ class CartProvider with ChangeNotifier {
     _orderIdentifier = 'Takeaway #$currentCounter';
     _serviceChargeEnabled = false;
     _tipAmount = 0.0;
+    _splitCount = 1;
     await prefs.setInt('takeawayCounter', currentCounter + 1);
     notifyListeners();
   }
@@ -361,6 +387,7 @@ class CartProvider with ChangeNotifier {
     _orderIdentifier = 'Retail #$currentCounter';
     _serviceChargeEnabled = false;
     _tipAmount = 0.0;
+    _splitCount = 1;
     await prefs.setInt('retailCounter', currentCounter + 1);
     notifyListeners();
   }
@@ -376,6 +403,7 @@ class CartProvider with ChangeNotifier {
     bool serviceChargeEnabled = false,
     double? serviceChargeRate,
     double tipAmount = 0.0,
+    int splitCount = 1,
   }) {
     _items = items;
     _orderIdentifier = identifier;
@@ -392,6 +420,7 @@ class CartProvider with ChangeNotifier {
       setServiceChargeRate(serviceChargeRate);
     }
     _tipAmount = tipAmount;
+    _splitCount = splitCount < 1 ? 1 : splitCount;
     notifyListeners();
   }
 }

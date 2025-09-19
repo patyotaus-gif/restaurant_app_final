@@ -87,7 +87,7 @@ class _AllOrdersPageState extends State<AllOrdersPage> {
               serviceChargeRate:
                   (orderData['serviceChargeRate'] as num?)?.toDouble() ?? 0.0,
               tipAmount: (orderData['tipAmount'] as num?)?.toDouble() ?? 0.0,
-              splitCount: (orderData['splitCount'] as int?) ?? 1,
+              splitCount: (orderData['splitCount'] as num?)?.toInt() ?? 1,
               splitAmountPerGuest: (orderData['splitAmountPerGuest'] as num?)
                   ?.toDouble(),
             ),

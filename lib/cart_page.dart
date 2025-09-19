@@ -23,7 +23,6 @@ class _CartPageState extends State<CartPage> {
   final TextEditingController _serviceChargePercentController =
       TextEditingController();
   final TextEditingController _tipAmountController = TextEditingController();
-  int _splitCount = 1;
 
   String _formatNumber(double value) {
     var text = value.toStringAsFixed(2);
@@ -95,9 +94,8 @@ class _CartPageState extends State<CartPage> {
       'serviceChargeRate': cart.serviceChargeRate,
       'serviceChargeAmount': cart.serviceChargeAmount,
       'tipAmount': cart.tipAmount,
-      'splitCount': _splitCount,
-      'splitAmountPerGuest':
-          _splitCount <= 0 ? cart.totalAmount : cart.totalAmount / _splitCount,
+      'splitCount': cart.splitCount,
+      'splitAmountPerGuest': cart.splitAmountPerGuest,
       'pointsRedeemed': cart.discountType == 'points'
           ? (cart.discount * 10).floor()
           : 0,
@@ -149,11 +147,6 @@ class _CartPageState extends State<CartPage> {
         context,
       ).showSnackBar(SnackBar(content: Text(message)));
       cart.clear();
-      if (mounted) {
-        setState(() {
-          _splitCount = 1;
-        });
-      }
       if (Navigator.of(context).canPop()) {
         Navigator.of(context).pop();
       }
@@ -204,11 +197,6 @@ class _CartPageState extends State<CartPage> {
       final identifierForCheckout = orderData['orderIdentifier'];
 
       cart.clear();
-      if (mounted) {
-        setState(() {
-          _splitCount = 1;
-        });
-      }
 
       Navigator.of(context).push(
         MaterialPageRoute(
@@ -225,7 +213,7 @@ class _CartPageState extends State<CartPage> {
             serviceChargeRate:
                 (orderData['serviceChargeRate'] as num?)?.toDouble() ?? 0.0,
             tipAmount: (orderData['tipAmount'] as num?)?.toDouble() ?? 0.0,
-            splitCount: (orderData['splitCount'] as int?) ?? 1,
+            splitCount: (orderData['splitCount'] as num?)?.toInt() ?? 1,
             splitAmountPerGuest:
                 (orderData['splitAmountPerGuest'] as num?)?.toDouble(),
           ),
@@ -401,7 +389,8 @@ class _CartPageState extends State<CartPage> {
       return const SizedBox.shrink();
     }
 
-    final perGuest = cart.totalAmount / (_splitCount <= 0 ? 1 : _splitCount);
+    final splitCount = cart.splitCount;
+    final perGuest = cart.splitAmountPerGuest;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -426,18 +415,14 @@ class _CartPageState extends State<CartPage> {
                     children: [
                       IconButton(
                         icon: const Icon(Icons.remove_circle_outline),
-                        onPressed: _splitCount > 1
-                            ? () => setState(() {
-                                  _splitCount--;
-                                })
+                        onPressed: splitCount > 1
+                            ? () => cart.decrementSplitCount()
                             : null,
                       ),
-                      Text('$_splitCount'),
+                      Text('$splitCount'),
                       IconButton(
                         icon: const Icon(Icons.add_circle_outline),
-                        onPressed: () => setState(() {
-                          _splitCount++;
-                        }),
+                        onPressed: cart.incrementSplitCount,
                       ),
                     ],
                   ),
