@@ -128,83 +128,89 @@ class _ModifierSelectionDialogState extends State<ModifierSelectionDialog> {
 
             final groups = snapshot.data!;
 
-            return Column(
-              // Use column to separate list and total price
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Expanded(
-                  // Make the list scrollable if it's too long
-                  child: ListView.separated(
-                    shrinkWrap: true,
-                    itemCount: groups.length,
-                    separatorBuilder: (context, index) =>
-                        const Divider(height: 20),
-                    itemBuilder: (context, index) {
-                      final group = groups[index];
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            group.groupName,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
+            return ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(context).size.height * 0.6,
+              ),
+              child: Column(
+                // Use column to separate list and total price
+                mainAxisSize: MainAxisSize.max,
+                children: [
+                  Expanded(
+                    // Make the list scrollable if it's too long
+                    child: ListView.separated(
+                      shrinkWrap: true,
+                      itemCount: groups.length,
+                      separatorBuilder: (context, index) =>
+                          const Divider(height: 20),
+                      itemBuilder: (context, index) {
+                        final group = groups[index];
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              group.groupName,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
                             ),
-                          ),
-                          if (group.selectionType == 'SINGLE')
-                            ...group.options.map((option) {
-                              return RadioListTile<ModifierOption>(
-                                title: Text(
-                                  '${option.optionName} (+${option.priceChange.toStringAsFixed(2)})',
-                                ),
-                                value: option,
-                                groupValue: _selectedOptions[group.id!],
-                                onChanged: (value) => _updateSelection(
-                                  group.id!,
-                                  value!,
-                                  'SINGLE',
-                                ),
-                              );
-                            }),
-                          if (group.selectionType == 'MULTIPLE')
-                            ...group.options.map((option) {
-                              final currentList =
+                            if (group.selectionType == 'SINGLE')
+                              ...group.options.map((option) {
+                                return RadioListTile<ModifierOption>(
+                                  title: Text(
+                                    '${option.optionName} (+${option.priceChange.toStringAsFixed(2)})',
+                                  ),
+                                  value: option,
+                                  groupValue: _selectedOptions[group.id!],
+                                  onChanged: (value) => _updateSelection(
+                                    group.id!,
+                                    value!,
+                                    'SINGLE',
+                                  ),
+                                );
+                              }),
+                            if (group.selectionType == 'MULTIPLE')
+                              ...group.options.map((option) {
+                                final currentList = List<ModifierOption>.from(
                                   _selectedOptions[group.id!]
-                                      as List<ModifierOption>? ??
-                                  [];
-                              final isSelected = currentList.any(
-                                (o) => o.optionName == option.optionName,
-                              );
-                              return CheckboxListTile(
-                                title: Text(
-                                  '${option.optionName} (+${option.priceChange.toStringAsFixed(2)})',
-                                ),
-                                value: isSelected,
-                                onChanged: (value) => _updateSelection(
-                                  group.id!,
-                                  option,
-                                  'MULTIPLE',
-                                ),
-                              );
-                            }),
-                        ],
-                      );
-                    },
-                  ),
-                ),
-                const Divider(),
-                Padding(
-                  // Total price at the bottom
-                  padding: const EdgeInsets.only(top: 8.0),
-                  child: Text(
-                    'Total Price: ${(widget.product.price + _currentExtraPrice).toStringAsFixed(2)}',
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
+                                          as List<ModifierOption>? ??
+                                      [],
+                                );
+                                final isSelected = currentList.any(
+                                  (o) => o.optionName == option.optionName,
+                                );
+                                return CheckboxListTile(
+                                  title: Text(
+                                    '${option.optionName} (+${option.priceChange.toStringAsFixed(2)})',
+                                  ),
+                                  value: isSelected,
+                                  onChanged: (value) => _updateSelection(
+                                    group.id!,
+                                    option,
+                                    'MULTIPLE',
+                                  ),
+                                );
+                              }),
+                          ],
+                        );
+                      },
                     ),
                   ),
-                ),
-              ],
+                  const Divider(),
+                  Padding(
+                    // Total price at the bottom
+                    padding: const EdgeInsets.only(top: 8.0),
+                    child: Text(
+                      'Total Price: ${(widget.product.price + _currentExtraPrice).toStringAsFixed(2)}',
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             );
           },
         ),
