@@ -84,6 +84,7 @@ class _CartPageState extends State<CartPage> {
       );
       return null;
     }
+    final ingredientUsage = cart.ingredientUsage;
     return {
       'total': cart.totalAmount,
       'subtotal': cart.subtotal,
@@ -113,11 +114,14 @@ class _CartPageState extends State<CartPage> {
               'price': item.price,
               'description': item.description,
               'category': item.product.category,
+              'recipe': item.recipe,
             },
           )
           .toList(),
       'customerId': cart.customer?.id,
       'customerName': cart.customer?.name,
+      'ingredientUsage': ingredientUsage,
+      'stockDeducted': false,
     };
   }
 

@@ -135,6 +135,23 @@ class _EndOfDayReportPageState extends State<EndOfDayReportPage> {
               const SizedBox(height: 20),
               _buildItemBreakdownCard(itemSummary),
               const SizedBox(height: 20),
+              Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                children: [
+                  ElevatedButton.icon(
+                    icon: const Icon(Icons.money),
+                    label: const Text('Cash Reconciliation'),
+                    onPressed: () => _showCashReconciliationDialog(data),
+                  ),
+                  OutlinedButton.icon(
+                    icon: const Icon(Icons.receipt_long),
+                    label: const Text('Generate Shift Z Report'),
+                    onPressed: _showShiftZReportDialog,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
               ElevatedButton.icon(
                 icon: const Icon(Icons.lock_clock),
                 label: const Text('CLOSE OUT DAY'),
@@ -276,5 +293,359 @@ class _EndOfDayReportPageState extends State<EndOfDayReportPage> {
         ],
       ),
     );
+  }
+
+  void _showCashReconciliationDialog(Map<String, dynamic> reportData) {
+    final expectedCash =
+        (reportData['totalRevenue'] as double? ?? 0) -
+        (reportData['totalRefundAmount'] as double? ?? 0);
+    final shiftController = TextEditingController(text: 'Shift Z');
+    final countedCashController = TextEditingController();
+    final noteController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('End of Day Cash Reconciliation'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Expected cash on hand: ${expectedCash.toStringAsFixed(2)} Baht',
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: shiftController,
+                  decoration: const InputDecoration(
+                    labelText: 'Shift name / identifier',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: countedCashController,
+                  decoration: const InputDecoration(
+                    labelText: 'Counted cash total',
+                  ),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: noteController,
+                  decoration: const InputDecoration(
+                    labelText: 'Notes (optional)',
+                  ),
+                  maxLines: 2,
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final counted =
+                    double.tryParse(countedCashController.text.trim()) ?? 0.0;
+                final shiftName = shiftController.text.trim().isEmpty
+                    ? 'Shift Z'
+                    : shiftController.text.trim();
+                final difference = counted - expectedCash;
+
+                try {
+                  await FirebaseFirestore.instance
+                      .collection('cash_reconciliations')
+                      .add({
+                        'shiftName': shiftName,
+                        'expectedCash': expectedCash,
+                        'countedCash': counted,
+                        'difference': difference,
+                        'notes': noteController.text.trim(),
+                        'recordedAt': Timestamp.now(),
+                      });
+                  if (!mounted) return;
+                  Navigator.of(dialogContext).pop();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Cash reconciliation saved.')),
+                  );
+                } catch (e) {
+                  if (!mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        'Failed to save reconciliation: ${e.toString()}',
+                      ),
+                    ),
+                  );
+                }
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showShiftZReportDialog() {
+    final shiftController = TextEditingController(text: 'Shift Z');
+    TimeOfDay startTime = const TimeOfDay(hour: 0, minute: 0);
+    TimeOfDay endTime = const TimeOfDay(hour: 23, minute: 59);
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setStateDialog) {
+            return AlertDialog(
+              title: const Text('Generate Shift Z Report'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    TextField(
+                      controller: shiftController,
+                      decoration: const InputDecoration(
+                        labelText: 'Shift name',
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        TextButton.icon(
+                          icon: const Icon(Icons.schedule),
+                          label: Text('Start: ${startTime.format(context)}'),
+                          onPressed: () async {
+                            final picked = await showTimePicker(
+                              context: context,
+                              initialTime: startTime,
+                            );
+                            if (picked != null) {
+                              setStateDialog(() => startTime = picked);
+                            }
+                          },
+                        ),
+                        TextButton.icon(
+                          icon: const Icon(Icons.schedule_outlined),
+                          label: Text('End: ${endTime.format(context)}'),
+                          onPressed: () async {
+                            final picked = await showTimePicker(
+                              context: context,
+                              initialTime: endTime,
+                            );
+                            if (picked != null) {
+                              setStateDialog(() => endTime = picked);
+                            }
+                          },
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'The report will include all completed orders within the selected time range.',
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: () async {
+                    Navigator.of(dialogContext).pop();
+                    await _generateShiftZReport(
+                      shiftController.text.trim().isEmpty
+                          ? 'Shift Z'
+                          : shiftController.text.trim(),
+                      startTime,
+                      endTime,
+                    );
+                  },
+                  child: const Text('Generate'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _generateShiftZReport(
+    String shiftName,
+    TimeOfDay start,
+    TimeOfDay end,
+  ) async {
+    final now = DateTime.now();
+    var startDateTime = DateTime(
+      now.year,
+      now.month,
+      now.day,
+      start.hour,
+      start.minute,
+    );
+    var endDateTime = DateTime(
+      now.year,
+      now.month,
+      now.day,
+      end.hour,
+      end.minute,
+    );
+
+    if (!endDateTime.isAfter(startDateTime)) {
+      endDateTime = endDateTime.add(const Duration(days: 1));
+    }
+
+    final startTimestamp = Timestamp.fromDate(startDateTime);
+    final endTimestamp = Timestamp.fromDate(endDateTime);
+
+    try {
+      final ordersSnapshot = await FirebaseFirestore.instance
+          .collection('orders')
+          .where('status', isEqualTo: 'completed')
+          .get();
+
+      final filteredOrders = ordersSnapshot.docs.where((doc) {
+        final data = doc.data();
+        final timestamp =
+            (data['completedAt'] as Timestamp?) ??
+            (data['timestamp'] as Timestamp?);
+        if (timestamp == null) return false;
+        final time = timestamp.toDate();
+        return !time.isBefore(startDateTime) && !time.isAfter(endDateTime);
+      }).toList();
+
+      double totalRevenue = 0;
+      final Map<String, int> itemSummary = {};
+
+      for (final doc in filteredOrders) {
+        final data = doc.data();
+        totalRevenue += (data['total'] as num?)?.toDouble() ?? 0.0;
+        final items = data['items'] as List<dynamic>? ?? [];
+        for (final item in items) {
+          if (item is! Map<String, dynamic>) continue;
+          final name = item['name'] as String? ?? 'Item';
+          final quantity = (item['quantity'] as num?)?.toInt() ?? 0;
+          if (quantity <= 0) continue;
+          itemSummary.update(
+            name,
+            (value) => value + quantity,
+            ifAbsent: () => quantity,
+          );
+        }
+      }
+
+      final refundsSnapshot = await FirebaseFirestore.instance
+          .collection('refunds')
+          .where('refundTimestamp', isGreaterThanOrEqualTo: startTimestamp)
+          .where('refundTimestamp', isLessThanOrEqualTo: endTimestamp)
+          .get();
+
+      double totalRefundAmount = 0;
+      for (final doc in refundsSnapshot.docs) {
+        totalRefundAmount +=
+            (doc.data()['totalRefundAmount'] as num?)?.toDouble() ?? 0.0;
+      }
+
+      final expensesSnapshot = await FirebaseFirestore.instance
+          .collection('expenses')
+          .where('transactionDate', isGreaterThanOrEqualTo: startTimestamp)
+          .where('transactionDate', isLessThanOrEqualTo: endTimestamp)
+          .get();
+
+      double totalExpenses = 0;
+      for (final doc in expensesSnapshot.docs) {
+        totalExpenses += (doc.data()['amount'] as num?)?.toDouble() ?? 0.0;
+      }
+
+      final netSales = totalRevenue - totalRefundAmount - totalExpenses;
+
+      final sortedItems = itemSummary.entries.toList()
+        ..sort((a, b) => b.value.compareTo(a.value));
+
+      await FirebaseFirestore.instance.collection('shift_reports').add({
+        'shiftName': shiftName,
+        'start': startTimestamp,
+        'end': endTimestamp,
+        'generatedAt': Timestamp.now(),
+        'totalRevenue': totalRevenue,
+        'totalOrders': filteredOrders.length,
+        'totalRefundAmount': totalRefundAmount,
+        'totalExpenses': totalExpenses,
+        'netSales': netSales,
+        'itemSummary': Map.fromEntries(sortedItems),
+      });
+
+      if (!mounted) return;
+
+      final timeFormat = DateFormat('HH:mm');
+      await showDialog(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            title: const Text('Shift Z Report Summary'),
+            content: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Shift: $shiftName'),
+                  Text(
+                    'Period: ${timeFormat.format(startDateTime)} - ${timeFormat.format(endDateTime)}',
+                  ),
+                  const SizedBox(height: 12),
+                  Text('Orders Completed: ${filteredOrders.length}'),
+                  Text(
+                    'Gross Revenue: ${totalRevenue.toStringAsFixed(2)} Baht',
+                  ),
+                  Text('Refunds: ${totalRefundAmount.toStringAsFixed(2)} Baht'),
+                  Text('Expenses: ${totalExpenses.toStringAsFixed(2)} Baht'),
+                  const Divider(),
+                  Text(
+                    'Net Sales: ${netSales.toStringAsFixed(2)} Baht',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  if (sortedItems.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    const Text(
+                      'Items Sold',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 4),
+                    ...sortedItems.map(
+                      (entry) => Text('${entry.key}: ${entry.value}'),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Close'),
+              ),
+            ],
+          );
+        },
+      );
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Shift Z report saved.')));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to generate Shift Z report: $e')),
+      );
+    }
   }
 }

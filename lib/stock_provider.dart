@@ -78,6 +78,38 @@ class StockProvider with ChangeNotifier {
     return true;
   }
 
+  Future<void> deductIngredientsFromUsage(List<dynamic> ingredientUsage) async {
+    if (ingredientUsage.isEmpty) return;
+
+    final Map<String, double> aggregated = {};
+
+    for (final entry in ingredientUsage) {
+      if (entry is! Map<String, dynamic>) continue;
+      final String? ingredientId = entry['ingredientId'] as String?;
+      if (ingredientId == null || ingredientId.isEmpty) continue;
+
+      final double quantity = (entry['quantity'] as num?)?.toDouble() ?? 0.0;
+      if (quantity == 0) continue;
+
+      aggregated.update(
+        ingredientId,
+        (value) => value + quantity,
+        ifAbsent: () => quantity,
+      );
+    }
+
+    if (aggregated.isEmpty) return;
+
+    final batch = _firestore.batch();
+
+    aggregated.forEach((ingredientId, quantity) {
+      final docRef = _firestore.collection('ingredients').doc(ingredientId);
+      batch.update(docRef, {'stockQuantity': FieldValue.increment(-quantity)});
+    });
+
+    await batch.commit();
+  }
+
   @override
   void dispose() {
     _stockSubscription?.cancel();

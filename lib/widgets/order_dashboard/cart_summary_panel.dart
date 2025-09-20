@@ -280,6 +280,7 @@ class _CartSummaryPanelState extends State<CartSummaryPanel> {
     CartProvider cart,
     SyncQueueService syncQueue,
   ) async {
+    final ingredientUsage = cart.ingredientUsage;
     final itemsToSave = cart.items.values
         .map(
           (item) => {
@@ -290,6 +291,7 @@ class _CartSummaryPanelState extends State<CartSummaryPanel> {
             'description': item.description,
             'category': item.category,
             'selectedModifiers': item.selectedModifiers,
+            'recipe': item.recipe,
           },
         )
         .toList();
@@ -317,6 +319,8 @@ class _CartSummaryPanelState extends State<CartSummaryPanel> {
       'items': itemsToSave,
       'customerId': cart.customer?.id,
       'customerName': cart.customer?.name,
+      'ingredientUsage': ingredientUsage,
+      'stockDeducted': false,
     };
 
     if (!syncQueue.isOnline) {

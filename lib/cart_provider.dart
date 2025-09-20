@@ -113,6 +113,66 @@ class CartProvider with ChangeNotifier {
     return total;
   }
 
+  List<Map<String, dynamic>> get ingredientUsage {
+    final Map<String, Map<String, dynamic>> aggregatedUsage = {};
+
+    for (final cartItem in _items.values) {
+      if (cartItem.recipe.isEmpty) continue;
+
+      for (final recipeEntry in cartItem.recipe) {
+        if (recipeEntry is! Map<String, dynamic>) {
+          continue;
+        }
+        final ingredientId = recipeEntry['ingredientId'] as String?;
+        if (ingredientId == null || ingredientId.isEmpty) {
+          continue;
+        }
+
+        final perUnitQuantity =
+            (recipeEntry['quantity'] as num?)?.toDouble() ?? 0.0;
+        if (perUnitQuantity <= 0) {
+          continue;
+        }
+
+        final totalQuantity = perUnitQuantity * cartItem.quantity;
+        final ingredientName =
+            recipeEntry['ingredientName'] ?? recipeEntry['name'] ?? '';
+        final unit = recipeEntry['unit'] ?? recipeEntry['ingredientUnit'] ?? '';
+
+        aggregatedUsage.update(
+          ingredientId,
+          (existing) {
+            final currentQuantity =
+                (existing['quantity'] as num?)?.toDouble() ?? 0.0;
+            return {
+              'ingredientId': ingredientId,
+              'ingredientName': existing['ingredientName'] ?? ingredientName,
+              'unit': existing['unit'] ?? unit,
+              'quantity': currentQuantity + totalQuantity,
+            };
+          },
+          ifAbsent: () => {
+            'ingredientId': ingredientId,
+            'ingredientName': ingredientName,
+            'unit': unit,
+            'quantity': totalQuantity,
+          },
+        );
+      }
+    }
+
+    return aggregatedUsage.values
+        .map(
+          (entry) => {
+            'ingredientId': entry['ingredientId'],
+            'ingredientName': entry['ingredientName'],
+            'unit': entry['unit'],
+            'quantity': (entry['quantity'] as num?)?.toDouble() ?? 0.0,
+          },
+        )
+        .toList();
+  }
+
   void update(StockProvider stock) {
     _stockProvider = stock;
   }

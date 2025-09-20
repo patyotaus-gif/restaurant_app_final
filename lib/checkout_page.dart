@@ -4,8 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 
 import 'services/printing_service.dart';
+import 'stock_provider.dart';
 
 class CheckoutPage extends StatefulWidget {
   final String orderId;
@@ -211,6 +213,27 @@ class _CheckoutPageState extends State<CheckoutPage> {
 
     try {
       await orderRef.update(payload);
+      final orderSnapshot = await orderRef.get();
+      final data = orderSnapshot.data();
+
+      if (data != null) {
+        final usage = (data['ingredientUsage'] as List<dynamic>?) ?? [];
+        final stockDeducted = data['stockDeducted'] == true;
+
+        if (usage.isNotEmpty && !stockDeducted) {
+          try {
+            final stockProvider = Provider.of<StockProvider>(
+              context,
+              listen: false,
+            );
+            await stockProvider.deductIngredientsFromUsage(usage);
+            await orderRef.update({'stockDeducted': true});
+          } catch (e) {
+            // If stock provider isn't available, skip deduction but do not fail.
+          }
+        }
+      }
+
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Payment confirmed successfully!')),

@@ -9,6 +9,7 @@ import 'package:go_router/go_router.dart';
 import 'models/product_model.dart';
 import 'barcode_scanner_page.dart';
 import 'admin/modifier_management_page.dart';
+import 'models/ingredient_model.dart';
 
 class EditProductPage extends StatefulWidget {
   final Product? product;
@@ -36,6 +37,9 @@ class _EditProductPageState extends State<EditProductPage> {
   List<ModifierGroup> _availableModifierGroups = [];
   List<String> _selectedModifierGroupIds = [];
   bool _isLoadingModifiers = true;
+  List<Ingredient> _availableIngredients = [];
+  bool _isLoadingIngredients = true;
+  List<Map<String, dynamic>> _recipeData = [];
 
   final ImagePicker _picker = ImagePicker();
   bool _isUploading = false;
@@ -59,11 +63,14 @@ class _EditProductPageState extends State<EditProductPage> {
     _costPriceController = TextEditingController(
       text: p?.costPrice.toString() ?? '0.0',
     );
+    _recipeData =
+        p?.recipe.map((item) => Map<String, dynamic>.from(item)).toList() ?? [];
 
     if (p != null) {
       _selectedModifierGroupIds = List<String>.from(p.modifierGroupIds);
     }
     _fetchModifierGroups();
+    _loadIngredients();
   }
 
   Future<void> _fetchModifierGroups() async {
@@ -82,6 +89,28 @@ class _EditProductPageState extends State<EditProductPage> {
     } catch (e) {
       setState(() {
         _isLoadingModifiers = false;
+      });
+    }
+  }
+
+  Future<void> _loadIngredients() async {
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('ingredients')
+          .orderBy('name')
+          .get();
+      final ingredients = snapshot.docs
+          .map((doc) => Ingredient.fromSnapshot(doc))
+          .toList();
+      if (!mounted) return;
+      setState(() {
+        _availableIngredients = ingredients;
+        _isLoadingIngredients = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isLoadingIngredients = false;
       });
     }
   }
@@ -156,7 +185,7 @@ class _EditProductPageState extends State<EditProductPage> {
         sku: _skuController.text,
         barcode: _barcodeController.text,
         costPrice: double.tryParse(_costPriceController.text) ?? 0.0,
-        recipe: widget.product?.recipe ?? [],
+        recipe: _recipeData,
         variations: widget.product?.variations ?? [],
         modifierGroupIds: _selectedModifierGroupIds,
       ).toFirestore();
@@ -381,17 +410,8 @@ class _EditProductPageState extends State<EditProductPage> {
                     ),
               if (_productType == ProductType.food) ...[
                 const SizedBox(height: 24),
-                _buildSectionHeader('Recipe (for Food items)'),
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey.shade300),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: const Center(
-                    child: Text('Recipe management UI will be here.'),
-                  ),
-                ),
+                _buildSectionHeader('Bill of Materials (Ingredients)'),
+                _buildRecipeManagementCard(),
               ],
             ],
           ),
@@ -412,5 +432,233 @@ class _EditProductPageState extends State<EditProductPage> {
         ),
       ),
     );
+  }
+
+  Widget _buildRecipeManagementCard() {
+    if (_isLoadingIngredients) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.grey.shade300),
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.grey.shade300),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (_recipeData.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8.0),
+              child: Text(
+                'No ingredients added yet. Use the button below to build the recipe.',
+                style: TextStyle(color: Colors.grey.shade700),
+              ),
+            )
+          else
+            Column(
+              children: _recipeData.asMap().entries.map((entry) {
+                final index = entry.key;
+                final data = entry.value;
+                final ingredientName = (data['ingredientName'] as String?)
+                    ?.trim();
+                final unit = (data['unit'] as String?)?.trim();
+                final quantity = (data['quantity'] as num?)?.toDouble() ?? 0.0;
+                return Card(
+                  margin: const EdgeInsets.symmetric(vertical: 6),
+                  child: ListTile(
+                    title: Text(
+                      ingredientName?.isEmpty ?? true
+                          ? 'Unknown Ingredient'
+                          : ingredientName!,
+                    ),
+                    subtitle: Text(
+                      unit == null || unit.isEmpty
+                          ? 'Quantity: ${quantity.toStringAsFixed(2)}'
+                          : 'Quantity: ${quantity.toStringAsFixed(2)} $unit',
+                    ),
+                    trailing: Wrap(
+                      spacing: 8,
+                      children: [
+                        IconButton(
+                          tooltip: 'Edit quantity',
+                          icon: const Icon(Icons.edit),
+                          onPressed: () => _editRecipeItemQuantity(index),
+                        ),
+                        IconButton(
+                          tooltip: 'Remove ingredient',
+                          icon: const Icon(Icons.delete_outline),
+                          onPressed: () => _removeRecipeItem(index),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          const SizedBox(height: 12),
+          Align(
+            alignment: Alignment.centerRight,
+            child: ElevatedButton.icon(
+              icon: const Icon(Icons.add),
+              label: const Text('Add Ingredient'),
+              onPressed: _availableIngredients.isEmpty
+                  ? null
+                  : _showAddRecipeItemDialog,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showAddRecipeItemDialog() {
+    if (_availableIngredients.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No ingredients available. Please add ingredients.'),
+        ),
+      );
+      return;
+    }
+
+    String? selectedIngredientId = _availableIngredients.first.id;
+    final quantityController = TextEditingController(text: '1');
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Add Ingredient'),
+          content: StatefulBuilder(
+            builder: (context, setStateDialog) {
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  DropdownButtonFormField<String>(
+                    value: selectedIngredientId,
+                    decoration: const InputDecoration(labelText: 'Ingredient'),
+                    items: _availableIngredients
+                        .map(
+                          (ingredient) => DropdownMenuItem(
+                            value: ingredient.id,
+                            child: Text(ingredient.name),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (value) =>
+                        setStateDialog(() => selectedIngredientId = value),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: quantityController,
+                    decoration: const InputDecoration(
+                      labelText: 'Quantity per serving',
+                    ),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                final quantity =
+                    double.tryParse(quantityController.text.trim()) ?? 0.0;
+                if (selectedIngredientId == null || quantity <= 0) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Please select ingredient and quantity.'),
+                    ),
+                  );
+                  return;
+                }
+
+                final ingredient = _availableIngredients.firstWhere(
+                  (ing) => ing.id == selectedIngredientId,
+                );
+
+                setState(() {
+                  _recipeData.add({
+                    'ingredientId': ingredient.id,
+                    'ingredientName': ingredient.name,
+                    'unit': ingredient.unit,
+                    'quantity': quantity,
+                  });
+                });
+                Navigator.of(dialogContext).pop();
+              },
+              child: const Text('Add'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _editRecipeItemQuantity(int index) {
+    final data = _recipeData[index];
+    final controller = TextEditingController(
+      text: ((data['quantity'] as num?)?.toDouble() ?? 0.0).toString(),
+    );
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Edit Quantity'),
+          content: TextField(
+            controller: controller,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: const InputDecoration(
+              labelText: 'Quantity per serving',
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                final quantity = double.tryParse(controller.text.trim()) ?? 0.0;
+                if (quantity <= 0) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Invalid quantity.')),
+                  );
+                  return;
+                }
+                setState(() {
+                  _recipeData[index]['quantity'] = quantity;
+                });
+                Navigator.of(dialogContext).pop();
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _removeRecipeItem(int index) {
+    setState(() {
+      _recipeData.removeAt(index);
+    });
   }
 }
