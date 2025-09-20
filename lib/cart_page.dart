@@ -46,8 +46,9 @@ class _CartPageState extends State<CartPage> {
         '',
       );
     }
-    _serviceChargePercentController.text =
-        _formatNumber(cart.serviceChargeRate * 100);
+    _serviceChargePercentController.text = _formatNumber(
+      cart.serviceChargeRate * 100,
+    );
     _tipAmountController.text = cart.tipAmount.toStringAsFixed(2);
   }
 
@@ -121,6 +122,76 @@ class _CartPageState extends State<CartPage> {
   }
 
   Widget _buildSyncStatus(SyncQueueService syncQueue) {
+    final isOffline = !syncQueue.isOnline;
+    final pending = syncQueue.pendingCount;
+    final error = syncQueue.lastError;
+    final lastSynced = syncQueue.lastSyncedAt;
+
+    if (!isOffline && pending == 0 && error == null) {
+      return const SizedBox.shrink();
+    }
+
+    Color background;
+    IconData icon;
+    String message;
+    String? details;
+
+    if (isOffline) {
+      background = Colors.orange.shade100;
+      icon = Icons.wifi_off;
+      message = pending > 0
+          ? 'Offline mode: $pending queued order(s) will sync later.'
+          : 'Offline mode: new orders will sync when online.';
+    } else if (pending > 0) {
+      background = Colors.blue.shade100;
+      icon = Icons.sync;
+      message = 'Syncing $pending pending order(s)...';
+    } else {
+      background = Colors.red.shade100;
+      icon = Icons.error_outline;
+      message = 'Sync error: ${error ?? 'Please retry.'}';
+    }
+
+    if (lastSynced != null) {
+      final localTime = lastSynced.toLocal();
+      final timeOfDay = TimeOfDay.fromDateTime(localTime).format(context);
+      final dateLabel = MaterialLocalizations.of(
+        context,
+      ).formatShortDate(localTime);
+      details = 'Last synced $dateLabel at $timeOfDay';
+    }
+
+    return Container(
+      width: double.infinity,
+      color: background,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: Colors.black54),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  message,
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+                if (details != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4.0),
+                    child: Text(
+                      details!,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Colors.black54,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
           if (!isOffline && (pending > 0 || error != null))
             TextButton(
               onPressed: () => syncQueue.triggerSync(),
@@ -213,8 +284,8 @@ class _CartPageState extends State<CartPage> {
                 (orderData['serviceChargeRate'] as num?)?.toDouble() ?? 0.0,
             tipAmount: (orderData['tipAmount'] as num?)?.toDouble() ?? 0.0,
             splitCount: (orderData['splitCount'] as num?)?.toInt() ?? 1,
-            splitAmountPerGuest:
-                (orderData['splitAmountPerGuest'] as num?)?.toDouble(),
+            splitAmountPerGuest: (orderData['splitAmountPerGuest'] as num?)
+                ?.toDouble(),
           ),
         ),
       );
@@ -232,6 +303,9 @@ class _CartPageState extends State<CartPage> {
     final maxDiscount = (points / 10).floor();
     if (points == 0) return const SizedBox.shrink();
 
+    final hasPointsDiscount = cart.discountType == 'points';
+    final hasOtherDiscount = cart.discountType != 'none' && !hasPointsDiscount;
+
     return Card(
       color: Colors.amber.shade50,
       child: ListTile(
@@ -239,7 +313,39 @@ class _CartPageState extends State<CartPage> {
         title: Text('Use $points points'),
         subtitle: Text('Get a discount of $maxDiscount Baht'),
         trailing: ElevatedButton(
-          onPressed: cart.discountType != 'none'
+          onPressed: hasOtherDiscount
+              ? null
+              : () {
+                  if (hasPointsDiscount) {
+                    cart.removeDiscount();
+                  } else {
+                    cart.applyPointsDiscount();
+                  }
+                },
+          child: Text(hasPointsDiscount ? 'Reset' : 'Redeem'),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPromotionSection(CartProvider cart) {
+    if (cart.discountType != 'none') {
+      String discountLabel = 'Discount';
+      if (cart.discountType == 'promotion') {
+        discountLabel = "Promotion (${cart.appliedPromotion?.code ?? ''})";
+      } else if (cart.discountType == 'points') {
+        discountLabel = 'Points Redemption';
+      }
+      return ListTile(
+        dense: true,
+        leading: Icon(Icons.check_circle, color: Colors.green.shade700),
+        title: Text(discountLabel),
+        trailing: IconButton(
+          icon: const Icon(Icons.clear, size: 18),
+          onPressed: () => cart.removeDiscount(),
+        ),
+      );
+    }
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
@@ -301,8 +407,9 @@ class _CartPageState extends State<CartPage> {
                       labelText: 'Service Charge %',
                       suffixText: '%',
                     ),
-                    keyboardType:
-                        const TextInputType.numberWithOptions(decimal: true),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
                     onChanged: (value) {
                       final parsed = double.tryParse(value);
                       if (parsed != null) {
@@ -351,8 +458,7 @@ class _CartPageState extends State<CartPage> {
               labelText: 'Tip Amount',
               prefixText: '฿ ',
             ),
-            keyboardType:
-                const TextInputType.numberWithOptions(decimal: true),
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
             onChanged: (value) {
               final parsed = double.tryParse(value);
               if (parsed != null) {
@@ -463,7 +569,10 @@ class _CartPageState extends State<CartPage> {
                 child: _buildPointsSection(cart),
               ),
               Card(
-                margin: const EdgeInsets.symmetric(horizontal: 15.0, vertical: 8.0),
+                margin: const EdgeInsets.symmetric(
+                  horizontal: 15.0,
+                  vertical: 8.0,
+                ),
                 child: Padding(
                   padding: const EdgeInsets.all(12.0),
                   child: Column(
@@ -660,4 +769,3 @@ class _CartPageState extends State<CartPage> {
     );
   }
 }
-.

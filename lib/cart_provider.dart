@@ -273,7 +273,7 @@ class CartProvider with ChangeNotifier {
   }
 
   void setTipAmount(double amount) {
-    final sanitizedAmount = amount < 0 ? 0 : amount;
+    final double sanitizedAmount = amount < 0 ? 0.0 : amount;
     if (_tipAmount == sanitizedAmount) return;
     _tipAmount = sanitizedAmount;
     notifyListeners();
@@ -427,4 +427,3 @@ class CartProvider with ChangeNotifier {
     notifyListeners();
   }
 }
-.
