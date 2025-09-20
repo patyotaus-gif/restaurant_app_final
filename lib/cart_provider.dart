@@ -67,6 +67,8 @@ class CartProvider with ChangeNotifier {
   double get serviceChargeRate => _serviceChargeRate;
   double get tipAmount => _tipAmount;
   int get splitCount => _splitCount;
+  Set<String> get categoriesInCart =>
+      _items.values.map((item) => item.category).toSet();
 
   double get splitAmountPerGuest {
     final normalizedCount = _splitCount <= 0 ? 1 : _splitCount;
@@ -152,6 +154,7 @@ class CartProvider with ChangeNotifier {
       itemCount: totalQuantity,
       categories: categoriesInCart,
       orderType: _orderType?.name,
+      currentTime: DateTime.now(),
     );
 
     if (validationMessage != null) {

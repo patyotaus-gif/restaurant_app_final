@@ -8,6 +8,9 @@ class PromotionRules {
   final List<String> orderTypes;
   final DateTime? startDate;
   final DateTime? endDate;
+  final List<int> allowedWeekdays;
+  final String? startTime;
+  final String? endTime;
 
   const PromotionRules({
     this.minSubtotal,
@@ -16,6 +19,9 @@ class PromotionRules {
     this.orderTypes = const [],
     this.startDate,
     this.endDate,
+    this.allowedWeekdays = const [],
+    this.startTime,
+    this.endTime,
   });
 
   factory PromotionRules.fromMap(Map<String, dynamic>? data) {
@@ -46,6 +52,24 @@ class PromotionRules {
       return const [];
     }
 
+    List<int> _intList(dynamic value) {
+      if (value is Iterable) {
+        return value
+            .map((e) => int.tryParse(e.toString()))
+            .whereType<int>()
+            .toSet()
+            .toList()
+          ..sort();
+      }
+      return const [];
+    }
+
+    String? _stringOrNull(dynamic value) {
+      if (value == null) return null;
+      final text = value.toString().trim();
+      return text.isEmpty ? null : text;
+    }
+
     return PromotionRules(
       minSubtotal: (data['minSubtotal'] as num?)?.toDouble(),
       minQuantity: (data['minQuantity'] as num?)?.toInt(),
@@ -53,6 +77,9 @@ class PromotionRules {
       orderTypes: _stringList(data['orderTypes']),
       startDate: _parseDate(data['startDate']),
       endDate: _parseDate(data['endDate']),
+      allowedWeekdays: _intList(data['allowedWeekdays']),
+      startTime: _stringOrNull(data['startTime']),
+      endTime: _stringOrNull(data['endTime']),
     );
   }
 
@@ -72,6 +99,15 @@ class PromotionRules {
     if (endDate != null) {
       map['endDate'] = Timestamp.fromDate(endDate!);
     }
+    if (allowedWeekdays.isNotEmpty) {
+      map['allowedWeekdays'] = allowedWeekdays;
+    }
+    if (startTime != null && startTime!.trim().isNotEmpty) {
+      map['startTime'] = startTime!.trim();
+    }
+    if (endTime != null && endTime!.trim().isNotEmpty) {
+      map['endTime'] = endTime!.trim();
+    }
     return map;
   }
 
@@ -81,7 +117,10 @@ class PromotionRules {
         requiredCategories.isNotEmpty ||
         orderTypes.isNotEmpty ||
         startDate != null ||
-        endDate != null;
+        endDate != null ||
+        allowedWeekdays.isNotEmpty ||
+        (startTime != null && startTime!.trim().isNotEmpty) ||
+        (endTime != null && endTime!.trim().isNotEmpty);
   }
 
   String? validate({
@@ -99,6 +138,13 @@ class PromotionRules {
     if (endDate != null && now.isAfter(endDate!)) {
       return 'This promotion has expired.';
     }
+    if (allowedWeekdays.isNotEmpty && !allowedWeekdays.contains(now.weekday)) {
+      return 'This promotion is not valid on this day of the week.';
+    }
+    if (!_isWithinTimeWindow(now)) {
+      return 'This promotion is not available at this time.';
+    }
+
     if (minSubtotal != null && subtotal < minSubtotal!) {
       return 'This promotion requires a minimum subtotal of '
           '฿${minSubtotal!.toStringAsFixed(2)}.';
@@ -139,6 +185,44 @@ class PromotionRules {
         null;
   }
 
+  bool _isWithinTimeWindow(DateTime now) {
+    final hasStart = startTime != null && startTime!.trim().isNotEmpty;
+    final hasEnd = endTime != null && endTime!.trim().isNotEmpty;
+
+    if (!hasStart && !hasEnd) {
+      return true;
+    }
+
+    int? _parseMinutes(String? value) {
+      if (value == null) return null;
+      final parts = value.split(':');
+      if (parts.length != 2) return null;
+      final hour = int.tryParse(parts[0]);
+      final minute = int.tryParse(parts[1]);
+      if (hour == null || minute == null) return null;
+      if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return null;
+      return hour * 60 + minute;
+    }
+
+    final startMinutes = hasStart ? _parseMinutes(startTime) : null;
+    final endMinutes = hasEnd ? _parseMinutes(endTime) : null;
+    final currentMinutes = now.hour * 60 + now.minute;
+
+    if (startMinutes == null && endMinutes == null) {
+      return true;
+    }
+
+    final effectiveStart = startMinutes ?? 0;
+    final effectiveEnd = endMinutes ?? (24 * 60 - 1);
+
+    if (effectiveStart <= effectiveEnd) {
+      return currentMinutes >= effectiveStart && currentMinutes <= effectiveEnd;
+    }
+
+    // Overnight promotion (e.g., 22:00 - 02:00)
+    return currentMinutes >= effectiveStart || currentMinutes <= effectiveEnd;
+  }
+
   String summary() {
     final parts = <String>[];
     if (minSubtotal != null) {
@@ -159,6 +243,16 @@ class PromotionRules {
     if (endDate != null) {
       parts.add('Until ${DateFormat('d MMM').format(endDate!)}');
     }
+    if (allowedWeekdays.isNotEmpty) {
+      parts.add('Days: ${allowedWeekdays.map(_weekdayLabel).join(', ')}');
+    }
+    final hasStartTime = startTime != null && startTime!.trim().isNotEmpty;
+    final hasEndTime = endTime != null && endTime!.trim().isNotEmpty;
+    if (hasStartTime || hasEndTime) {
+      final startText = hasStartTime ? startTime!.trim() : 'Any time';
+      final endText = hasEndTime ? endTime!.trim() : 'Any time';
+      parts.add('Time: $startText - $endText');
+    }
     return parts.join(' • ');
   }
 
@@ -172,6 +266,27 @@ class PromotionRules {
         return 'Retail';
       default:
         return type;
+    }
+  }
+
+  String _weekdayLabel(int weekday) {
+    switch (weekday) {
+      case DateTime.monday:
+        return 'Mon';
+      case DateTime.tuesday:
+        return 'Tue';
+      case DateTime.wednesday:
+        return 'Wed';
+      case DateTime.thursday:
+        return 'Thu';
+      case DateTime.friday:
+        return 'Fri';
+      case DateTime.saturday:
+        return 'Sat';
+      case DateTime.sunday:
+        return 'Sun';
+      default:
+        return 'Day $weekday';
     }
   }
 }

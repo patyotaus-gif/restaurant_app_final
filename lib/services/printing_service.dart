@@ -121,7 +121,7 @@ class PrintingService {
                 children: [
                   pw.Text('Subtotal', style: pw.TextStyle(font: ttf)),
                   pw.Text(
-                    (orderData['subtotal'] as num).toStringAsFixed(2),
+                    ((orderData['subtotal'] as num?) ?? 0).toStringAsFixed(2),
                     style: pw.TextStyle(font: ttf),
                   ),
                 ],
@@ -131,11 +131,35 @@ class PrintingService {
                 children: [
                   pw.Text('Discount', style: pw.TextStyle(font: ttf)),
                   pw.Text(
-                    (orderData['discount'] as num).toStringAsFixed(2),
+                    ((orderData['discount'] as num?) ?? 0).toStringAsFixed(2),
                     style: pw.TextStyle(font: ttf),
                   ),
                 ],
               ),
+              if ((orderData['serviceChargeAmount'] as num? ?? 0) > 0)
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    pw.Text('Service Charge', style: pw.TextStyle(font: ttf)),
+                    pw.Text(
+                      (orderData['serviceChargeAmount'] as num).toStringAsFixed(
+                        2,
+                      ),
+                      style: pw.TextStyle(font: ttf),
+                    ),
+                  ],
+                ),
+              if ((orderData['tipAmount'] as num? ?? 0) > 0)
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    pw.Text('Tip', style: pw.TextStyle(font: ttf)),
+                    pw.Text(
+                      (orderData['tipAmount'] as num).toStringAsFixed(2),
+                      style: pw.TextStyle(font: ttf),
+                    ),
+                  ],
+                ),
               pw.SizedBox(height: 5),
               pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,

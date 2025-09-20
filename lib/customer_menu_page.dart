@@ -119,6 +119,28 @@ class _CustomerMenuPageState extends State<CustomerMenuPage> {
     }
 
     final promo = Promotion.fromFirestore(promoQuery.docs.first);
+    final categories = _tempCart.values.map((item) => item.category).toSet();
+    final totalItems = _tempCart.values.fold<int>(
+      0,
+      (count, item) => count + item.quantity,
+    );
+    final validationMessage = promo.rules.validate(
+      subtotal: _subtotal,
+      itemCount: totalItems,
+      categories: categories,
+      orderType: 'dineIn',
+      currentTime: DateTime.now(),
+    );
+
+    if (validationMessage != null) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(validationMessage)));
+      }
+      return;
+    }
+
     double calculatedDiscount = 0;
 
     if (promo.type == 'percentage') {

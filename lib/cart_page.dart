@@ -121,7 +121,6 @@ class _CartPageState extends State<CartPage> {
   }
 
   Widget _buildSyncStatus(SyncQueueService syncQueue) {
-@@ -140,107 +168,129 @@ class _CartPageState extends State<CartPage> {
           if (!isOffline && (pending > 0 || error != null))
             TextButton(
               onPressed: () => syncQueue.triggerSync(),
@@ -241,7 +240,6 @@ class _CartPageState extends State<CartPage> {
         subtitle: Text('Get a discount of $maxDiscount Baht'),
         trailing: ElevatedButton(
           onPressed: cart.discountType != 'none'
-@@ -281,50 +331,226 @@ class _CartPageState extends State<CartPage> {
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
@@ -465,22 +463,29 @@ class _CartPageState extends State<CartPage> {
                 child: _buildPointsSection(cart),
               ),
               Card(
-@@ -348,72 +574,93 @@ class _CartPageState extends State<CartPage> {
+                margin: const EdgeInsets.symmetric(horizontal: 15.0, vertical: 8.0),
+                child: Padding(
+                  padding: const EdgeInsets.all(12.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      if (cart.orderIdentifier != null)
+                        ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: const Text(
                             'Order Number',
                             style: TextStyle(color: Colors.grey),
                           ),
                           trailing: Text(
-                            cart.orderIdentifier ?? '',
+                            cart.orderIdentifier!,
                             style: const TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
-                        )
-                      else
-                        const SizedBox.shrink(),
-                      const SizedBox(height: 10),
+                        ),
                       ListTile(
+                        contentPadding: EdgeInsets.zero,
                         title: const Text(
                           'Subtotal',
                           style: TextStyle(fontSize: 16),
@@ -495,6 +500,7 @@ class _CartPageState extends State<CartPage> {
                       _buildTipSection(cart),
                       if (cart.serviceChargeEnabled)
                         ListTile(
+                          contentPadding: EdgeInsets.zero,
                           title: Text(
                             'Service Charge (${_formatNumber(cart.serviceChargeRate * 100)}%)',
                           ),
@@ -505,6 +511,7 @@ class _CartPageState extends State<CartPage> {
                         ),
                       if (cart.tipAmount > 0)
                         ListTile(
+                          contentPadding: EdgeInsets.zero,
                           title: const Text('Tip'),
                           trailing: Text(
                             '+ ${cart.tipAmount.toStringAsFixed(2)} บาท',
@@ -513,6 +520,7 @@ class _CartPageState extends State<CartPage> {
                         ),
                       const Divider(),
                       ListTile(
+                        contentPadding: EdgeInsets.zero,
                         title: const Text(
                           'Total',
                           style: TextStyle(
@@ -538,9 +546,10 @@ class _CartPageState extends State<CartPage> {
                 child: ListView.builder(
                   itemCount: cart.items.length,
                   itemBuilder: (ctx, i) {
+                    final itemKey = cart.items.keys.toList()[i];
                     final cartItem = cart.items.values.toList()[i];
                     return Dismissible(
-                      key: ValueKey(cartItem.id),
+                      key: ValueKey(itemKey),
                       background: Container(
                         color: Theme.of(context).colorScheme.error,
                         alignment: Alignment.centerRight,
@@ -561,7 +570,7 @@ class _CartPageState extends State<CartPage> {
                         () => Provider.of<CartProvider>(
                           context,
                           listen: false,
-                        ).removeItem(cartItem.id),
+                        ).removeItem(itemKey),
                       ),
                       child: Card(
                         margin: const EdgeInsets.symmetric(
@@ -580,7 +589,7 @@ class _CartPageState extends State<CartPage> {
                                 icon: const Icon(Icons.remove),
                                 onPressed: () => _handleItemRemoval(
                                   context,
-                                  () => cart.removeSingleItem(cartItem.id),
+                                  () => cart.removeSingleItem(itemKey),
                                 ),
                               ),
                               Text('${cartItem.quantity}'),
@@ -589,6 +598,7 @@ class _CartPageState extends State<CartPage> {
                                 onPressed: () {
                                   final success = cart.addItem(
                                     cartItem.product,
+                                    modifiers: cartItem.selectedModifiers,
                                   );
                                   if (!success) {
                                     ScaffoldMessenger.of(context).showSnackBar(

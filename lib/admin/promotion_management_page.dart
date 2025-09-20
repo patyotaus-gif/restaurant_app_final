@@ -45,10 +45,15 @@ class _PromotionManagementPageState extends State<PromotionManagementPage> {
           ? DateFormat('yyyy-MM-dd').format(rules.endDate!)
           : '',
     );
+    final startTimeController = TextEditingController(
+      text: rules.startTime ?? '',
+    );
+    final endTimeController = TextEditingController(text: rules.endTime ?? '');
     String selectedType = promo?.type ?? 'fixed'; // 'fixed' or 'percentage'
     DateTime? selectedStartDate = rules.startDate;
     DateTime? selectedEndDate = rules.endDate;
     final Set<String> selectedOrderTypes = {...rules.orderTypes};
+    final Set<int> selectedWeekdays = {...rules.allowedWeekdays};
     final formKey = GlobalKey<FormState>();
 
     showDialog(
@@ -56,6 +61,28 @@ class _PromotionManagementPageState extends State<PromotionManagementPage> {
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setStateDialog) {
+            TimeOfDay? _parseTime(String? value) {
+              if (value == null || value.isEmpty) return null;
+              final parts = value.split(':');
+              if (parts.length != 2) return null;
+              final hour = int.tryParse(parts[0]);
+              final minute = int.tryParse(parts[1]);
+              if (hour == null || minute == null) return null;
+              if (hour < 0 || hour > 23 || minute < 0 || minute > 59) {
+                return null;
+              }
+              return TimeOfDay(hour: hour, minute: minute);
+            }
+
+            String _formatTime(TimeOfDay time) {
+              final hour = time.hour.toString().padLeft(2, '0');
+              final minute = time.minute.toString().padLeft(2, '0');
+              return '$hour:$minute';
+            }
+
+            TimeOfDay? selectedStartTime = _parseTime(startTimeController.text);
+            TimeOfDay? selectedEndTime = _parseTime(endTimeController.text);
+
             Future<void> pickDate({required bool isStart}) async {
               final initialDate = isStart
                   ? selectedStartDate ?? DateTime.now()
@@ -87,12 +114,42 @@ class _PromotionManagementPageState extends State<PromotionManagementPage> {
               });
             }
 
+            Future<void> pickTime({required bool isStart}) async {
+              final initialTime = isStart
+                  ? selectedStartTime ?? TimeOfDay.now()
+                  : selectedEndTime ?? TimeOfDay.now();
+              final picked = await showTimePicker(
+                context: context,
+                initialTime: initialTime,
+              );
+              if (picked == null) return;
+              setStateDialog(() {
+                if (isStart) {
+                  selectedStartTime = picked;
+                  startTimeController.text = _formatTime(picked);
+                } else {
+                  selectedEndTime = picked;
+                  endTimeController.text = _formatTime(picked);
+                }
+              });
+            }
+
             void toggleOrderType(String type, bool checked) {
               setStateDialog(() {
                 if (checked) {
                   selectedOrderTypes.add(type);
                 } else {
                   selectedOrderTypes.remove(type);
+                }
+              });
+            }
+
+            void toggleWeekday(int weekday, bool checked) {
+              setStateDialog(() {
+                if (checked) {
+                  selectedWeekdays.add(weekday);
+                } else {
+                  selectedWeekdays.remove(weekday);
                 }
               });
             }
@@ -127,6 +184,49 @@ class _PromotionManagementPageState extends State<PromotionManagementPage> {
                 onTap: onPick,
               );
             }
+
+            Widget buildTimeField({
+              required String label,
+              required TextEditingController controller,
+              required VoidCallback onPick,
+            }) {
+              return TextFormField(
+                controller: controller,
+                readOnly: true,
+                decoration: InputDecoration(
+                  labelText: label,
+                  suffixIcon: controller.text.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.clear),
+                          onPressed: () {
+                            setStateDialog(() {
+                              controller.clear();
+                              if (controller == startTimeController) {
+                                selectedStartTime = null;
+                              } else {
+                                selectedEndTime = null;
+                              }
+                            });
+                          },
+                        )
+                      : IconButton(
+                          icon: const Icon(Icons.access_time),
+                          onPressed: onPick,
+                        ),
+                ),
+                onTap: onPick,
+              );
+            }
+
+            final weekdayLabels = <int, String>{
+              DateTime.monday: 'Mon',
+              DateTime.tuesday: 'Tue',
+              DateTime.wednesday: 'Wed',
+              DateTime.thursday: 'Thu',
+              DateTime.friday: 'Fri',
+              DateTime.saturday: 'Sat',
+              DateTime.sunday: 'Sun',
+            };
 
             return AlertDialog(
               title: Text(isNew ? 'Add New Promotion' : 'Edit Promotion'),
@@ -282,6 +382,48 @@ class _PromotionManagementPageState extends State<PromotionManagementPage> {
                           });
                         },
                       ),
+                      const SizedBox(height: 16),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          'Valid Days (optional)',
+                          style: Theme.of(context).textTheme.titleSmall,
+                        ),
+                      ),
+                      Wrap(
+                        spacing: 8,
+                        children: weekdayLabels.entries.map((entry) {
+                          final isSelected = selectedWeekdays.contains(
+                            entry.key,
+                          );
+                          return FilterChip(
+                            label: Text(entry.value),
+                            selected: isSelected,
+                            onSelected: (value) =>
+                                toggleWeekday(entry.key, value),
+                          );
+                        }).toList(),
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: buildTimeField(
+                              label: 'Start Time (HH:MM)',
+                              controller: startTimeController,
+                              onPick: () => pickTime(isStart: true),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: buildTimeField(
+                              label: 'End Time (HH:MM)',
+                              controller: endTimeController,
+                              onPick: () => pickTime(isStart: false),
+                            ),
+                          ),
+                        ],
+                      ),
                     ],
                   ),
                 ),
@@ -310,6 +452,13 @@ class _PromotionManagementPageState extends State<PromotionManagementPage> {
                         orderTypes: selectedOrderTypes.toList(),
                         startDate: selectedStartDate,
                         endDate: selectedEndDate,
+                        allowedWeekdays: selectedWeekdays.toList()..sort(),
+                        startTime: startTimeController.text.trim().isEmpty
+                            ? null
+                            : startTimeController.text.trim(),
+                        endTime: endTimeController.text.trim().isEmpty
+                            ? null
+                            : endTimeController.text.trim(),
                       );
 
                       final promoData = {
