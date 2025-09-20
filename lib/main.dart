@@ -50,6 +50,13 @@ import 'clock_in_out_page.dart';
 import 'admin/time_report_page.dart';
 import 'admin/punch_card_management_page.dart';
 import 'admin/modifier_management_page.dart'; // <-- ADDED THIS IMPORT
+import 'admin/stocktake_page.dart';
+import 'admin/store_management_page.dart';
+import 'admin/audit_log_page.dart';
+import 'store_provider.dart';
+import 'services/store_service.dart';
+import 'services/audit_log_service.dart';
+import 'services/stocktake_service.dart';
 
 final _router = GoRouter(
   routes: [
@@ -156,12 +163,24 @@ final _router = GoRouter(
           builder: (context, state) => const CreatePurchaseOrderPage(),
         ),
         GoRoute(
+          path: 'stocktake',
+          builder: (context, state) => const StocktakePage(),
+        ),
+        GoRoute(
           path: 'dashboard',
           builder: (context, state) => const DashboardPage(),
         ),
         GoRoute(
           path: 'eod',
           builder: (context, state) => const EndOfDayReportPage(),
+        ),
+        GoRoute(
+          path: 'stores',
+          builder: (context, state) => const StoreManagementPage(),
+        ),
+        GoRoute(
+          path: 'audit-log',
+          builder: (context, state) => const AuditLogPage(),
         ),
         GoRoute(
           path: 'inventory',
@@ -210,10 +229,38 @@ class MyApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(create: (ctx) => AppModeProvider()),
         ChangeNotifierProvider(create: (ctx) => AuthService()),
+        Provider<StoreService>(
+          create: (_) => StoreService(FirebaseFirestore.instance),
+        ),
+        ChangeNotifierProxyProvider<AuthService, StoreProvider>(
+          create: (ctx) => StoreProvider(ctx.read<StoreService>()),
+          update: (ctx, auth, previous) {
+            final provider =
+                previous ?? StoreProvider(ctx.read<StoreService>());
+            provider.synchronizeWithAuth(auth);
+            return provider;
+          },
+        ),
         ChangeNotifierProvider(create: (ctx) => ThemeProvider()),
-        ChangeNotifierProvider(create: (ctx) => StockProvider()),
+        ChangeNotifierProxyProvider<StoreProvider, StockProvider>(
+          create: (ctx) => StockProvider(),
+          update: (ctx, storeProvider, stockProvider) {
+            final provider = stockProvider ?? StockProvider();
+            provider.setActiveStore(storeProvider.activeStore?.id);
+            return provider;
+          },
+        ),
         ChangeNotifierProvider(
           create: (_) => SyncQueueService(FirebaseFirestore.instance),
+        ),
+        Provider<AuditLogService>(
+          create: (_) => AuditLogService(FirebaseFirestore.instance),
+        ),
+        ProxyProvider<AuditLogService, StocktakeService>(
+          update: (ctx, auditLogService, previous) {
+            return previous ??
+                StocktakeService(FirebaseFirestore.instance, auditLogService);
+          },
         ),
         Provider<NotificationsRepository>(
           create: (_) => NotificationsRepository(FirebaseFirestore.instance),

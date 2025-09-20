@@ -11,12 +11,14 @@ class StockProvider with ChangeNotifier {
 
   Map<String, Ingredient> _ingredients = {};
   StreamSubscription? _stockSubscription;
+  String? _activeStoreId;
 
   StockProvider() {
     fetchAndListenToIngredients();
   }
 
   Map<String, Ingredient> get ingredients => _ingredients;
+  String? get activeStoreId => _activeStoreId;
 
   List<Ingredient> get lowStockIngredients {
     if (_ingredients.isEmpty) {
@@ -27,26 +29,48 @@ class StockProvider with ChangeNotifier {
         .toList();
   }
 
-  void fetchAndListenToIngredients() {
+  void fetchAndListenToIngredients({String? storeId}) {
     _stockSubscription?.cancel();
 
-    _stockSubscription = _firestore
-        .collection('ingredients')
-        .snapshots()
-        .listen(
-          (snapshot) {
-            Map<String, Ingredient> tempIngredients = {};
-            for (var doc in snapshot.docs) {
-              final ingredient = Ingredient.fromSnapshot(doc);
-              tempIngredients[ingredient.id] = ingredient;
-            }
-            _ingredients = tempIngredients;
-            notifyListeners();
-          },
-          onError: (error) {
-            // Handle error properly in a real app
-          },
-        );
+    Query collectionQuery = _firestore.collection('ingredients');
+    if (storeId != null && storeId.isNotEmpty) {
+      collectionQuery = collectionQuery.where('storeId', isEqualTo: storeId);
+    }
+
+    _stockSubscription = collectionQuery.snapshots().listen(
+      (snapshot) {
+        Map<String, Ingredient> tempIngredients = {};
+        for (var doc in snapshot.docs) {
+          final ingredient = Ingredient.fromSnapshot(doc);
+          tempIngredients[ingredient.id] = ingredient;
+        }
+        _ingredients = tempIngredients;
+        notifyListeners();
+      },
+      onError: (error) {
+        // Handle error properly in a real app
+      },
+    );
+  }
+
+  void setActiveStore(String? storeId) {
+    if (_activeStoreId == storeId) return;
+    _activeStoreId = storeId;
+    fetchAndListenToIngredients(storeId: storeId);
+  }
+
+  Ingredient? getIngredientById(String ingredientId) {
+    return _ingredients[ingredientId];
+  }
+
+  Ingredient? findByBarcode(String barcode) {
+    try {
+      return _ingredients.values.firstWhere(
+        (ingredient) => ingredient.barcode == barcode,
+      );
+    } catch (_) {
+      return null;
+    }
   }
 
   // --- 2. Change method to accept Product instead of MenuItem ---

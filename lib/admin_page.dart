@@ -117,6 +117,13 @@ class AdminPage extends StatelessWidget {
         'modes': [AppMode.restaurant, AppMode.retail],
       },
       {
+        'title': 'Stocktake & Adjustments',
+        'subtitle': 'Scan inventory and record counts',
+        'icon': Icons.qr_code_2_outlined,
+        'route': '/admin/stocktake',
+        'modes': [AppMode.restaurant, AppMode.retail],
+      },
+      {
         'title': 'Manage Inventory',
         'subtitle': 'Manage ingredients and stock levels',
         'icon': Icons.inventory_2_outlined,
@@ -152,11 +159,25 @@ class AdminPage extends StatelessWidget {
         'modes': [AppMode.restaurant, AppMode.retail],
       },
       {
+        'title': 'Branch Management',
+        'subtitle': 'Manage stores and staff permissions',
+        'icon': Icons.store_mall_directory_outlined,
+        'route': '/admin/stores',
+        'modes': [AppMode.restaurant, AppMode.retail],
+      },
+      {
         'title': 'Kitchen Display System',
         'subtitle': 'View active kitchen orders',
         'icon': Icons.kitchen_outlined,
         'route': '/admin/kds',
         'modes': [AppMode.restaurant],
+      },
+      {
+        'title': 'Audit Trail',
+        'subtitle': 'Review inventory & staff activity',
+        'icon': Icons.policy_outlined,
+        'route': '/admin/audit-log',
+        'modes': [AppMode.restaurant, AppMode.retail],
       },
       {
         'title': 'Record Expense',

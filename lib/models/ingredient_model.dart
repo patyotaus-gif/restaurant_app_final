@@ -9,6 +9,8 @@ class Ingredient {
   final double stockQuantity;
   final double lowStockThreshold;
   final double cost; // <-- 1. Add cost property
+  final String? barcode;
+  final String? storeId;
 
   Ingredient({
     required this.id,
@@ -17,6 +19,8 @@ class Ingredient {
     required this.stockQuantity,
     required this.lowStockThreshold,
     required this.cost, // <-- 2. Add to constructor
+    this.barcode,
+    this.storeId,
   });
 
   factory Ingredient.fromSnapshot(DocumentSnapshot doc) {
@@ -30,6 +34,8 @@ class Ingredient {
       cost:
           (data['cost'] as num?)?.toDouble() ??
           0.0, // <-- 3. Read from Firestore
+      barcode: data['barcode'] as String?,
+      storeId: data['storeId'] as String?,
     );
   }
 
@@ -48,6 +54,8 @@ class Ingredient {
       cost:
           (data?['cost'] as num?)?.toDouble() ??
           0.0, // <-- 4. Read from Firestore
+      barcode: data?['barcode'] as String?,
+      storeId: data?['storeId'] as String?,
     );
   }
 
@@ -58,6 +66,8 @@ class Ingredient {
       'stockQuantity': stockQuantity,
       'lowStockThreshold': lowStockThreshold,
       'cost': cost, // <-- 5. Write to Firestore
+      if (barcode != null) 'barcode': barcode,
+      if (storeId != null) 'storeId': storeId,
     };
   }
 }
