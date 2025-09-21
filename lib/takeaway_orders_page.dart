@@ -111,6 +111,13 @@ class TakeawayOrdersPage extends StatelessWidget {
                             description: itemData['description'] ?? '',
                             imageUrl: itemData['imageUrl'] ?? '',
                             category: itemData['category'] ?? '',
+                            kitchenStations: List<String>.from(
+                              itemData['kitchenStations'] ?? const [],
+                            ),
+                            prepTimeMinutes:
+                                (itemData['prepTimeMinutes'] as num?)
+                                    ?.toDouble() ??
+                                0.0,
                           );
                           loadedItems[tempProduct.id] = CartItem(
                             product: tempProduct,

@@ -75,6 +75,11 @@ class _OrderDashboardPageState extends State<OrderDashboardPage> {
             modifierGroupIds: List<String>.from(
               itemData['modifierGroupIds'] ?? [],
             ),
+            kitchenStations: List<String>.from(
+              itemData['kitchenStations'] ?? const [],
+            ),
+            prepTimeMinutes:
+                (itemData['prepTimeMinutes'] as num?)?.toDouble() ?? 0.0,
           );
 
           final cartItem = CartItem(

@@ -29,6 +29,8 @@ class CartItem {
   String get imageUrl => product.imageUrl;
   List<Map<String, dynamic>> get recipe => product.recipe;
   String get category => product.category;
+  List<String> get kitchenStations => product.kitchenStations;
+  double get prepTimeMinutes => product.prepTimeMinutes;
 
   double get modifiersPrice {
     if (selectedModifiers.isEmpty) return 0.0;
@@ -69,6 +71,16 @@ class CartProvider with ChangeNotifier {
   int get splitCount => _splitCount;
   Set<String> get categoriesInCart =>
       _items.values.map((item) => item.category).toSet();
+
+  double get prepTimeSlaMinutes {
+    double maxPrep = 0;
+    for (final cartItem in _items.values) {
+      maxPrep = maxPrep > cartItem.prepTimeMinutes
+          ? maxPrep
+          : cartItem.prepTimeMinutes;
+    }
+    return maxPrep > 0 ? maxPrep : 15;
+  }
 
   double get splitAmountPerGuest {
     final normalizedCount = _splitCount <= 0 ? 1 : _splitCount;

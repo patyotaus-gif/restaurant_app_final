@@ -33,6 +33,8 @@ class _EditProductPageState extends State<EditProductPage> {
   late TextEditingController _skuController;
   late TextEditingController _barcodeController;
   late TextEditingController _costPriceController;
+  late TextEditingController _kitchenStationsController;
+  late TextEditingController _prepTimeController;
 
   List<ModifierGroup> _availableModifierGroups = [];
   List<String> _selectedModifierGroupIds = [];
@@ -62,6 +64,12 @@ class _EditProductPageState extends State<EditProductPage> {
     _barcodeController = TextEditingController(text: p?.barcode ?? '');
     _costPriceController = TextEditingController(
       text: p?.costPrice.toString() ?? '0.0',
+    );
+    _kitchenStationsController = TextEditingController(
+      text: (p?.kitchenStations ?? const []).join(', '),
+    );
+    _prepTimeController = TextEditingController(
+      text: (p?.prepTimeMinutes ?? 0).toString(),
     );
     _recipeData =
         p?.recipe.map((item) => Map<String, dynamic>.from(item)).toList() ?? [];
@@ -124,6 +132,8 @@ class _EditProductPageState extends State<EditProductPage> {
     _skuController.dispose();
     _barcodeController.dispose();
     _costPriceController.dispose();
+    _kitchenStationsController.dispose();
+    _prepTimeController.dispose();
     super.dispose();
   }
 
@@ -188,6 +198,12 @@ class _EditProductPageState extends State<EditProductPage> {
         recipe: _recipeData,
         variations: widget.product?.variations ?? [],
         modifierGroupIds: _selectedModifierGroupIds,
+        kitchenStations: _kitchenStationsController.text
+            .split(',')
+            .map((station) => station.trim())
+            .where((station) => station.isNotEmpty)
+            .toList(),
+        prepTimeMinutes: double.tryParse(_prepTimeController.text) ?? 0.0,
       ).toFirestore();
 
       try {
@@ -325,6 +341,27 @@ class _EditProductPageState extends State<EditProductPage> {
                     ),
                   ),
                 ],
+              ),
+              const SizedBox(height: 24),
+              _buildSectionHeader('Kitchen Routing'),
+              TextFormField(
+                controller: _kitchenStationsController,
+                decoration: const InputDecoration(
+                  labelText: 'Kitchen Stations',
+                  helperText: 'Comma separated station IDs (e.g. grill,bar)',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _prepTimeController,
+                decoration: const InputDecoration(
+                  labelText: 'Prep Time SLA (minutes)',
+                  border: OutlineInputBorder(),
+                ),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
               ),
               const SizedBox(height: 24),
               _buildSectionHeader('Inventory & Type'),

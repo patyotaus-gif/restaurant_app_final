@@ -137,6 +137,13 @@ class AdminPage extends StatelessWidget {
         'modes': [AppMode.restaurant, AppMode.retail],
       },
       {
+        'title': 'Analytics & CRM',
+        'subtitle': 'BigQuery export and RFM scoring',
+        'icon': Icons.analytics_outlined,
+        'route': '/admin/analytics',
+        'modes': [AppMode.restaurant, AppMode.retail],
+      },
+      {
         'title': 'End of Day Report',
         'subtitle': 'Close out and view final numbers',
         'icon': Icons.assessment_outlined,

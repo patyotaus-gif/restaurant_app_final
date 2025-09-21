@@ -1,62 +1,213 @@
 // lib/kitchen_display_page.dart
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 
-class KitchenDisplayPage extends StatelessWidget {
-  const KitchenDisplayPage({super.key});
+import 'models/kitchen_station_model.dart';
+
+class KitchenDisplayPage extends StatefulWidget {
+  const KitchenDisplayPage({super.key, this.initialStationId});
+
+  final String? initialStationId;
+
+  @override
+  State<KitchenDisplayPage> createState() => _KitchenDisplayPageState();
+}
+
+class _KitchenDisplayPageState extends State<KitchenDisplayPage> {
+  String? _selectedStationId;
+  List<KitchenStation> _stations = const [];
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedStationId = widget.initialStationId;
+  }
+
+  KitchenStation? get _activeStation {
+    if (_selectedStationId == null) {
+      return null;
+    }
+    for (final station in _stations) {
+      if (station.id == _selectedStationId) {
+        return station;
+      }
+    }
+    return null;
+  }
+
+  void _onStationChanged(String? stationId) {
+    setState(() {
+      _selectedStationId = stationId?.isEmpty ?? false ? null : stationId;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
+    final baseBackground = Colors.blueGrey[900];
     return Scaffold(
       appBar: AppBar(
         title: const Text('Kitchen Display System (KDS)'),
         backgroundColor: Colors.blueGrey[800],
       ),
-      backgroundColor: Colors.blueGrey[900],
-      body: StreamBuilder<QuerySnapshot>(
+      backgroundColor: baseBackground,
+      body: Column(
+        children: [
+          _StationSelector(
+            onStationsLoaded: (stations) {
+              _stations = stations;
+            },
+            selectedStationId: _selectedStationId,
+            onChanged: _onStationChanged,
+          ),
+          Expanded(
+            child: StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('orders')
+                  .where('status', isEqualTo: 'preparing')
+                  .orderBy('timestamp', descending: false)
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (snapshot.hasError) {
+                  return const Center(
+                    child: Text(
+                      'Something went wrong',
+                      style: TextStyle(color: Colors.white),
+                    ),
+                  );
+                }
+                if (!snapshot.hasData) {
+                  return const SizedBox.shrink();
+                }
+
+                final station = _activeStation;
+                final orderDocs = snapshot.data!.docs.where((doc) {
+                  if (station == null) {
+                    return true;
+                  }
+                  final data = doc.data() as Map<String, dynamic>? ?? {};
+                  final items = (data['items'] ?? []) as List<dynamic>;
+                  return items.any(
+                    (item) =>
+                        item is Map<String, dynamic> &&
+                        station.matchesItem(item),
+                  );
+                }).toList();
+
+                if (orderDocs.isEmpty) {
+                  return Center(
+                    child: Text(
+                      station == null
+                          ? 'No active orders'
+                          : 'No orders for ${station.name}',
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 24,
+                      ),
+                    ),
+                  );
+                }
+
+                return GridView.builder(
+                  padding: const EdgeInsets.all(16.0),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 4,
+                    crossAxisSpacing: 16,
+                    mainAxisSpacing: 16,
+                    childAspectRatio: 0.8,
+                  ),
+                  itemCount: orderDocs.length,
+                  itemBuilder: (context, index) {
+                    final order = orderDocs[index];
+                    return _OrderCard(orderDoc: order, station: station);
+                  },
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StationSelector extends StatelessWidget {
+  const _StationSelector({
+    required this.selectedStationId,
+    required this.onChanged,
+    required this.onStationsLoaded,
+  });
+
+  final String? selectedStationId;
+  final ValueChanged<String?> onChanged;
+  final ValueChanged<List<KitchenStation>> onStationsLoaded;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      color: Colors.blueGrey[850],
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
-            .collection('orders')
-            .where('status', isEqualTo: 'preparing')
-            .orderBy('timestamp', descending: false)
+            .collection('kitchenStations')
+            .orderBy('displayOrder')
             .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
+            return const LinearProgressIndicator();
           }
           if (snapshot.hasError) {
-            return const Center(
-              child: Text(
-                'Something went wrong',
-                style: TextStyle(color: Colors.white),
-              ),
-            );
-          }
-          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return const Center(
-              child: Text(
-                'No active orders',
-                style: TextStyle(color: Colors.white70, fontSize: 24),
-              ),
+            return const Text(
+              'Unable to load kitchen stations',
+              style: TextStyle(color: Colors.white70),
             );
           }
 
-          final orderDocs = snapshot.data!.docs;
+          final stations =
+              snapshot.data?.docs
+                  .map((doc) => KitchenStation.fromFirestore(doc))
+                  .toList() ??
+              const <KitchenStation>[];
+          onStationsLoaded(stations);
 
-          return GridView.builder(
-            padding: const EdgeInsets.all(16.0),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 4,
-              crossAxisSpacing: 16,
-              mainAxisSpacing: 16,
-              childAspectRatio: 0.8,
+          final dropdownItems = <DropdownMenuItem<String?>>[
+            const DropdownMenuItem<String?>(
+              value: null,
+              child: Text('All Stations'),
             ),
-            itemCount: orderDocs.length,
-            itemBuilder: (context, index) {
-              final order = orderDocs[index];
-              return _OrderCard(orderDoc: order);
-            },
+            ...stations.map(
+              (station) => DropdownMenuItem<String?>(
+                value: station.id,
+                child: Text(station.name),
+              ),
+            ),
+          ];
+
+          return Row(
+            children: [
+              const Icon(Icons.route, color: Colors.white70),
+              const SizedBox(width: 12),
+              Expanded(
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String?>(
+                    value: stations.any((s) => s.id == selectedStationId)
+                        ? selectedStationId
+                        : null,
+                    items: dropdownItems,
+                    onChanged: onChanged,
+                    dropdownColor: Colors.blueGrey[900],
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                ),
+              ),
+            ],
           );
         },
       ),
@@ -65,39 +216,95 @@ class KitchenDisplayPage extends StatelessWidget {
 }
 
 class _OrderCard extends StatefulWidget {
-  final DocumentSnapshot orderDoc;
+  const _OrderCard({required this.orderDoc, this.station});
 
-  const _OrderCard({required this.orderDoc});
+  final DocumentSnapshot orderDoc;
+  final KitchenStation? station;
 
   @override
   State<_OrderCard> createState() => _OrderCardState();
 }
 
 class _OrderCardState extends State<_OrderCard> {
+  Timer? _ticker;
+
+  @override
+  void initState() {
+    super.initState();
+    _ticker = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (mounted) {
+        setState(() {});
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _ticker?.cancel();
+    super.dispose();
+  }
+
   void _toggleItemComplete(int itemIndex) {
-    List<dynamic> items = List.from(
-      (widget.orderDoc.data() as Map<String, dynamic>)['items'] ?? [],
+    final rawData = widget.orderDoc.data() as Map<String, dynamic>? ?? {};
+    final List<dynamic> items = List<dynamic>.from(rawData['items'] ?? []);
+    if (itemIndex < 0 || itemIndex >= items.length) {
+      return;
+    }
+    final Map<String, dynamic> item = Map<String, dynamic>.from(
+      items[itemIndex] as Map<String, dynamic>,
     );
-    Map<String, dynamic> item = Map<String, dynamic>.from(items[itemIndex]);
-    bool currentStatus = item['isComplete'] ?? false;
+    final bool currentStatus = item['isComplete'] == true;
     item['isComplete'] = !currentStatus;
     items[itemIndex] = item;
     widget.orderDoc.reference.update({'items': items});
+  }
+
+  Future<void> _acknowledgeOrder() async {
+    await widget.orderDoc.reference.update({
+      'kdsAcknowledged': true,
+      'kdsAcknowledgedAt': Timestamp.now(),
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     final orderData = widget.orderDoc.data() as Map<String, dynamic>;
     final items = (orderData['items'] ?? []) as List<dynamic>;
+    final station = widget.station;
+    final List<Map<String, dynamic>> filteredItems = station == null
+        ? items.whereType<Map<String, dynamic>>().toList()
+        : items
+              .whereType<Map<String, dynamic>>()
+              .where(station.matchesItem)
+              .toList();
+
+    if (filteredItems.isEmpty) {
+      return const SizedBox.shrink();
+    }
     final timestamp = (orderData['timestamp'] as Timestamp).toDate();
+    final now = DateTime.now();
+    final elapsed = now.difference(timestamp);
+    final double slaMinutes = _calculateSla(orderData, filteredItems);
+    final Duration slaDuration = Duration(minutes: slaMinutes.round());
+    final bool isOverdue = elapsed > slaDuration;
+    final bool nearSla =
+        !isOverdue && elapsed.inSeconds >= (slaDuration.inSeconds * 0.75);
+    final Color? cardColor = isOverdue
+        ? Colors.red[700]
+        : (nearSla ? Colors.orange[700] : Colors.blueGrey[700]);
+
     final orderIdentifier = orderData['orderIdentifier'] ?? 'N/A';
     final orderType = orderData['orderType'] ?? '';
-    final bool allItemsComplete = items.every(
+    final bool allItemsComplete = items.whereType<Map<String, dynamic>>().every(
       (item) => item['isComplete'] == true,
     );
+    final bool isAcknowledged = orderData['kdsAcknowledged'] == true;
+    final Timestamp? acknowledgedAtTs =
+        orderData['kdsAcknowledgedAt'] as Timestamp?;
+    final DateTime? acknowledgedAt = acknowledgedAtTs?.toDate();
 
     return Card(
-      color: Colors.blueGrey[700],
+      color: cardColor,
       elevation: 8,
       child: Padding(
         padding: const EdgeInsets.all(12.0),
@@ -107,38 +314,82 @@ class _OrderCardState extends State<_OrderCard> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  orderIdentifier,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 20,
-                    color: Colors.white,
-                  ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      orderIdentifier,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 20,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Elapsed: ${_formatDuration(elapsed)} / SLA ${slaMinutes.toStringAsFixed(0)}m',
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
                 ),
-                Chip(
-                  label: Text(orderType),
-                  backgroundColor: orderType == 'Dine-in'
-                      ? Colors.orange
-                      : Colors.teal,
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Chip(
+                      label: Text(orderType),
+                      backgroundColor: orderType == 'Dine-in'
+                          ? Colors.orange
+                          : Colors.teal,
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      DateFormat('HH:mm:ss').format(timestamp),
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
-            Text(
-              DateFormat('HH:mm:ss').format(timestamp),
-              style: const TextStyle(color: Colors.white70, fontSize: 12),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Icon(
+                  isAcknowledged ? Icons.check_circle : Icons.touch_app,
+                  color: Colors.white70,
+                  size: 18,
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    isAcknowledged
+                        ? 'Acknowledged${acknowledgedAt != null ? ' at ${DateFormat.Hm().format(acknowledgedAt)}' : ''}'
+                        : 'Awaiting acknowledgement',
+                    style: const TextStyle(color: Colors.white70, fontSize: 12),
+                  ),
+                ),
+                if (!isAcknowledged)
+                  TextButton(
+                    onPressed: _acknowledgeOrder,
+                    child: const Text('Acknowledge'),
+                  ),
+              ],
             ),
             const Divider(color: Colors.white54, height: 20),
-
             Expanded(
               child: ListView.builder(
-                itemCount: items.length,
+                itemCount: filteredItems.length,
                 itemBuilder: (context, index) {
-                  final item = items[index];
+                  final item = filteredItems[index] as Map<String, dynamic>;
                   final bool isComplete = item['isComplete'] ?? false;
-                  // --- NEW: LOGIC TO DISPLAY MODIFIERS ---
                   final List<dynamic> modifiers =
-                      item['selectedModifiers'] ?? [];
+                      item['selectedModifiers'] ?? const [];
                   final modifierWidgets = modifiers.map((mod) {
                     return Padding(
                       padding: const EdgeInsets.only(left: 24.0, top: 2.0),
@@ -155,7 +406,6 @@ class _OrderCardState extends State<_OrderCard> {
                       ),
                     );
                   }).toList();
-                  // ----------------------------------------
 
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -163,7 +413,7 @@ class _OrderCardState extends State<_OrderCard> {
                       ListTile(
                         contentPadding: EdgeInsets.zero,
                         dense: true,
-                        onTap: () => _toggleItemComplete(index),
+                        onTap: () => _toggleItemComplete(items.indexOf(item)),
                         title: Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -179,29 +429,43 @@ class _OrderCardState extends State<_OrderCard> {
                             ),
                             const SizedBox(width: 8),
                             Expanded(
-                              child: Text(
-                                item['name'],
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  color: isComplete
-                                      ? Colors.white54
-                                      : Colors.white,
-                                  decoration: isComplete
-                                      ? TextDecoration.lineThrough
-                                      : TextDecoration.none,
-                                ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    item['name'],
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      color: isComplete
+                                          ? Colors.white54
+                                          : Colors.white,
+                                      decoration: isComplete
+                                          ? TextDecoration.lineThrough
+                                          : TextDecoration.none,
+                                    ),
+                                  ),
+                                  if ((item['prepTimeMinutes'] ?? 0) > 0)
+                                    Text(
+                                      'Prep ${item['prepTimeMinutes']}m',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: isComplete
+                                            ? Colors.white38
+                                            : Colors.white70,
+                                      ),
+                                    ),
+                                ],
                               ),
                             ),
                           ],
                         ),
                       ),
-                      ...modifierWidgets, // <-- DISPLAY MODIFIERS HERE
+                      ...modifierWidgets,
                     ],
                   );
                 },
               ),
             ),
-
             const SizedBox(height: 10),
             SizedBox(
               width: double.infinity,
@@ -228,5 +492,35 @@ class _OrderCardState extends State<_OrderCard> {
         ),
       ),
     );
+  }
+
+  double _calculateSla(
+    Map<String, dynamic> orderData,
+    List<Map<String, dynamic>> items,
+  ) {
+    final List<double> prepTimes = items
+        .map((item) => (item['prepTimeMinutes'] as num?)?.toDouble() ?? 0.0)
+        .where((value) => value > 0)
+        .toList();
+    if (prepTimes.isNotEmpty) {
+      return prepTimes.reduce(
+        (value, element) => value > element ? value : element,
+      );
+    }
+    return (orderData['slaMinutes'] as num?)?.toDouble() ?? 15.0;
+  }
+
+  String _formatDuration(Duration duration) {
+    final minutes = duration.inMinutes;
+    final seconds = duration.inSeconds % 60;
+    if (minutes >= 120) {
+      final hours = duration.inHours;
+      final remainingMinutes = minutes % 60;
+      return '${hours}h ${remainingMinutes}m';
+    }
+    if (minutes >= 1) {
+      return '${minutes}m';
+    }
+    return '${seconds}s';
   }
 }

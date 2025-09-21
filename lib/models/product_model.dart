@@ -27,6 +27,8 @@ class Product {
   final List<Map<String, dynamic>> variations;
   final List<Map<String, dynamic>> recipe;
   final List<String> modifierGroupIds; // <-- ADDED THIS FIELD
+  final List<String> kitchenStations;
+  final double prepTimeMinutes;
 
   Product({
     required this.id,
@@ -44,6 +46,8 @@ class Product {
     this.variations = const [],
     this.recipe = const [],
     this.modifierGroupIds = const [], // <-- ADDED TO CONSTRUCTOR
+    this.kitchenStations = const [],
+    this.prepTimeMinutes = 0,
   });
 
   factory Product.fromFirestore(DocumentSnapshot doc) {
@@ -68,6 +72,13 @@ class Product {
       recipe: List<Map<String, dynamic>>.from(data['recipe'] ?? []),
       // --- ADDED THIS LINE TO READ FROM FIRESTORE ---
       modifierGroupIds: List<String>.from(data['modifierGroupIds'] ?? []),
+      kitchenStations: List<String>.from(
+        data['kitchenStations'] ?? data['kitchenStationIds'] ?? [],
+      ),
+      prepTimeMinutes:
+          (data['prepTimeMinutes'] as num?)?.toDouble() ??
+          (data['prep_time'] as num?)?.toDouble() ??
+          0.0,
     );
   }
 
@@ -88,6 +99,8 @@ class Product {
       'recipe': recipe,
       'modifierGroupIds':
           modifierGroupIds, // <-- ADDED THIS LINE TO SAVE TO FIRESTORE
+      'kitchenStations': kitchenStations,
+      'prepTimeMinutes': prepTimeMinutes,
     };
   }
 }

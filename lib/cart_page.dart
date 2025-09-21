@@ -115,6 +115,9 @@ class _CartPageState extends State<CartPage> {
               'description': item.description,
               'category': item.product.category,
               'recipe': item.recipe,
+              'selectedModifiers': item.selectedModifiers,
+              'kitchenStations': item.kitchenStations,
+              'prepTimeMinutes': item.prepTimeMinutes,
             },
           )
           .toList(),
@@ -122,6 +125,10 @@ class _CartPageState extends State<CartPage> {
       'customerName': cart.customer?.name,
       'ingredientUsage': ingredientUsage,
       'stockDeducted': false,
+      'slaMinutes': cart.prepTimeSlaMinutes,
+      'kdsAcknowledged': false,
+      'kdsAcknowledgedAt': null,
+      'kdsAcknowledgedBy': null,
     };
   }
 

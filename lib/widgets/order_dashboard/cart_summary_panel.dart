@@ -292,6 +292,8 @@ class _CartSummaryPanelState extends State<CartSummaryPanel> {
             'category': item.category,
             'selectedModifiers': item.selectedModifiers,
             'recipe': item.recipe,
+            'kitchenStations': item.kitchenStations,
+            'prepTimeMinutes': item.prepTimeMinutes,
           },
         )
         .toList();
@@ -321,6 +323,10 @@ class _CartSummaryPanelState extends State<CartSummaryPanel> {
       'customerName': cart.customer?.name,
       'ingredientUsage': ingredientUsage,
       'stockDeducted': false,
+      'slaMinutes': cart.prepTimeSlaMinutes,
+      'kdsAcknowledged': false,
+      'kdsAcknowledgedAt': null,
+      'kdsAcknowledgedBy': null,
     };
 
     if (!syncQueue.isOnline) {

@@ -53,6 +53,7 @@ import 'admin/modifier_management_page.dart'; // <-- ADDED THIS IMPORT
 import 'admin/stocktake_page.dart';
 import 'admin/store_management_page.dart';
 import 'admin/audit_log_page.dart';
+import 'admin/analytics_page.dart';
 import 'store_provider.dart';
 import 'services/store_service.dart';
 import 'services/audit_log_service.dart';
@@ -187,8 +188,14 @@ final _router = GoRouter(
           builder: (context, state) => const IngredientManagementPage(),
         ),
         GoRoute(
+          path: 'analytics',
+          builder: (context, state) => const AnalyticsPage(),
+        ),
+        GoRoute(
           path: 'kds',
-          builder: (context, state) => const KitchenDisplayPage(),
+          builder: (context, state) => KitchenDisplayPage(
+            initialStationId: state.uri.queryParameters['station'],
+          ),
         ),
       ],
     ),
