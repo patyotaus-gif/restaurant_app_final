@@ -4,6 +4,9 @@ class Store {
   final String id;
   final String name;
   final String? address;
+  final String? taxId;
+  final String? phone;
+  final String? email;
   final bool isActive;
   final String? timezone;
 
@@ -11,6 +14,9 @@ class Store {
     required this.id,
     required this.name,
     this.address,
+    this.taxId,
+    this.phone,
+    this.email,
     this.isActive = true,
     this.timezone,
   });
@@ -21,6 +27,9 @@ class Store {
       id: doc.id,
       name: data['name'] as String? ?? 'Unnamed Store',
       address: data['address'] as String?,
+      taxId: data['taxId'] as String?,
+      phone: data['phone'] as String?,
+      email: data['email'] as String?,
       isActive: data['isActive'] as bool? ?? true,
       timezone: data['timezone'] as String?,
     );
@@ -30,6 +39,9 @@ class Store {
     return {
       'name': name,
       if (address != null) 'address': address,
+      if (taxId != null) 'taxId': taxId,
+      if (phone != null) 'phone': phone,
+      if (email != null) 'email': email,
       'isActive': isActive,
       if (timezone != null) 'timezone': timezone,
     };

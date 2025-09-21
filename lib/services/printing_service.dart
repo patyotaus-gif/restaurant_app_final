@@ -1,200 +1,371 @@
+import 'dart:typed_data';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/services.dart';
+import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:intl/intl.dart';
+
+import '../models/receipt_models.dart';
 
 class PrintingService {
-  Future<void> previewReceipt(Map<String, dynamic> orderData) async {
+  Future<void> previewReceipt(
+    Map<String, dynamic> orderData, {
+    required StoreReceiptDetails storeDetails,
+    TaxInvoiceDetails? taxDetails,
+    bool includeTaxInvoice = false,
+  }) async {
+    final pdfBytes = await buildReceiptPdf(
+      orderData,
+      storeDetails: storeDetails,
+      taxDetails: taxDetails,
+      includeTaxInvoice: includeTaxInvoice,
+    );
+
+    await Printing.layoutPdf(
+      onLayout: (PdfPageFormat format) async => pdfBytes,
+    );
+  }
+
+  Future<Uint8List> buildReceiptPdf(
+    Map<String, dynamic> orderData, {
+    required StoreReceiptDetails storeDetails,
+    TaxInvoiceDetails? taxDetails,
+    bool includeTaxInvoice = false,
+  }) async {
     final doc = pw.Document();
 
-    final fontData = await rootBundle.load("google_fonts/Sarabun-Regular.ttf");
+    final fontData = await rootBundle.load('google_fonts/Sarabun-Regular.ttf');
     final ttf = pw.Font.ttf(fontData);
 
-    final List<dynamic> items = orderData['items'] ?? [];
-    final Timestamp timestamp = orderData['timestamp'];
+    final List<dynamic> items = List<dynamic>.from(orderData['items'] ?? []);
+    final Timestamp? timestamp = orderData['timestamp'] as Timestamp?;
+    final DateTime orderDate = (timestamp?.toDate() ?? DateTime.now())
+        .toLocal();
     final String formattedDate = DateFormat(
-      'dd/MM/yyyy, HH:mm',
-    ).format(timestamp.toDate());
+      'dd/MM/yyyy HH:mm',
+    ).format(orderDate);
+    final String orderIdentifier =
+        orderData['orderIdentifier'] as String? ?? 'N/A';
+
+    final num subtotal = orderData['subtotal'] as num? ?? 0;
+    final num discount = orderData['discount'] as num? ?? 0;
+    final num serviceCharge = orderData['serviceChargeAmount'] as num? ?? 0;
+    final num tip = orderData['tipAmount'] as num? ?? 0;
+    final num total = orderData['total'] as num? ?? subtotal;
+
+    num vatRate = 0;
+    num vatAmount = 0;
+    if (orderData['vat'] is Map<String, dynamic>) {
+      final vatData = orderData['vat'] as Map<String, dynamic>;
+      vatRate = vatData['rate'] as num? ?? 0;
+      vatAmount = vatData['amount'] as num? ?? 0;
+    }
 
     doc.addPage(
-      pw.Page(
-        pageFormat: PdfPageFormat.roll80,
-        build: (pw.Context context) {
-          return pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
-            children: [
-              pw.Center(
-                child: pw.Text(
-                  'RECEIPT',
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.all(32),
+        build: (context) {
+          return [
+            pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                _buildStoreHeader(ttf, storeDetails),
+                pw.SizedBox(height: 12),
+                pw.Text(
+                  includeTaxInvoice ? 'TAX INVOICE / RECEIPT' : 'RECEIPT',
                   style: pw.TextStyle(
                     font: ttf,
-                    fontSize: 18,
+                    fontSize: 20,
                     fontWeight: pw.FontWeight.bold,
                   ),
                 ),
-              ),
-              pw.SizedBox(height: 10),
-              pw.Text(
-                'Order: ${orderData['orderIdentifier'] ?? 'N/A'}',
-                style: pw.TextStyle(font: ttf),
-              ),
-              pw.Text('Date: $formattedDate', style: pw.TextStyle(font: ttf)),
-              pw.Divider(height: 16), // <-- FIX: Changed margin to height
-
-              pw.Row(
-                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                children: [
-                  pw.Expanded(
-                    flex: 7,
-                    child: pw.Text(
-                      'Item',
-                      style: pw.TextStyle(
-                        font: ttf,
-                        fontWeight: pw.FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                  pw.Expanded(
-                    flex: 2,
-                    child: pw.Text(
-                      'Qty',
-                      style: pw.TextStyle(
-                        font: ttf,
-                        fontWeight: pw.FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                  pw.Expanded(
-                    flex: 3,
-                    child: pw.Text(
-                      'Price',
-                      style: pw.TextStyle(
-                        font: ttf,
-                        fontWeight: pw.FontWeight.bold,
-                      ),
-                      textAlign: pw.TextAlign.right,
-                    ),
-                  ),
+                pw.SizedBox(height: 12),
+                _buildOrderMeta(ttf, orderIdentifier, formattedDate, orderData),
+                if (taxDetails != null &&
+                    (includeTaxInvoice || taxDetails.hasData)) ...[
+                  pw.SizedBox(height: 12),
+                  _buildCustomerSection(ttf, taxDetails),
                 ],
-              ),
-              pw.Divider(),
-
-              ...items.map((item) {
-                return pw.Padding(
-                  padding: const pw.EdgeInsets.symmetric(vertical: 2),
-                  child: pw.Row(
-                    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                    children: [
-                      pw.Expanded(
-                        flex: 7,
-                        child: pw.Text(
-                          '${item['name']}',
-                          style: pw.TextStyle(font: ttf),
-                        ),
-                      ),
-                      pw.Expanded(
-                        flex: 2,
-                        child: pw.Text(
-                          item['quantity'].toString(),
-                          style: pw.TextStyle(font: ttf),
-                        ),
-                      ),
-                      pw.Expanded(
-                        flex: 3,
-                        child: pw.Text(
-                          (item['price'] as num).toStringAsFixed(2),
-                          style: pw.TextStyle(font: ttf),
-                          textAlign: pw.TextAlign.right,
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              }),
-
-              pw.Divider(height: 16), // <-- FIX: Changed margin to height
-
-              pw.Row(
-                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                children: [
-                  pw.Text('Subtotal', style: pw.TextStyle(font: ttf)),
-                  pw.Text(
-                    ((orderData['subtotal'] as num?) ?? 0).toStringAsFixed(2),
-                    style: pw.TextStyle(font: ttf),
-                  ),
-                ],
-              ),
-              pw.Row(
-                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                children: [
-                  pw.Text('Discount', style: pw.TextStyle(font: ttf)),
-                  pw.Text(
-                    ((orderData['discount'] as num?) ?? 0).toStringAsFixed(2),
-                    style: pw.TextStyle(font: ttf),
-                  ),
-                ],
-              ),
-              if ((orderData['serviceChargeAmount'] as num? ?? 0) > 0)
-                pw.Row(
-                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                  children: [
-                    pw.Text('Service Charge', style: pw.TextStyle(font: ttf)),
-                    pw.Text(
-                      (orderData['serviceChargeAmount'] as num).toStringAsFixed(
-                        2,
-                      ),
-                      style: pw.TextStyle(font: ttf),
-                    ),
-                  ],
+                pw.SizedBox(height: 16),
+                _buildItemsTable(ttf, items),
+                pw.SizedBox(height: 12),
+                _buildTotals(
+                  ttf,
+                  subtotal: subtotal,
+                  discount: discount,
+                  serviceCharge: serviceCharge,
+                  tip: tip,
+                  vatRate: vatRate,
+                  vatAmount: vatAmount,
+                  total: total,
                 ),
-              if ((orderData['tipAmount'] as num? ?? 0) > 0)
-                pw.Row(
-                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                  children: [
-                    pw.Text('Tip', style: pw.TextStyle(font: ttf)),
-                    pw.Text(
-                      (orderData['tipAmount'] as num).toStringAsFixed(2),
-                      style: pw.TextStyle(font: ttf),
+                pw.SizedBox(height: 24),
+                _buildPaymentSummary(ttf, orderData),
+                if (includeTaxInvoice)
+                  pw.Padding(
+                    padding: const pw.EdgeInsets.only(top: 24),
+                    child: pw.Text(
+                      'This document serves as an official tax invoice pursuant to Thai Revenue Code.',
+                      style: pw.TextStyle(font: ttf, fontSize: 10),
                     ),
-                  ],
+                  ),
+                pw.SizedBox(height: 24),
+                pw.Text(
+                  'Thank you for dining with us!',
+                  style: pw.TextStyle(font: ttf, fontSize: 12),
                 ),
-              pw.SizedBox(height: 5),
-              pw.Row(
-                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                children: [
-                  pw.Text(
-                    'TOTAL',
-                    style: pw.TextStyle(
-                      font: ttf,
-                      fontSize: 16,
-                      fontWeight: pw.FontWeight.bold,
-                    ),
-                  ),
-                  pw.Text(
-                    (orderData['total'] as num).toStringAsFixed(2),
-                    style: pw.TextStyle(
-                      font: ttf,
-                      fontSize: 16,
-                      fontWeight: pw.FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-
-              pw.SizedBox(height: 20),
-              pw.Center(
-                child: pw.Text('Thank You!', style: pw.TextStyle(font: ttf)),
-              ),
-            ],
-          );
+              ],
+            ),
+          ];
         },
       ),
     );
 
-    await Printing.layoutPdf(
-      onLayout: (PdfPageFormat format) async => doc.save(),
+    return Uint8List.fromList(await doc.save());
+  }
+
+  pw.Widget _buildStoreHeader(pw.Font ttf, StoreReceiptDetails details) {
+    final lines = <String>[details.name];
+    if (details.branch != null && details.branch!.isNotEmpty) {
+      lines.add('Branch: ${details.branch}');
+    }
+    if (details.address != null && details.address!.isNotEmpty) {
+      lines.add(details.address!);
+    }
+    if (details.taxId != null && details.taxId!.isNotEmpty) {
+      lines.add('Tax ID: ${details.taxId}');
+    }
+    if (details.phone != null && details.phone!.isNotEmpty) {
+      lines.add('Tel: ${details.phone}');
+    }
+    if (details.email != null && details.email!.isNotEmpty) {
+      lines.add('Email: ${details.email}');
+    }
+
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        for (final line in lines)
+          pw.Text(line, style: pw.TextStyle(font: ttf, fontSize: 12)),
+      ],
+    );
+  }
+
+  pw.Widget _buildOrderMeta(
+    pw.Font ttf,
+    String orderIdentifier,
+    String formattedDate,
+    Map<String, dynamic> orderData,
+  ) {
+    final meta = <String>['Order: $orderIdentifier', 'Date: $formattedDate'];
+
+    if (orderData['paymentMethod'] != null) {
+      meta.add('Payment Method: ${orderData['paymentMethod']}');
+    }
+    if (orderData['cashier'] != null) {
+      meta.add('Processed By: ${orderData['cashier']}');
+    }
+
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        for (final line in meta)
+          pw.Text(line, style: pw.TextStyle(font: ttf, fontSize: 11)),
+      ],
+    );
+  }
+
+  pw.Widget _buildCustomerSection(pw.Font ttf, TaxInvoiceDetails details) {
+    final rows = <pw.Widget>[];
+    if (details.customerName != null && details.customerName!.isNotEmpty) {
+      rows.add(_buildMetaRow(ttf, 'Customer Name', details.customerName!));
+    }
+    if (details.taxId != null && details.taxId!.isNotEmpty) {
+      rows.add(_buildMetaRow(ttf, 'Tax ID', details.taxId!));
+    }
+    if (details.address != null && details.address!.isNotEmpty) {
+      rows.add(_buildMetaRow(ttf, 'Address', details.address!));
+    }
+    if (details.phone != null && details.phone!.isNotEmpty) {
+      rows.add(_buildMetaRow(ttf, 'Phone', details.phone!));
+    }
+    if (details.email != null && details.email!.isNotEmpty) {
+      rows.add(_buildMetaRow(ttf, 'Email', details.email!));
+    }
+
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        pw.Text(
+          'Bill To',
+          style: pw.TextStyle(
+            font: ttf,
+            fontSize: 12,
+            fontWeight: pw.FontWeight.bold,
+          ),
+        ),
+        pw.SizedBox(height: 4),
+        ...rows,
+      ],
+    );
+  }
+
+  pw.Widget _buildMetaRow(pw.Font ttf, String label, String value) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.symmetric(vertical: 2),
+      child: pw.RichText(
+        text: pw.TextSpan(
+          children: [
+            pw.TextSpan(
+              text: '$label: ',
+              style: pw.TextStyle(
+                font: ttf,
+                fontWeight: pw.FontWeight.bold,
+                fontSize: 11,
+              ),
+            ),
+            pw.TextSpan(
+              text: value,
+              style: pw.TextStyle(font: ttf, fontSize: 11),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  pw.Widget _buildItemsTable(pw.Font ttf, List<dynamic> items) {
+    final headers = ['Item', 'Qty', 'Unit Price', 'Total'];
+    final dataRows = items.map((item) {
+      final qty = (item['quantity'] as num?) ?? 0;
+      final price = (item['price'] as num?) ?? 0;
+      final total = qty * price;
+      return [
+        item['name'] ?? '',
+        qty.toStringAsFixed(qty == qty.roundToDouble() ? 0 : 2),
+        price.toStringAsFixed(2),
+        total.toStringAsFixed(2),
+      ];
+    }).toList();
+
+    return pw.Table.fromTextArray(
+      headers: headers,
+      data: dataRows,
+      headerStyle: pw.TextStyle(
+        font: ttf,
+        fontWeight: pw.FontWeight.bold,
+        fontSize: 11,
+      ),
+      cellStyle: pw.TextStyle(font: ttf, fontSize: 10),
+      headerDecoration: const pw.BoxDecoration(color: PdfColors.grey300),
+      cellAlignments: {
+        0: pw.Alignment.centerLeft,
+        1: pw.Alignment.center,
+        2: pw.Alignment.centerRight,
+        3: pw.Alignment.centerRight,
+      },
+      columnWidths: {
+        0: const pw.FlexColumnWidth(4),
+        1: const pw.FlexColumnWidth(1.2),
+        2: const pw.FlexColumnWidth(2),
+        3: const pw.FlexColumnWidth(2),
+      },
+      cellPadding: const pw.EdgeInsets.symmetric(vertical: 4, horizontal: 6),
+    );
+  }
+
+  pw.Widget _buildTotals(
+    pw.Font ttf, {
+    required num subtotal,
+    required num discount,
+    required num serviceCharge,
+    required num tip,
+    required num vatRate,
+    required num vatAmount,
+    required num total,
+  }) {
+    final rows = <pw.Widget>[];
+
+    rows.add(_buildTotalRow(ttf, 'Subtotal', subtotal));
+    if (discount > 0) {
+      rows.add(_buildTotalRow(ttf, 'Discount', -discount));
+    }
+    if (serviceCharge > 0) {
+      rows.add(_buildTotalRow(ttf, 'Service Charge', serviceCharge));
+    }
+    if (tip > 0) {
+      rows.add(_buildTotalRow(ttf, 'Tip', tip));
+    }
+    if (vatAmount > 0) {
+      final vatLabel = vatRate > 0
+          ? 'VAT (${(vatRate * 100).toStringAsFixed(0)}%)'
+          : 'VAT';
+      rows.add(_buildTotalRow(ttf, vatLabel, vatAmount));
+    }
+
+    rows.add(
+      pw.Padding(
+        padding: const pw.EdgeInsets.only(top: 4),
+        child: _buildTotalRow(ttf, 'Total', total, isGrandTotal: true),
+      ),
+    );
+
+    return pw.Column(children: rows);
+  }
+
+  pw.Widget _buildTotalRow(
+    pw.Font ttf,
+    String label,
+    num amount, {
+    bool isGrandTotal = false,
+  }) {
+    final style = pw.TextStyle(
+      font: ttf,
+      fontSize: isGrandTotal ? 14 : 11,
+      fontWeight: isGrandTotal ? pw.FontWeight.bold : pw.FontWeight.normal,
+    );
+
+    return pw.Row(
+      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+      children: [
+        pw.Text(label, style: style),
+        pw.Text(
+          '${amount < 0 ? '-' : ''}${amount.abs().toStringAsFixed(2)}',
+          style: style,
+        ),
+      ],
+    );
+  }
+
+  pw.Widget _buildPaymentSummary(pw.Font ttf, Map<String, dynamic> orderData) {
+    final payments = orderData['payments'] as List<dynamic>?;
+    if (payments == null || payments.isEmpty) {
+      return pw.SizedBox.shrink();
+    }
+
+    final rows = payments.map((payment) {
+      final method = payment['method'] ?? 'Payment';
+      final amount = (payment['amount'] as num?) ?? 0;
+      return _buildMetaRow(ttf, method.toString(), amount.toStringAsFixed(2));
+    }).toList();
+
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        pw.Text(
+          'Payment Summary',
+          style: pw.TextStyle(
+            font: ttf,
+            fontWeight: pw.FontWeight.bold,
+            fontSize: 12,
+          ),
+        ),
+        pw.SizedBox(height: 4),
+        ...rows,
+      ],
     );
   }
 }

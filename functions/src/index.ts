@@ -2,11 +2,17 @@ import {
   onDocumentCreated,
   onDocumentUpdated,
 } from "firebase-functions/v2/firestore";
+import { HttpsError, onCall } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
+import https from "node:https";
 
 admin.initializeApp();
 const db = admin.firestore();
+
+const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY;
+const SENDGRID_FROM_EMAIL =
+  process.env.SENDGRID_FROM_EMAIL ?? "no-reply@restaurant.local";
 
 // --- TIER UPGRADE CONFIGURATION ---
 const TIER_THRESHOLDS = {
@@ -448,3 +454,128 @@ export const updateStockOnPoReceived = onDocumentUpdated("purchase_orders/{poId}
       logger.error(`Error updating stock for PO ${event.params.poId}:`, error);
     }
   });
+
+async function sendEmailViaSendGrid(body: Record<string, unknown>) {
+  if (!SENDGRID_API_KEY) {
+    throw new HttpsError(
+      "failed-precondition",
+      "SendGrid API key is not configured."
+    );
+  }
+
+  const payload = JSON.stringify(body);
+
+  await new Promise<void>((resolve, reject) => {
+    const request = https.request(
+      {
+        hostname: "api.sendgrid.com",
+        path: "/v3/mail/send",
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${SENDGRID_API_KEY}`,
+          "Content-Type": "application/json",
+          "Content-Length": Buffer.byteLength(payload).toString(),
+        },
+      },
+      (response) => {
+        const { statusCode } = response;
+        if (statusCode && statusCode >= 200 && statusCode < 300) {
+          response.on("data", () => undefined);
+          response.on("end", resolve);
+          return;
+        }
+
+        let data = "";
+        response.on("data", (chunk) => {
+          data += chunk;
+        });
+        response.on("end", () => {
+          reject(
+            new HttpsError(
+              "unknown",
+              `SendGrid request failed with status ${statusCode}: ${data}`
+            )
+          );
+        });
+      }
+    );
+
+    request.on("error", (error) => {
+      reject(new HttpsError("unknown", `SendGrid request error: ${error}`));
+    });
+
+    request.write(payload);
+    request.end();
+  });
+}
+
+export const sendReceiptEmail = onCall(async (request) => {
+  const data = request.data as {
+    email?: string;
+    orderId?: string;
+    orderIdentifier?: string;
+    total?: number;
+    receiptUrl?: string;
+    store?: { [key: string]: unknown };
+    customer?: { [key: string]: unknown };
+    pdfBase64?: string;
+  };
+
+  const email = data.email;
+  if (!email || typeof email !== "string") {
+    throw new HttpsError("invalid-argument", "Recipient email is required.");
+  }
+
+  const orderIdentifier =
+    (data.orderIdentifier as string | undefined) ?? data.orderId ?? "Order";
+  const storeName = (data.store?.["name"] as string | undefined) ?? "ร้านค้า";
+  const customerName =
+    (data.customer?.["customerName"] as string | undefined) ?? "ลูกค้า";
+  const total = Number(data.total ?? 0).toFixed(2);
+  const receiptUrl = data.receiptUrl ?? "";
+
+  const html = `
+    <p>เรียนคุณ ${customerName},</p>
+    <p>ขอบคุณที่ใช้บริการ ${storeName}</p>
+    <p>ข้อมูลคำสั่งซื้อ: <strong>${orderIdentifier}</strong></p>
+    <p>ยอดชำระรวม: <strong>${total} บาท</strong></p>
+    <p>คุณสามารถดาวน์โหลดใบเสร็จ/ใบกำกับภาษีได้จากลิงก์ด้านล่าง:</p>
+    <p><a href="${receiptUrl}" target="_blank" rel="noopener">เปิดใบเสร็จ</a></p>
+    <p>ขอขอบคุณและหวังว่าจะได้ให้บริการอีกครั้ง</p>
+  `;
+
+  const body: Record<string, unknown> = {
+    personalizations: [
+      {
+        to: [{ email }],
+      },
+    ],
+    from: {
+      email: SENDGRID_FROM_EMAIL,
+      name: storeName,
+    },
+    subject: `Receipt for ${orderIdentifier}`,
+    content: [
+      {
+        type: "text/html",
+        value: html,
+      },
+    ],
+  };
+
+  if (data.pdfBase64) {
+    body.attachments = [
+      {
+        content: data.pdfBase64,
+        filename: `${orderIdentifier}.pdf`,
+        type: "application/pdf",
+        disposition: "attachment",
+      },
+    ];
+  }
+
+  await sendEmailViaSendGrid(body);
+
+  logger.log(`Receipt email sent to ${email} for order ${orderIdentifier}.`);
+  return { success: true };
+});

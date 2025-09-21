@@ -1,13 +1,17 @@
 // lib/checkout_page.dart
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import 'models/receipt_models.dart';
 import 'services/printing_service.dart';
+import 'services/receipt_service.dart';
 import 'stock_provider.dart';
+import 'store_provider.dart';
 
 class CheckoutPage extends StatefulWidget {
   final String orderId;
@@ -41,7 +45,18 @@ class CheckoutPage extends StatefulWidget {
 
 class _CheckoutPageState extends State<CheckoutPage> {
   final PrintingService _printingService = PrintingService();
+  final ReceiptService _receiptService = ReceiptService();
   bool _isConfirming = false;
+  bool _includeTaxInvoice = false;
+  bool _sendEmailReceipt = false;
+  bool _isGeneratingReceipt = false;
+  String? _generatedReceiptUrl;
+
+  final _customerNameController = TextEditingController();
+  final _customerTaxIdController = TextEditingController();
+  final _customerAddressController = TextEditingController();
+  final _customerEmailController = TextEditingController();
+  final _customerPhoneController = TextEditingController();
 
   String _formatNumber(double value) {
     var text = value.toStringAsFixed(2);
@@ -164,6 +179,172 @@ class _CheckoutPageState extends State<CheckoutPage> {
     );
   }
 
+  Widget _buildDigitalReceiptCard() {
+    final labelStyle =
+        Theme.of(
+          context,
+        ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold) ??
+        const TextStyle(fontSize: 18, fontWeight: FontWeight.bold);
+
+    final helperStyle = Theme.of(context).textTheme.bodySmall;
+
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 12),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('PDF & e-Receipt Options', style: labelStyle),
+            if (helperStyle != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(
+                  'สร้างใบเสร็จในรูปแบบ PDF, พร้อมข้อมูลใบกำกับภาษี และส่งให้ลูกค้าผ่านอีเมลหรือ QR code',
+                  style: helperStyle,
+                ),
+              ),
+            const SizedBox(height: 16),
+            SwitchListTile(
+              title: const Text('Include Tax Invoice Details'),
+              subtitle: const Text('ระบุข้อมูลสำหรับออกใบกำกับภาษีเต็มรูปแบบ'),
+              value: _includeTaxInvoice,
+              onChanged: (value) {
+                setState(() {
+                  _includeTaxInvoice = value;
+                });
+              },
+            ),
+            if (_includeTaxInvoice) ...[
+              const SizedBox(height: 8),
+              TextField(
+                controller: _customerNameController,
+                decoration: const InputDecoration(
+                  labelText: 'ชื่อลูกค้า / บริษัท',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.person_outline),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _customerTaxIdController,
+                decoration: const InputDecoration(
+                  labelText: 'เลขประจำตัวผู้เสียภาษี',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.badge_outlined),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _customerAddressController,
+                decoration: const InputDecoration(
+                  labelText: 'ที่อยู่สำหรับใบกำกับภาษี',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.location_on_outlined),
+                ),
+                maxLines: 2,
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _customerPhoneController,
+                decoration: const InputDecoration(
+                  labelText: 'เบอร์ติดต่อ (ถ้ามี)',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.phone_outlined),
+                ),
+                keyboardType: TextInputType.phone,
+              ),
+              const SizedBox(height: 12),
+            ],
+            SwitchListTile(
+              title: const Text('Send e-Receipt via Email'),
+              subtitle: const Text('ส่งไฟล์ PDF และลิงก์ผ่านอีเมลให้ลูกค้า'),
+              value: _sendEmailReceipt,
+              onChanged: (value) {
+                setState(() {
+                  _sendEmailReceipt = value;
+                });
+              },
+            ),
+            if (_sendEmailReceipt) ...[
+              const SizedBox(height: 8),
+              TextField(
+                controller: _customerEmailController,
+                decoration: const InputDecoration(
+                  labelText: 'อีเมลลูกค้า',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.email_outlined),
+                ),
+                keyboardType: TextInputType.emailAddress,
+              ),
+              const SizedBox(height: 12),
+            ],
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: _isGeneratingReceipt
+                    ? null
+                    : _generateDigitalReceipt,
+                icon: _isGeneratingReceipt
+                    ? const SizedBox(
+                        height: 18,
+                        width: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.picture_as_pdf),
+                label: Text(
+                  _sendEmailReceipt
+                      ? 'สร้าง PDF & ส่ง e-Receipt'
+                      : 'สร้าง PDF ใบเสร็จ',
+                ),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+              ),
+            ),
+            if (_generatedReceiptUrl != null) ...[
+              const Divider(height: 32),
+              Text(
+                'QR สำหรับ e-Receipt',
+                style: labelStyle.copyWith(fontSize: 16),
+              ),
+              const SizedBox(height: 12),
+              Center(
+                child: QrImageView(
+                  data: _generatedReceiptUrl!,
+                  version: QrVersions.auto,
+                  size: 180,
+                  backgroundColor: Colors.white,
+                ),
+              ),
+              const SizedBox(height: 12),
+              SelectableText(
+                _generatedReceiptUrl!,
+                style: const TextStyle(fontSize: 12),
+              ),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton.icon(
+                  onPressed: () async {
+                    await Clipboard.setData(
+                      ClipboardData(text: _generatedReceiptUrl!),
+                    );
+                    if (!mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('คัดลอกลิงก์เรียบร้อยแล้ว')),
+                    );
+                  },
+                  icon: const Icon(Icons.copy_all_outlined),
+                  label: const Text('คัดลอกลิงก์'),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
   String _generatePromptPayPayload(double amount) {
     const promptPayId = '0812345678';
     return 'promptpay-qr-code-payload-for-$promptPayId-with-amount-$amount';
@@ -178,12 +359,132 @@ class _CheckoutPageState extends State<CheckoutPage> {
       if (!orderDoc.exists) {
         throw Exception('Order not found!');
       }
-      await _printingService.previewReceipt(orderDoc.data()!);
+      final store = context.read<StoreProvider>().activeStore;
+      if (store == null) {
+        throw Exception('Store information not available');
+      }
+      await _printingService.previewReceipt(
+        orderDoc.data()!,
+        storeDetails: StoreReceiptDetails.fromStore(store),
+        taxDetails: _includeTaxInvoice
+            ? TaxInvoiceDetails(
+                customerName: _customerNameController.text.trim(),
+                taxId: _customerTaxIdController.text.trim(),
+                address: _customerAddressController.text.trim(),
+                email: _customerEmailController.text.trim(),
+                phone: _customerPhoneController.text.trim(),
+              )
+            : null,
+        includeTaxInvoice: _includeTaxInvoice,
+      );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('Preview Error: $e')));
+    }
+  }
+
+  bool _isValidEmail(String value) {
+    final email = value.trim();
+    if (email.isEmpty) return false;
+    final emailRegex = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
+    return emailRegex.hasMatch(email);
+  }
+
+  TaxInvoiceDetails? _buildTaxInvoiceDetails() {
+    if (!_includeTaxInvoice) return null;
+    return TaxInvoiceDetails(
+      customerName: _customerNameController.text.trim(),
+      taxId: _customerTaxIdController.text.trim(),
+      address: _customerAddressController.text.trim(),
+      email: _customerEmailController.text.trim(),
+      phone: _customerPhoneController.text.trim(),
+    );
+  }
+
+  Future<void> _generateDigitalReceipt() async {
+    if (_includeTaxInvoice && _customerNameController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('กรุณากรอกชื่อสำหรับใบกำกับภาษี')),
+      );
+      return;
+    }
+
+    if (_sendEmailReceipt && !_isValidEmail(_customerEmailController.text)) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('กรุณากรอกอีเมลให้ถูกต้อง')));
+      return;
+    }
+
+    setState(() {
+      _isGeneratingReceipt = true;
+      _generatedReceiptUrl = null;
+    });
+
+    try {
+      final orderRef = FirebaseFirestore.instance
+          .collection('orders')
+          .doc(widget.orderId);
+      final orderSnapshot = await orderRef.get();
+      final orderData = orderSnapshot.data();
+      if (orderData == null) {
+        throw Exception('Order not found');
+      }
+
+      final store = context.read<StoreProvider>().activeStore;
+      if (store == null) {
+        throw Exception('Store information not available');
+      }
+
+      final taxDetails = _buildTaxInvoiceDetails();
+      final receiptUrl = await _receiptService.generateAndDistributeReceipt(
+        orderId: widget.orderId,
+        orderData: orderData,
+        storeDetails: StoreReceiptDetails.fromStore(store),
+        taxDetails: taxDetails,
+        includeTaxInvoice: _includeTaxInvoice,
+        recipientEmail: _sendEmailReceipt
+            ? _customerEmailController.text.trim()
+            : null,
+      );
+
+      await _receiptService.persistReceiptMetadata(
+        orderId: widget.orderId,
+        receiptUrl: receiptUrl,
+        recipientEmail: _sendEmailReceipt
+            ? _customerEmailController.text.trim()
+            : null,
+        taxDetails: taxDetails,
+        includeTaxInvoice: _includeTaxInvoice,
+      );
+
+      setState(() {
+        _generatedReceiptUrl = receiptUrl;
+      });
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            _sendEmailReceipt
+                ? 'ส่ง e-Receipt ไปยังอีเมลเรียบร้อยแล้ว'
+                : 'สร้าง PDF เรียบร้อยแล้ว',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('ไม่สามารถสร้างใบเสร็จได้: $e')));
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isGeneratingReceipt = false;
+        });
+      }
     }
   }
 
@@ -254,6 +555,16 @@ class _CheckoutPageState extends State<CheckoutPage> {
   }
 
   @override
+  void dispose() {
+    _customerNameController.dispose();
+    _customerTaxIdController.dispose();
+    _customerAddressController.dispose();
+    _customerEmailController.dispose();
+    _customerPhoneController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final qrData = _generatePromptPayPayload(widget.totalAmount);
 
@@ -291,6 +602,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
                 ),
               ),
               _buildAmountBreakdown(),
+              _buildDigitalReceiptCard(),
               const SizedBox(height: 24),
               Wrap(
                 spacing: 12,
