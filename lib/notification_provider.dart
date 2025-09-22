@@ -8,18 +8,30 @@ import 'notifications_repository.dart';
 class NotificationProvider extends ChangeNotifier {
   final NotificationsRepository repo;
   String uid; // <-- ทำให้ public เพื่อให้ update ได้
+  String? _tenantId;
   StreamSubscription<List<AppNotification>>? _sub;
   List<AppNotification> _items = [];
   AppNotification? _latestUnseen;
 
-  NotificationProvider({required this.repo, required this.uid}) {
+  NotificationProvider({
+    required this.repo,
+    required this.uid,
+    String? tenantId,
+  }) : _tenantId = tenantId {
     _listenToStream(); // <-- เรียกใช้ฟังก์ชัน stream
   }
 
   // --- 1. สร้างฟังก์ชันสำหรับเริ่มฟัง Stream ---
   void _listenToStream() {
     _sub?.cancel(); // ยกเลิกของเก่าก่อนเสมอ
-    _sub = repo.watch().listen((list) {
+    final tenantId = _tenantId;
+    if (tenantId == null) {
+      _items = [];
+      _latestUnseen = null;
+      notifyListeners();
+      return;
+    }
+    _sub = repo.watch(tenantId: tenantId).listen((list) {
       _items = list;
       AppNotification? firstUnseen;
       for (final notification in list) {
@@ -33,12 +45,21 @@ class NotificationProvider extends ChangeNotifier {
     });
   }
 
-  // --- 2. เพิ่มฟังก์ชัน updateUid ---
-  void updateUid(String newUid) {
-    if (uid == newUid) return; // ถ้า uid เหมือนเดิม ไม่ต้องทำอะไร
-    uid = newUid;
-    _listenToStream(); // เริ่มฟัง stream ใหม่ด้วย uid ใหม่
-    print('NotificationProvider UID updated to: $uid');
+  // --- 2. เพิ่มฟังก์ชันอัปเดตคอนเท็กซ์ ---
+  void updateContext({required String uid, String? tenantId}) {
+    final hasUidChanged = this.uid != uid;
+    final hasTenantChanged = _tenantId != tenantId;
+    if (!hasUidChanged && !hasTenantChanged) {
+      return;
+    }
+    this.uid = uid;
+    _tenantId = tenantId;
+    _listenToStream(); // เริ่มฟัง stream ใหม่ด้วย context ใหม่
+    if (kDebugMode) {
+      print(
+        'Notification context updated -> uid: ${this.uid}, tenant: $_tenantId',
+      );
+    }
   }
   // --------------------------------
 

@@ -1,6 +1,7 @@
 import {
   onDocumentCreated,
   onDocumentUpdated,
+  onDocumentWrittenWithAuthContext,
 } from "firebase-functions/v2/firestore";
 import { HttpsError, onCall } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
@@ -29,6 +30,7 @@ const TIER_POINT_MULTIPLIERS = {
 
 // --- Helper function to create notifications ---
 async function createNotification(
+  tenantId: string,
   type: string,
   title: string,
   message: string,
@@ -37,6 +39,7 @@ async function createNotification(
 ) {
   try {
     await db.collection("notifications").add({
+      tenantId,
       type,
       title,
       message,
@@ -51,6 +54,67 @@ async function createNotification(
   }
 }
 
+function normalizeValue(value: unknown): unknown {
+  if (value === null || value === undefined) {
+    return value;
+  }
+  if (Array.isArray(value)) {
+    return value.map((entry) => normalizeValue(entry));
+  }
+  if (value instanceof admin.firestore.Timestamp) {
+    return value.toDate().toISOString();
+  }
+  if (typeof value === "object") {
+    const normalized: Record<string, unknown> = {};
+    Object.entries(value as Record<string, unknown>).forEach(([key, entry]) => {
+      normalized[key] = normalizeValue(entry);
+    });
+    return normalized;
+  }
+  return value;
+}
+
+function extractChangeSummary(
+  before: Record<string, unknown> | null,
+  after: Record<string, unknown> | null
+): Record<string, unknown> {
+  if (!before && !after) {
+    return {};
+  }
+  if (!before && after) {
+    return { after: normalizeValue(after) };
+  }
+  if (before && !after) {
+    return { before: normalizeValue(before) };
+  }
+
+  if (!before || !after) {
+    return {};
+  }
+
+  const normalizedBefore = normalizeValue(before) as Record<string, unknown>;
+  const normalizedAfter = normalizeValue(after) as Record<string, unknown>;
+  const keys = new Set([
+    ...Object.keys(normalizedBefore),
+    ...Object.keys(normalizedAfter),
+  ]);
+
+  const changes: Record<string, { before: unknown; after: unknown }> = {};
+  keys.forEach((key) => {
+    const beforeValue = normalizedBefore[key];
+    const afterValue = normalizedAfter[key];
+    if (JSON.stringify(beforeValue) !== JSON.stringify(afterValue)) {
+      changes[key] = { before: beforeValue, after: afterValue };
+    }
+  });
+
+  if (Object.keys(changes).length === 0) {
+    return {};
+  }
+
+  return { changes };
+}
+
 // --- Function to notify when order is ready to serve ---
 export const onOrderStatusUpdate = onDocumentUpdated("orders/{orderId}",
   async (event) => {
@@ -60,7 +124,15 @@ export const onOrderStatusUpdate = onDocumentUpdated("orders/{orderId}",
     if (!before || !after) return;
 
     if (before.status === "preparing" && after.status === "serving") {
+      const tenantId = after.tenantId as string | undefined;
+      if (!tenantId) {
+        logger.warn("Order missing tenantId, skipping notification", {
+          orderId: event.params.orderId,
+        });
+        return;
+      }
       await createNotification(
+        tenantId,
         "ORDER_READY",
         `Order Ready: ${after.orderIdentifier}`,
         "An order is now ready to be served to the customer.",
@@ -81,7 +153,15 @@ export const onIngredientUpdate = onDocumentUpdated("ingredients/{ingredientId}"
     const threshold = after.lowStockThreshold as number;
     // Notify only when the stock crosses the threshold
     if (after.stockQuantity <= threshold && before.stockQuantity > threshold) {
-        await createNotification(
+       const tenantId = after.tenantId as string | undefined;
+      if (!tenantId) {
+        logger.warn("Ingredient missing tenantId, skipping low stock alert", {
+          ingredientId: event.params.ingredientId,
+        });
+        return;
+      }
+      await createNotification(
+        tenantId,
         "LOW_STOCK",
         `Low Stock Alert: ${after.name}`,
         `Stock for ${after.name} is low (${after.stockQuantity} ${after.unit} remaining).`,
@@ -99,7 +179,16 @@ export const onRefundCreate = onDocumentCreated("refunds/{refundId}",
 
     const amount = (refundData.totalRefundAmount as number).toFixed(2);
     
+    const tenantId = refundData.tenantId as string | undefined;
+    if (!tenantId) {
+      logger.warn("Refund missing tenantId, skipping notification", {
+        refundId: event.params.refundId,
+      });
+      return;
+    }
+
     await createNotification(
+      tenantId,
       "REFUND_PROCESSED",
       `Refund Processed: ฿${amount}`,
       `A refund for order ${refundData.originalOrderId} has been processed.`,
@@ -133,6 +222,74 @@ export const processWasteRecord = onDocumentCreated("waste_records/{recordId}",
     }
   });
 
+  export const onTenantDocumentWrite = onDocumentWrittenWithAuthContext(
+  "{collectionId}/{docId}",
+  async (event) => {
+    const change = event.data;
+    if (!change) {
+      return;
+    }
+
+    const { collectionId, docId } = event.params;
+    if (collectionId === "auditLogs") {
+      return;
+    }
+
+    const beforeData = change.before?.data() as Record<string, unknown> | undefined;
+    const afterData = change.after?.data() as Record<string, unknown> | undefined;
+
+    if (!beforeData && !afterData) {
+      return;
+    }
+
+    let action: "create" | "update" | "delete" = "update";
+    if (!beforeData && afterData) {
+      action = "create";
+    } else if (beforeData && !afterData) {
+      action = "delete";
+    }
+
+    const tenantId =
+      (afterData?.tenantId as string | undefined) ??
+      (beforeData?.tenantId as string | undefined) ??
+      (collectionId === "featureFlags" ? (docId as string) : undefined);
+
+    if (!tenantId) {
+      logger.debug("Skipping audit log for document without tenant", {
+        collectionId,
+        docId,
+      });
+      return;
+    }
+
+    const storeId =
+      (afterData?.storeId as string | undefined) ??
+      (beforeData?.storeId as string | undefined) ??
+      null;
+
+    const metadata = extractChangeSummary(beforeData ?? null, afterData ?? null);
+
+    const payload: Record<string, unknown> = {
+      tenantId,
+      type: action,
+      description: `${action.toUpperCase()} ${collectionId}/${docId}`,
+      actorId: event.authId ?? "system",
+      timestamp: admin.firestore.FieldValue.serverTimestamp(),
+      collection: collectionId,
+      documentId: docId,
+    };
+
+    if (storeId) {
+      payload.storeId = storeId;
+    }
+
+    if (Object.keys(metadata).length > 0) {
+      payload.metadata = metadata;
+    }
+
+    await db.collection("auditLogs").add(payload);
+  }
+);
 
 export const returnStockOnRefund = onDocumentCreated("refunds/{refundId}",
   async (event) => {

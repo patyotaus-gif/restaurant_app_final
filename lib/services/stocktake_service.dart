@@ -13,6 +13,7 @@ class StocktakeService {
     required Ingredient ingredient,
     required double adjustment,
     required String actorId,
+    required String tenantId,
     String? storeId,
     String? note,
   }) async {
@@ -26,6 +27,7 @@ class StocktakeService {
     });
 
     await _auditLogService.logEvent(
+      tenantId: tenantId,
       type: 'inventory_adjustment',
       description:
           'Adjusted ${ingredient.name} by ${adjustment.toStringAsFixed(2)} ${ingredient.unit}',
@@ -43,6 +45,7 @@ class StocktakeService {
     required Ingredient ingredient,
     required double countedQuantity,
     required String actorId,
+    required String tenantId,
     String? storeId,
     String? note,
   }) async {
@@ -57,6 +60,7 @@ class StocktakeService {
     });
 
     await _auditLogService.logEvent(
+      tenantId: tenantId,
       type: 'stocktake',
       description:
           'Stocktake for ${ingredient.name}: counted ${countedQuantity.toStringAsFixed(2)} ${ingredient.unit}',

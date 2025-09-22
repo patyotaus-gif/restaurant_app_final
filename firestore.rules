@@ -1,0 +1,40 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function hasTenant() {
+      return request.auth != null &&
+        request.auth.token.tenantId is string &&
+        request.auth.token.tenantId != '';
+    }
+
+    function tenantMatches(tenantId) {
+      return hasTenant() && tenantId is string && tenantId != '' &&
+        request.auth.token.tenantId == tenantId;
+    }
+
+    match /auditLogs/{logId} {
+      allow read: if tenantMatches(resource.data.tenantId);
+      allow write: if false;
+    }
+
+    match /featureFlags/{tenantId} {
+      allow read, write: if tenantMatches(tenantId);
+    }
+
+    match /{document=**} {
+      allow read: if resource.data.tenantId != null &&
+        tenantMatches(resource.data.tenantId);
+
+      allow create: if request.resource.data.tenantId != null &&
+        tenantMatches(request.resource.data.tenantId);
+
+      allow update: if resource.data.tenantId != null &&
+        tenantMatches(resource.data.tenantId) &&
+        request.resource.data.tenantId != null &&
+        tenantMatches(request.resource.data.tenantId);
+
+      allow delete: if resource.data.tenantId != null &&
+        tenantMatches(resource.data.tenantId);
+    }
+  }
+}

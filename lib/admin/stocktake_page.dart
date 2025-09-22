@@ -98,6 +98,7 @@ class _StocktakePageState extends State<StocktakePage> {
                               ingredient,
                               stocktakeService,
                               authService,
+                              storeProvider,
                             );
                           } else {
                             setState(() {
@@ -177,6 +178,7 @@ class _StocktakePageState extends State<StocktakePage> {
                                                 ingredient,
                                                 stocktakeService,
                                                 authService,
+                                                storeProvider,
                                               )
                                             : null,
                                         icon: const Icon(Icons.tune),
@@ -192,6 +194,7 @@ class _StocktakePageState extends State<StocktakePage> {
                                                 ingredient,
                                                 stocktakeService,
                                                 authService,
+                                                storeProvider,
                                               )
                                             : null,
                                         icon: const Icon(Icons.inventory),
@@ -219,6 +222,7 @@ class _StocktakePageState extends State<StocktakePage> {
     Ingredient ingredient,
     StocktakeService stocktakeService,
     AuthService authService,
+    StoreProvider storeProvider,
   ) async {
     final adjustmentController = TextEditingController();
     final noteController = TextEditingController();
@@ -270,6 +274,17 @@ class _StocktakePageState extends State<StocktakePage> {
       });
       return;
     }
+    final tenantId = storeProvider.activeStore?.tenantId;
+    if (tenantId == null) {
+      setState(() {
+        _error = 'Select a store before recording adjustments.';
+      });
+      return;
+    }
+
+    final targetStoreId =
+        storeProvider.activeStore?.id ?? authService.activeStoreId;
+
     setState(() {
       _error = null;
       _isProcessing = true;
@@ -279,7 +294,8 @@ class _StocktakePageState extends State<StocktakePage> {
         ingredient: ingredient,
         adjustment: value,
         actorId: authService.loggedInEmployee?.id ?? 'system',
-        storeId: authService.activeStoreId,
+        tenantId: tenantId,
+        storeId: targetStoreId,
         note: noteController.text.trim().isEmpty
             ? null
             : noteController.text.trim(),
@@ -302,6 +318,7 @@ class _StocktakePageState extends State<StocktakePage> {
     Ingredient ingredient,
     StocktakeService stocktakeService,
     AuthService authService,
+    StoreProvider storeProvider,
   ) async {
     final countedController = TextEditingController(
       text: ingredient.stockQuantity.toStringAsFixed(2),
@@ -355,6 +372,16 @@ class _StocktakePageState extends State<StocktakePage> {
       return;
     }
 
+    final tenantId = storeProvider.activeStore?.tenantId;
+    if (tenantId == null) {
+      setState(() {
+        _error = 'Select a store before recording stocktakes.';
+      });
+      return;
+    }
+
+    final targetStoreId =
+        storeProvider.activeStore?.id ?? authService.activeStoreId;
     setState(() {
       _error = null;
       _isProcessing = true;
@@ -364,7 +391,8 @@ class _StocktakePageState extends State<StocktakePage> {
         ingredient: ingredient,
         countedQuantity: value,
         actorId: authService.loggedInEmployee?.id ?? 'system',
-        storeId: authService.activeStoreId,
+        tenantId: tenantId,
+        storeId: targetStoreId,
         note: noteController.text.trim().isEmpty
             ? null
             : noteController.text.trim(),
@@ -387,6 +415,7 @@ class _StocktakePageState extends State<StocktakePage> {
     Ingredient ingredient,
     StocktakeService stocktakeService,
     AuthService authService,
+    StoreProvider storeProvider,
   ) async {
     final action = await showModalBottomSheet<_StocktakeAction>(
       context: context,
@@ -419,6 +448,7 @@ class _StocktakePageState extends State<StocktakePage> {
         ingredient,
         stocktakeService,
         authService,
+        storeProvider,
       );
     } else if (action == _StocktakeAction.stocktake) {
       await _handleFullStocktake(
@@ -426,6 +456,7 @@ class _StocktakePageState extends State<StocktakePage> {
         ingredient,
         stocktakeService,
         authService,
+        storeProvider,
       );
     }
   }

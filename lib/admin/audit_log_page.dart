@@ -27,6 +27,7 @@ class AuditLogPage extends StatelessWidget {
     }
 
     final Store? selectedStore = storeProvider.activeStore;
+    final tenantId = selectedStore?.tenantId;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Audit Trail')),
@@ -49,39 +50,50 @@ class AuditLogPage extends StatelessWidget {
             ),
           ),
           Expanded(
-            child: StreamBuilder<List<AuditLogEntry>>(
-              stream: auditLogService.watchLogs(storeId: selectedStore?.id),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                if (snapshot.hasError) {
-                  return Center(
-                    child: Text('Failed to load audit logs: ${snapshot.error}'),
-                  );
-                }
-                final logs = snapshot.data ?? [];
-                if (logs.isEmpty) {
-                  return const Center(child: Text('No audit activity found.'));
-                }
-                return ListView.builder(
-                  itemCount: logs.length,
-                  itemBuilder: (context, index) {
-                    final log = logs[index];
-                    return ListTile(
-                      leading: const Icon(Icons.event_note_outlined),
-                      title: Text(log.description),
-                      subtitle: Text(
-                        '${log.type.toUpperCase()} • ${log.timestamp.toLocal()} • ${log.actorId}',
-                      ),
-                      trailing: log.storeId != null
-                          ? Chip(label: Text(log.storeId!))
-                          : null,
-                    );
-                  },
-                );
-              },
-            ),
+            child: tenantId == null
+                ? const Center(
+                    child: Text('Select a store to view tenant audit logs.'),
+                  )
+                : StreamBuilder<List<AuditLogEntry>>(
+                    stream: auditLogService.watchLogs(
+                      tenantId: tenantId,
+                      storeId: selectedStore?.id,
+                    ),
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
+                      if (snapshot.hasError) {
+                        return Center(
+                          child: Text(
+                            'Failed to load audit logs: ${snapshot.error}',
+                          ),
+                        );
+                      }
+                      final logs = snapshot.data ?? [];
+                      if (logs.isEmpty) {
+                        return const Center(
+                          child: Text('No audit activity found.'),
+                        );
+                      }
+                      return ListView.builder(
+                        itemCount: logs.length,
+                        itemBuilder: (context, index) {
+                          final log = logs[index];
+                          return ListTile(
+                            leading: const Icon(Icons.event_note_outlined),
+                            title: Text(log.description),
+                            subtitle: Text(
+                              '${log.type.toUpperCase()} • ${log.timestamp.toLocal()} • ${log.actorId}',
+                            ),
+                            trailing: log.storeId != null
+                                ? Chip(label: Text(log.storeId!))
+                                : null,
+                          );
+                        },
+                      );
+                    },
+                  ),
           ),
         ],
       ),

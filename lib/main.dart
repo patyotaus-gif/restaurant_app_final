@@ -315,17 +315,35 @@ class MyApp extends StatelessWidget {
             return previousCart ?? CartProvider();
           },
         ),
-        ChangeNotifierProxyProvider<AuthService, NotificationProvider>(
+        ChangeNotifierProxyProvider2<
+          AuthService,
+          StoreProvider,
+          NotificationProvider
+        >(
           create: (ctx) {
             final repo = ctx.read<NotificationsRepository>();
-            return NotificationProvider(repo: repo, uid: 'anonymous');
+            final auth = ctx.read<AuthService>();
+            final stores = ctx.read<StoreProvider>();
+            final uid = auth.loggedInEmployee?.id ?? 'anonymous';
+            return NotificationProvider(
+              repo: repo,
+              uid: uid,
+              tenantId: stores.activeStore?.tenantId,
+            );
           },
-          update: (ctx, auth, previousProvider) {
+          update: (ctx, auth, storeProvider, previousProvider) {
             final repo = ctx.read<NotificationsRepository>();
             final uid = auth.loggedInEmployee?.id ?? 'anonymous';
-            previousProvider?.updateUid(uid);
-            return previousProvider ??
-                NotificationProvider(repo: repo, uid: uid);
+            final tenantId = storeProvider.activeStore?.tenantId;
+            if (previousProvider != null) {
+              previousProvider.updateContext(uid: uid, tenantId: tenantId);
+              return previousProvider;
+            }
+            return NotificationProvider(
+              repo: repo,
+              uid: uid,
+              tenantId: tenantId,
+            );
           },
         ),
       ],
