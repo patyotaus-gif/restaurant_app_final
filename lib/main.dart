@@ -17,6 +17,8 @@ import 'stock_provider.dart';
 import 'notifications_repository.dart';
 import 'notification_provider.dart';
 import 'services/sync_queue_service.dart';
+import 'services/client_cache_service.dart';
+
 import 'customer_menu_page.dart';
 import 'role_selection_page.dart';
 import 'pin_login_page.dart';
@@ -59,6 +61,7 @@ import 'services/store_service.dart';
 import 'services/audit_log_service.dart';
 import 'services/stocktake_service.dart';
 import 'services/payment_gateway_service.dart';
+import 'services/menu_cache_provider.dart';
 import 'services/printer_drawer_service.dart';
 import 'feature_flags/feature_flag_provider.dart';
 import 'feature_flags/feature_flag_service.dart';
@@ -244,8 +247,15 @@ class MyApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(create: (ctx) => AppModeProvider()),
         ChangeNotifierProvider(create: (ctx) => AuthService()),
+        Provider<ClientCacheService>(create: (_) => ClientCacheService()),
         Provider<StoreService>(
           create: (_) => StoreService(FirebaseFirestore.instance),
+        ),
+        ChangeNotifierProvider(
+          create: (ctx) => MenuCacheProvider(
+            FirebaseFirestore.instance,
+            ctx.read<ClientCacheService>(),
+          ),
         ),
         ChangeNotifierProxyProvider<AuthService, StoreProvider>(
           create: (ctx) => StoreProvider(ctx.read<StoreService>()),
@@ -283,11 +293,17 @@ class MyApp extends StatelessWidget {
           TerminalProvider,
           FeatureFlagProvider
         >(
-          create: (ctx) => FeatureFlagProvider(ctx.read<FeatureFlagService>()),
+          create: (ctx) => FeatureFlagProvider(
+            ctx.read<FeatureFlagService>(),
+            ctx.read<ClientCacheService>(),
+          ),
           update: (ctx, storeProvider, terminalProvider, featureFlagProvider) {
             final provider =
                 featureFlagProvider ??
-                FeatureFlagProvider(ctx.read<FeatureFlagService>());
+                FeatureFlagProvider(
+                  ctx.read<FeatureFlagService>(),
+                  ctx.read<ClientCacheService>(),
+                );
             provider.updateContext(
               store: storeProvider.activeStore,
               terminalId: terminalProvider.terminalId,

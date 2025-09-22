@@ -1,11 +1,12 @@
 // lib/customer_menu_page.dart
 
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:provider/provider.dart';
 import 'models/product_model.dart'; // <-- 1. Use Product model
 import 'models/promotion_model.dart';
 import 'cart_provider.dart';
 import 'customer_checkout_page.dart';
+import 'services/menu_cache_provider.dart';
 
 class CustomerMenuPage extends StatefulWidget {
   final String tableNumber;
@@ -470,26 +471,24 @@ class _CustomerMenuPageState extends State<CustomerMenuPage> {
             ),
           ),
           Expanded(
-            child: StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection('menu_items')
-                  .where('category', isEqualTo: _selectedCategory)
-                  .snapshots(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
+            child: Consumer<MenuCacheProvider>(
+              builder: (context, menuCache, child) {
+                final items = menuCache
+                    .productsByCategory(_selectedCategory)
+                    .toList();
+                if (!menuCache.isReady) {
                   return const Center(child: CircularProgressIndicator());
                 }
-                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                if (items.isEmpty) {
                   return const Center(
                     child: Text('No items in this category.'),
                   );
                 }
                 return ListView.builder(
                   padding: const EdgeInsets.all(8.0),
-                  itemCount: snapshot.data!.docs.length,
+                  itemCount: items.length,
                   itemBuilder: (context, index) {
-                    final doc = snapshot.data!.docs[index];
-                    final product = Product.fromFirestore(doc);
+                    final product = items[index];
                     return _buildProductCard(product);
                   },
                 );

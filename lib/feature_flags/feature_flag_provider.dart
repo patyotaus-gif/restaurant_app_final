@@ -3,14 +3,16 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import '../models/store_model.dart';
+import '../services/client_cache_service.dart';
 import 'feature_flag_configuration.dart';
 import 'feature_flag_scope.dart';
 import 'feature_flag_service.dart';
 
 class FeatureFlagProvider with ChangeNotifier {
-  FeatureFlagProvider(this._featureFlagService);
+  FeatureFlagProvider(this._featureFlagService, this._cacheService);
 
   final FeatureFlagService _featureFlagService;
+  final ClientCacheService _cacheService;
 
   FeatureFlagConfiguration _configuration = FeatureFlagConfiguration.empty();
   StreamSubscription<FeatureFlagConfiguration>? _subscription;
@@ -45,10 +47,17 @@ class FeatureFlagProvider with ChangeNotifier {
       _configuration = FeatureFlagConfiguration.empty();
       _subscription?.cancel();
       if (tenantId != null) {
+        _loadCachedConfiguration(tenantId);
         _subscription = _featureFlagService.watchTenantFlags(tenantId).listen((
           configuration,
         ) {
           _configuration = configuration;
+          unawaited(
+            _cacheService.cacheFeatureFlags(
+              tenantId: tenantId,
+              configuration: configuration,
+            ),
+          );
           notifyListeners();
         });
       }
@@ -63,6 +72,14 @@ class FeatureFlagProvider with ChangeNotifier {
     }
 
     if (tenantChanged || storeChanged || terminalChanged) {
+      notifyListeners();
+    }
+  }
+
+  Future<void> _loadCachedConfiguration(String tenantId) async {
+    final cached = await _cacheService.readFeatureFlags(tenantId: tenantId);
+    if (cached != null && _tenantId == tenantId) {
+      _configuration = cached;
       notifyListeners();
     }
   }

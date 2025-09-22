@@ -1,11 +1,11 @@
 // lib/menu_panel.dart
 
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import 'cart_provider.dart';
 import 'stock_provider.dart';
 import 'models/product_model.dart'; // <-- 1. Use Product
+import 'services/menu_cache_provider.dart';
 
 class MenuPanel extends StatefulWidget {
   const MenuPanel({super.key});
@@ -67,19 +67,15 @@ class _MenuPanelState extends State<MenuPanel> {
           ),
         ),
         Expanded(
-          child: StreamBuilder<QuerySnapshot>(
-            stream: FirebaseFirestore.instance
-                .collection('menu_items')
-                .where('category', isEqualTo: _selectedCategory)
-                .snapshots(),
-            builder: (context, snapshot) {
-              if (snapshot.hasError) {
-                return const Center(child: Text('Something went wrong'));
-              }
-              if (snapshot.connectionState == ConnectionState.waiting) {
+          child: Consumer<MenuCacheProvider>(
+            builder: (context, menuCache, child) {
+              final items = menuCache
+                  .productsByCategory(_selectedCategory)
+                  .toList();
+              if (!menuCache.isReady) {
                 return const Center(child: CircularProgressIndicator());
               }
-              if (snapshot.data!.docs.isEmpty) {
+              if (items.isEmpty) {
                 return Center(
                   child: Text(
                     'No items in the "${_categories[_selectedCategory]}" category.',
@@ -95,17 +91,14 @@ class _MenuPanelState extends State<MenuPanel> {
                   mainAxisSpacing: 12,
                   childAspectRatio: 4 / 3,
                 ),
-                itemCount: snapshot.data!.docs.length,
+                itemCount: items.length,
                 itemBuilder: (context, index) {
-                  DocumentSnapshot document = snapshot.data!.docs[index];
-                  // --- 2. Create Product object ---
-                  final product = Product.fromFirestore(document);
+                  final product = items[index];
 
                   return Consumer2<CartProvider, StockProvider>(
                     builder: (context, cart, stock, child) {
                       final int quantityInCart =
                           cart.items[product.id]?.quantity ?? 0;
-                      // --- 3. Use isProductAvailable ---
                       final bool isAvailable = stock.isProductAvailable(
                         product,
                         quantityToCheck: quantityInCart + 1,
@@ -126,7 +119,6 @@ class _MenuPanelState extends State<MenuPanel> {
                         ),
                         onPressed: isAvailable
                             ? () {
-                                // --- 4. Pass Product object to cart ---
                                 final success = cart.addItem(product);
                                 if (!success) {
                                   ScaffoldMessenger.of(context).showSnackBar(

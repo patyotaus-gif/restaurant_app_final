@@ -56,4 +56,12 @@ class FeatureFlagConfiguration {
     }
     return merged;
   }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'flags': tenantFlags,
+      'stores': storeFlags,
+      'terminals': terminalFlags,
+    };
+  }
 }

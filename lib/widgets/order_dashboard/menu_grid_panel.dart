@@ -1,11 +1,11 @@
 // lib/widgets/order_dashboard/menu_grid_panel.dart
 
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import '../../cart_provider.dart';
 import '../../stock_provider.dart';
 import '../../models/product_model.dart';
+import '../../services/menu_cache_provider.dart';
 import '../modifier_selection_dialog.dart'; // <-- 1. IMPORT THE DIALOG
 
 class MenuGridPanel extends StatelessWidget {
@@ -22,19 +22,15 @@ class MenuGridPanel extends StatelessWidget {
         elevation: 1,
         automaticallyImplyLeading: false,
       ),
-      body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('menu_items')
-            .where('category', isEqualTo: selectedCategory)
-            .snapshots(),
-        builder: (context, snapshot) {
-          if (snapshot.hasError) {
-            return const Center(child: Text('Something went wrong'));
-          }
-          if (snapshot.connectionState == ConnectionState.waiting) {
+      body: Consumer<MenuCacheProvider>(
+        builder: (context, menuCache, child) {
+          final items = menuCache
+              .productsByCategory(selectedCategory)
+              .toList(growable: false);
+          if (!menuCache.isReady) {
             return const Center(child: CircularProgressIndicator());
           }
-          if (snapshot.data!.docs.isEmpty) {
+          if (items.isEmpty) {
             return const Center(child: Text('No items in this category.'));
           }
 
@@ -46,10 +42,9 @@ class MenuGridPanel extends StatelessWidget {
               mainAxisSpacing: 12,
               childAspectRatio: 1.1,
             ),
-            itemCount: snapshot.data!.docs.length,
+            itemCount: items.length,
             itemBuilder: (context, index) {
-              final document = snapshot.data!.docs[index];
-              final product = Product.fromFirestore(document);
+              final product = items[index];
 
               return Consumer2<CartProvider, StockProvider>(
                 builder: (context, cart, stock, child) {
@@ -80,7 +75,6 @@ class MenuGridPanel extends StatelessWidget {
                     onPressed: isAvailable
                         ? () async {
                             if (product.modifierGroupIds.isNotEmpty) {
-                              // Product HAS modifiers, so show the dialog
                               final selectedModifiers =
                                   await showDialog<List<Map<String, dynamic>>>(
                                     context: context,
@@ -90,14 +84,12 @@ class MenuGridPanel extends StatelessWidget {
                                   );
 
                               if (selectedModifiers != null) {
-                                // If user confirmed, add item with modifiers
                                 cart.addItem(
                                   product,
                                   modifiers: selectedModifiers,
                                 );
                               }
                             } else {
-                              // Product has NO modifiers, add directly to cart
                               cart.addItem(product);
                             }
                           }

@@ -1,15 +1,24 @@
+/* eslint-disable require-jsdoc, max-len */
 import {
   onDocumentCreated,
   onDocumentUpdated,
   onDocumentWrittenWithAuthContext,
 } from "firebase-functions/v2/firestore";
-import { HttpsError, onCall } from "firebase-functions/v2/https";
+import {HttpsError, onCall} from "firebase-functions/v2/https";
+import {onSchedule} from "firebase-functions/v2/scheduler";
 import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
 import https from "node:https";
+import {Storage} from "@google-cloud/storage";
 
 admin.initializeApp();
 const db = admin.firestore();
+const storage = new Storage();
+
+const BACKUP_BUCKET = process.env.BACKUP_BUCKET;
+const ASIA_BANGKOK_OFFSET_MINUTES = 7 * 60;
+const AGGREGATE_COLLECTION_HOURLY = "analytics_hourly";
+const AGGREGATE_COLLECTION_DAILY = "analytics_daily";
 
 const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY;
 const SENDGRID_FROM_EMAIL =
@@ -82,10 +91,10 @@ function extractChangeSummary(
     return {};
   }
   if (!before && after) {
-    return { after: normalizeValue(after) };
+    return {after: normalizeValue(after)};
   }
   if (before && !after) {
-    return { before: normalizeValue(before) };
+    return {before: normalizeValue(before)};
   }
 
   if (!before || !after) {
@@ -104,7 +113,7 @@ function extractChangeSummary(
     const beforeValue = normalizedBefore[key];
     const afterValue = normalizedAfter[key];
     if (JSON.stringify(beforeValue) !== JSON.stringify(afterValue)) {
-      changes[key] = { before: beforeValue, after: afterValue };
+      changes[key] = {before: beforeValue, after: afterValue};
     }
   });
 
@@ -112,7 +121,117 @@ function extractChangeSummary(
     return {};
   }
 
-  return { changes };
+  return {changes};
+}
+
+type AggregationMetrics = {
+  orderCount: number;
+  grossSales: number;
+  totalItems: number;
+  totalDiscounts: number;
+  totalTax: number;
+};
+
+const ALL_TENANTS_KEY = "ALL";
+
+function createEmptyMetrics(): AggregationMetrics {
+  return {
+    orderCount: 0,
+    grossSales: 0,
+    totalItems: 0,
+    totalDiscounts: 0,
+    totalTax: 0,
+  };
+}
+
+function toLocalDate(date: Date): Date {
+  return new Date(date.getTime() + ASIA_BANGKOK_OFFSET_MINUTES * 60000);
+}
+
+function toUtcFromLocal(localDate: Date): Date {
+  return new Date(localDate.getTime() - ASIA_BANGKOK_OFFSET_MINUTES * 60000);
+}
+
+function previousHourRange(now: Date = new Date()): {
+  startUtc: Date;
+  endUtc: Date;
+  startLocal: Date;
+  endLocal: Date;
+} {
+  const localNow = toLocalDate(now);
+  localNow.setMinutes(0, 0, 0);
+  const endLocal = new Date(localNow.getTime());
+  const startLocal = new Date(localNow.getTime());
+  startLocal.setHours(startLocal.getHours() - 1);
+  return {
+    startUtc: toUtcFromLocal(startLocal),
+    endUtc: toUtcFromLocal(endLocal),
+    startLocal,
+    endLocal,
+  };
+}
+
+function previousDayRange(now: Date = new Date()): {
+  startUtc: Date;
+  endUtc: Date;
+  startLocal: Date;
+  endLocal: Date;
+} {
+  const localNow = toLocalDate(now);
+  localNow.setHours(0, 0, 0, 0);
+  const endLocal = new Date(localNow.getTime());
+  const startLocal = new Date(localNow.getTime());
+  startLocal.setDate(startLocal.getDate() - 1);
+  return {
+    startUtc: toUtcFromLocal(startLocal),
+    endUtc: toUtcFromLocal(endLocal),
+    startLocal,
+    endLocal,
+  };
+}
+
+function formatLocalDateKey(date: Date): string {
+  const year = date.getFullYear();
+  const month = (date.getMonth() + 1).toString().padStart(2, "0");
+  const day = date.getDate().toString().padStart(2, "0");
+  return `${year}${month}${day}`;
+}
+
+function formatLocalHourKey(date: Date): string {
+  const base = formatLocalDateKey(date);
+  const hour = date.getHours().toString().padStart(2, "0");
+  return `${base}${hour}`;
+}
+
+function roundCurrency(value: number): number {
+  return Math.round(value * 100) / 100;
+}
+
+function accumulateMetrics(
+  metrics: AggregationMetrics,
+  orderData: Record<string, unknown>
+) {
+  const total = Number(orderData.total ?? orderData.grandTotal ?? 0);
+  const discount = Number(
+    orderData.discount ?? orderData.discountAmount ?? orderData.totalDiscount ?? 0
+  );
+  const tax = Number(orderData.tax ?? orderData.taxAmount ?? 0);
+  let quantity = 0;
+  const items = orderData.items;
+  if (Array.isArray(items)) {
+    for (const raw of items) {
+      if (raw && typeof raw === "object") {
+        const entry = raw as Record<string, unknown>;
+        quantity += Number(entry.quantity ?? 0);
+      }
+    }
+  }
+
+  metrics.orderCount += 1;
+  metrics.grossSales += total;
+  metrics.totalItems += quantity;
+  metrics.totalDiscounts += discount;
+  metrics.totalTax += tax;
 }
 
 // --- Function to notify when order is ready to serve ---
@@ -149,11 +268,11 @@ export const onIngredientUpdate = onDocumentUpdated("ingredients/{ingredientId}"
     const after = event.data?.after.data();
 
     if (!before || !after) return;
-    
+
     const threshold = after.lowStockThreshold as number;
     // Notify only when the stock crosses the threshold
     if (after.stockQuantity <= threshold && before.stockQuantity > threshold) {
-       const tenantId = after.tenantId as string | undefined;
+      const tenantId = after.tenantId as string | undefined;
       if (!tenantId) {
         logger.warn("Ingredient missing tenantId, skipping low stock alert", {
           ingredientId: event.params.ingredientId,
@@ -222,7 +341,7 @@ export const processWasteRecord = onDocumentCreated("waste_records/{recordId}",
     }
   });
 
-  export const onTenantDocumentWrite = onDocumentWrittenWithAuthContext(
+export const onTenantDocumentWrite = onDocumentWrittenWithAuthContext(
   "{collectionId}/{docId}",
   async (event) => {
     const change = event.data;
@@ -230,7 +349,7 @@ export const processWasteRecord = onDocumentCreated("waste_records/{recordId}",
       return;
     }
 
-    const { collectionId, docId } = event.params;
+    const {collectionId, docId} = event.params;
     if (collectionId === "auditLogs") {
       return;
     }
@@ -493,7 +612,7 @@ export const processCompletedOrder = onDocumentUpdated("orders/{orderId}",
                 }
               } else {
                 const ingRef = db.collection("ingredients").doc(item.id);
-                  transaction.update(ingRef, {
+                transaction.update(ingRef, {
                   stockQuantity: admin.firestore.FieldValue.increment(-item.quantity),
                 });
               }
@@ -577,7 +696,7 @@ export const updateStockOnPoReceived = onDocumentUpdated("purchase_orders/{poId}
     }
 
     if (after.status !== "received" || before.status === "received") {
-      return; 
+      return;
     }
 
     logger.log(`PO ${event.params.poId} marked as received. Updating stock...`);
@@ -629,13 +748,13 @@ async function sendEmailViaSendGrid(body: Record<string, unknown>) {
         path: "/v3/mail/send",
         method: "POST",
         headers: {
-          Authorization: `Bearer ${SENDGRID_API_KEY}`,
+          "Authorization": `Bearer ${SENDGRID_API_KEY}`,
           "Content-Type": "application/json",
           "Content-Length": Buffer.byteLength(payload).toString(),
         },
       },
       (response) => {
-        const { statusCode } = response;
+        const {statusCode} = response;
         if (statusCode && statusCode >= 200 && statusCode < 300) {
           response.on("data", () => undefined);
           response.on("end", resolve);
@@ -665,6 +784,219 @@ async function sendEmailViaSendGrid(body: Record<string, unknown>) {
     request.end();
   });
 }
+
+async function aggregateOrdersForRange(options: {
+  range: {
+    startUtc: Date;
+    endUtc: Date;
+    startLocal: Date;
+    endLocal: Date;
+  };
+  windowLabel: string;
+  collectionName: string;
+  docIdBuilder: (tenantId: string) => string;
+}) {
+  const {range, windowLabel, collectionName, docIdBuilder} = options;
+  try {
+    const querySnapshot = await db
+      .collection("orders")
+      .where("status", "==", "completed")
+      .where(
+        "completedAt",
+        ">=",
+        admin.firestore.Timestamp.fromDate(range.startUtc)
+      )
+      .where(
+        "completedAt",
+        "<",
+        admin.firestore.Timestamp.fromDate(range.endUtc)
+      )
+      .get();
+
+    if (querySnapshot.empty) {
+      logger.log(`No completed orders found for ${windowLabel} aggregation window`, {
+        window: windowLabel,
+        start: range.startUtc.toISOString(),
+        end: range.endUtc.toISOString(),
+      });
+      return;
+    }
+
+    const metricsByTenant = new Map<string, AggregationMetrics>();
+    const ensureMetrics = (tenantId: string) => {
+      if (!metricsByTenant.has(tenantId)) {
+        metricsByTenant.set(tenantId, createEmptyMetrics());
+      }
+      return metricsByTenant.get(tenantId)!;
+    };
+
+    querySnapshot.forEach((doc) => {
+      const data = doc.data() as Record<string, unknown>;
+      const tenantId = (data.tenantId as string | undefined) ?? "default";
+      accumulateMetrics(ensureMetrics(tenantId), data);
+      if (tenantId !== ALL_TENANTS_KEY) {
+        accumulateMetrics(ensureMetrics(ALL_TENANTS_KEY), data);
+      }
+    });
+
+    await Promise.all(
+      Array.from(metricsByTenant.entries()).map(async ([tenantId, metrics]) => {
+        const docRef = db.collection(collectionName).doc(docIdBuilder(tenantId));
+        await docRef.set(
+          {
+            tenantId,
+            window: windowLabel,
+            periodStart: admin.firestore.Timestamp.fromDate(range.startUtc),
+            periodEnd: admin.firestore.Timestamp.fromDate(range.endUtc),
+            localPeriodStart: range.startLocal.toISOString(),
+            localPeriodEnd: range.endLocal.toISOString(),
+            timezone: "Asia/Bangkok",
+            orderCount: metrics.orderCount,
+            grossSales: roundCurrency(metrics.grossSales),
+            totalItems: metrics.totalItems,
+            totalDiscounts: roundCurrency(metrics.totalDiscounts),
+            totalTax: roundCurrency(metrics.totalTax),
+            averageOrderValue:
+              metrics.orderCount > 0 ?
+                roundCurrency(metrics.grossSales / metrics.orderCount) :
+                0,
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          },
+          {merge: true}
+        );
+      })
+    );
+
+    logger.log(`Aggregated ${metricsByTenant.size} tenant buckets for ${windowLabel} window`, {
+      window: windowLabel,
+      start: range.startUtc.toISOString(),
+      end: range.endUtc.toISOString(),
+    });
+  } catch (error) {
+    logger.error(`Failed to aggregate ${windowLabel} metrics`, error);
+    throw error;
+  }
+}
+
+export const aggregateHourlyOrders = onSchedule(
+  {
+    schedule: "5 * * * *",
+    timeZone: "Asia/Bangkok",
+  },
+  async () => {
+    const range = previousHourRange();
+    await aggregateOrdersForRange({
+      range,
+      windowLabel: "hourly",
+      collectionName: AGGREGATE_COLLECTION_HOURLY,
+      docIdBuilder: (tenantId) => `${tenantId}_${formatLocalHourKey(range.startLocal)}`,
+    });
+  }
+);
+
+export const aggregateDailyOrders = onSchedule(
+  {
+    schedule: "15 0 * * *",
+    timeZone: "Asia/Bangkok",
+  },
+  async () => {
+    const range = previousDayRange();
+    await aggregateOrdersForRange({
+      range,
+      windowLabel: "daily",
+      collectionName: AGGREGATE_COLLECTION_DAILY,
+      docIdBuilder: (tenantId) => `${tenantId}_${formatLocalDateKey(range.startLocal)}`,
+    });
+  }
+);
+
+async function exportCollectionToBucket(options: {
+  collectionName: string;
+  destinationFolder: string;
+  executedAt: Date;
+}) {
+  const {collectionName, destinationFolder, executedAt} = options;
+  const bucketName = BACKUP_BUCKET;
+  if (!bucketName) {
+    throw new Error("BACKUP_BUCKET is not configured.");
+  }
+
+  const snapshot = await db.collection(collectionName).get();
+  const documents = snapshot.docs.map((doc) => ({
+    id: doc.id,
+    data: normalizeValue(doc.data()) as Record<string, unknown>,
+  }));
+
+  const payload = JSON.stringify(
+    {
+      collection: collectionName,
+      exportedAt: executedAt.toISOString(),
+      documentCount: documents.length,
+      documents,
+    },
+    null,
+    2
+  );
+
+  const bucket = storage.bucket(bucketName);
+  const file = bucket.file(`${destinationFolder}/${collectionName}.json`);
+  await file.save(payload, {
+    resumable: false,
+    contentType: "application/json",
+  });
+}
+
+export const exportDataToGcs = onSchedule(
+  {
+    schedule: "0 3 * * *",
+    timeZone: "Asia/Bangkok",
+    timeoutSeconds: 540,
+  },
+  async () => {
+    if (!BACKUP_BUCKET) {
+      logger.warn(
+        "Skipping exportDataToGcs because BACKUP_BUCKET environment variable is not configured."
+      );
+      return;
+    }
+
+    const executedAt = new Date();
+    const localDate = toLocalDate(executedAt);
+    const folder =
+      `backups/${formatLocalDateKey(localDate)}/` +
+      executedAt.toISOString().replace(/[:.]/g, "-");
+
+    const collectionsToExport = [
+      "orders",
+      "refunds",
+      "menu_items",
+      "featureFlags",
+      "stores",
+      "customers",
+    ];
+
+    const errors: Error[] = [];
+    for (const collectionName of collectionsToExport) {
+      try {
+        await exportCollectionToBucket({
+          collectionName,
+          destinationFolder: folder,
+          executedAt,
+        });
+        logger.log(
+          `Exported ${collectionName} snapshot to gs://${BACKUP_BUCKET}/${folder}/${collectionName}.json`
+        );
+      } catch (error) {
+        logger.error(`Failed to export collection ${collectionName}`, error);
+        errors.push(error as Error);
+      }
+    }
+
+    if (errors.length > 0) {
+      throw errors[0];
+    }
+  }
+);
 
 export const sendReceiptEmail = onCall(async (request) => {
   const data = request.data as {
@@ -704,7 +1036,7 @@ export const sendReceiptEmail = onCall(async (request) => {
   const body: Record<string, unknown> = {
     personalizations: [
       {
-        to: [{ email }],
+        to: [{email}],
       },
     ],
     from: {
@@ -734,5 +1066,5 @@ export const sendReceiptEmail = onCall(async (request) => {
   await sendEmailViaSendGrid(body);
 
   logger.log(`Receipt email sent to ${email} for order ${orderIdentifier}.`);
-  return { success: true };
+  return {success: true};
 });

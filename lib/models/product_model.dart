@@ -52,9 +52,16 @@ class Product {
 
   factory Product.fromFirestore(DocumentSnapshot doc) {
     Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+    return Product.fromMap(data, id: doc.id);
+  }
 
+  factory Product.fromJson(Map<String, dynamic> json) {
+    return Product.fromMap(json, id: json['id'] as String? ?? '');
+  }
+
+  static Product fromMap(Map<String, dynamic> data, {required String id}) {
     return Product(
-      id: doc.id,
+      id: id,
       name: data['name'] ?? 'No Name',
       price: (data['price'] as num?)?.toDouble() ?? 0.0,
       category: data['category'] ?? '',
@@ -70,7 +77,6 @@ class Product {
       supplierId: data['supplierId'],
       variations: List<Map<String, dynamic>>.from(data['variations'] ?? []),
       recipe: List<Map<String, dynamic>>.from(data['recipe'] ?? []),
-      // --- ADDED THIS LINE TO READ FROM FIRESTORE ---
       modifierGroupIds: List<String>.from(data['modifierGroupIds'] ?? []),
       kitchenStations: List<String>.from(
         data['kitchenStations'] ?? data['kitchenStationIds'] ?? [],
@@ -102,5 +108,9 @@ class Product {
       'kitchenStations': kitchenStations,
       'prepTimeMinutes': prepTimeMinutes,
     };
+  }
+
+  Map<String, dynamic> toJson() {
+    return {'id': id, ...toFirestore()};
   }
 }

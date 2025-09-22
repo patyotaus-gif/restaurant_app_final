@@ -11,6 +11,7 @@ import 'package:rxdart/rxdart.dart';
 import 'cart_provider.dart';
 import 'models/product_model.dart';
 import 'widgets/customer_header_widget.dart';
+import 'services/menu_cache_provider.dart';
 
 class RetailPosPage extends StatefulWidget {
   const RetailPosPage({super.key});
@@ -54,29 +55,32 @@ class _RetailPosPageState extends State<RetailPosPage> {
     if (!mounted) return;
 
     try {
-      final productQuery = await FirebaseFirestore.instance
-          .collection('menu_items')
-          .where('barcode', isEqualTo: code)
-          .limit(1)
-          .get();
+      final menuCache = Provider.of<MenuCacheProvider>(context, listen: false);
+      Product? product = menuCache.productByBarcode(code);
 
-      if (productQuery.docs.isNotEmpty) {
-        final product = Product.fromFirestore(productQuery.docs.first);
-        if (mounted) {
-          final cart = Provider.of<CartProvider>(context, listen: false);
-          cart.addItem(product);
-          _audioPlayer.play(AssetSource('sounds/beep.mp3'));
+      if (product == null) {
+        final productQuery = await FirebaseFirestore.instance
+            .collection('menu_items')
+            .where('barcode', isEqualTo: code)
+            .limit(1)
+            .get();
+        if (productQuery.docs.isNotEmpty) {
+          product = Product.fromFirestore(productQuery.docs.first);
         }
-      } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            // <-- FIXED
-            SnackBar(
-              content: Text('Product with barcode [$code] not found.'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
+      }
+
+      if (product != null) {
+        if (!mounted) return;
+        final cart = Provider.of<CartProvider>(context, listen: false);
+        cart.addItem(product);
+        await _audioPlayer.play(AssetSource('sounds/beep.mp3'));
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Product with barcode [$code] not found.'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     } catch (e) {
       if (mounted) {
