@@ -58,6 +58,11 @@ import 'store_provider.dart';
 import 'services/store_service.dart';
 import 'services/audit_log_service.dart';
 import 'services/stocktake_service.dart';
+import 'feature_flags/feature_flag_provider.dart';
+import 'feature_flags/feature_flag_service.dart';
+import 'feature_flags/terminal_provider.dart';
+import 'plugins/plugin_provider.dart';
+import 'plugins/plugin_registry.dart';
 
 final _router = GoRouter(
   routes: [
@@ -219,6 +224,7 @@ Future<void> main() async {
   if (kIsWeb) {
     setPathUrlStrategy();
   }
+  PluginRegistry.registerDefaults();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   FirebaseFirestore.instance.settings = const Settings(
     persistenceEnabled: true,
@@ -248,12 +254,42 @@ class MyApp extends StatelessWidget {
             return provider;
           },
         ),
+        ChangeNotifierProxyProvider<StoreProvider, PluginProvider>(
+          create: (ctx) => PluginProvider(ctx.read<StoreService>()),
+          update: (ctx, storeProvider, pluginProvider) {
+            final provider =
+                pluginProvider ?? PluginProvider(ctx.read<StoreService>());
+            provider.updateStore(storeProvider.activeStore);
+            return provider;
+          },
+        ),
         ChangeNotifierProvider(create: (ctx) => ThemeProvider()),
         ChangeNotifierProxyProvider<StoreProvider, StockProvider>(
           create: (ctx) => StockProvider(),
           update: (ctx, storeProvider, stockProvider) {
             final provider = stockProvider ?? StockProvider();
             provider.setActiveStore(storeProvider.activeStore?.id);
+            return provider;
+          },
+        ),
+        ChangeNotifierProvider(create: (_) => TerminalProvider()),
+        Provider<FeatureFlagService>(
+          create: (_) => FeatureFlagService(FirebaseFirestore.instance),
+        ),
+        ChangeNotifierProxyProvider2<
+          StoreProvider,
+          TerminalProvider,
+          FeatureFlagProvider
+        >(
+          create: (ctx) => FeatureFlagProvider(ctx.read<FeatureFlagService>()),
+          update: (ctx, storeProvider, terminalProvider, featureFlagProvider) {
+            final provider =
+                featureFlagProvider ??
+                FeatureFlagProvider(ctx.read<FeatureFlagService>());
+            provider.updateContext(
+              store: storeProvider.activeStore,
+              terminalId: terminalProvider.terminalId,
+            );
             return provider;
           },
         ),

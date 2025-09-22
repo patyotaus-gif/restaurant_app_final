@@ -9,6 +9,8 @@ class Store {
   final String? email;
   final bool isActive;
   final String? timezone;
+  final String tenantId;
+  final Map<String, bool> pluginOverrides;
 
   const Store({
     required this.id,
@@ -19,6 +21,8 @@ class Store {
     this.email,
     this.isActive = true,
     this.timezone,
+    this.tenantId = 'default',
+    this.pluginOverrides = const {},
   });
 
   factory Store.fromFirestore(DocumentSnapshot<Map<String, dynamic>> doc) {
@@ -32,6 +36,12 @@ class Store {
       email: data['email'] as String?,
       isActive: data['isActive'] as bool? ?? true,
       timezone: data['timezone'] as String?,
+      tenantId: data['tenantId'] as String? ?? 'default',
+      pluginOverrides: Map<String, bool>.from(
+        (data['pluginOverrides'] as Map<String, dynamic>? ?? const {}).map(
+          (key, dynamic value) => MapEntry(key, value == true),
+        ),
+      ),
     );
   }
 
@@ -44,6 +54,12 @@ class Store {
       if (email != null) 'email': email,
       'isActive': isActive,
       if (timezone != null) 'timezone': timezone,
+      'tenantId': tenantId,
+      if (pluginOverrides.isNotEmpty) 'pluginOverrides': pluginOverrides,
     };
+  }
+
+  bool isPluginEnabled(String pluginId, {bool defaultValue = false}) {
+    return pluginOverrides[pluginId] ?? defaultValue;
   }
 }

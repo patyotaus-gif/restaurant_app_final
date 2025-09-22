@@ -34,6 +34,25 @@ class StoreService {
     }
   }
 
+  Future<void> setPluginOverrides(
+    String storeId,
+    Map<String, bool> pluginOverrides,
+  ) async {
+    await _firestore.collection('stores').doc(storeId).set({
+      'pluginOverrides': pluginOverrides,
+    }, SetOptions(merge: true));
+  }
+
+  Future<void> setPluginState({
+    required String storeId,
+    required String pluginId,
+    required bool isEnabled,
+  }) async {
+    await _firestore.collection('stores').doc(storeId).set({
+      'pluginOverrides': {pluginId: isEnabled},
+    }, SetOptions(merge: true));
+  }
+
   Future<void> assignEmployeeToStore({
     required Employee employee,
     required String storeId,

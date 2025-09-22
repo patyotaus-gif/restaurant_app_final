@@ -2,8 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../auth_service.dart';
+import '../feature_flags/feature_flag_provider.dart';
+import '../feature_flags/feature_flag_scope.dart';
+import '../feature_flags/terminal_provider.dart';
 import '../models/role_permission_model.dart';
 import '../models/store_model.dart';
+import '../plugins/plugin_provider.dart';
 import '../services/store_service.dart';
 import '../stock_provider.dart';
 import '../store_provider.dart';
@@ -18,6 +22,17 @@ class StoreManagementPage extends StatefulWidget {
 class _StoreManagementPageState extends State<StoreManagementPage> {
   bool _isSaving = false;
   String? _errorMessage;
+  final TextEditingController _flagNameController = TextEditingController();
+  final TextEditingController _terminalIdController = TextEditingController();
+  FeatureFlagScope _selectedScope = FeatureFlagScope.tenant;
+  bool _flagValue = true;
+
+  @override
+  void dispose() {
+    _flagNameController.dispose();
+    _terminalIdController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -64,6 +79,7 @@ class _StoreManagementPageState extends State<StoreManagementPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(
+                  flex: 3,
                   child: _buildStoresCard(
                     context,
                     storeProvider,
@@ -71,7 +87,23 @@ class _StoreManagementPageState extends State<StoreManagementPage> {
                     storeService,
                   ),
                 ),
-                Expanded(child: _buildRoleCard()),
+                Expanded(
+                  flex: 4,
+                  child: Column(
+                    children: [
+                      Expanded(child: _buildPluginCard(context, authService)),
+                      const SizedBox(height: 16),
+                      Expanded(
+                        child: _buildFeatureFlagCard(
+                          context,
+                          storeProvider,
+                          authService,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Expanded(flex: 3, child: _buildRoleCard()),
               ],
             ),
           ),
@@ -157,6 +189,208 @@ class _StoreManagementPageState extends State<StoreManagementPage> {
                       },
                     );
                   },
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPluginCard(BuildContext context, AuthService authService) {
+    final pluginProvider = context.watch<PluginProvider>();
+    final store = pluginProvider.activeStore;
+    final modules = pluginProvider.availableModules.toList();
+    final canManage = authService.hasPermission(Permission.manageStores);
+
+    return Card(
+      margin: const EdgeInsets.all(16),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: const [
+                Icon(Icons.extension),
+                SizedBox(width: 8),
+                Text(
+                  'Store Plugins',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+            const Divider(),
+            if (store == null)
+              const Expanded(
+                child: Center(child: Text('Select a store to manage plugins.')),
+              )
+            else if (modules.isEmpty)
+              const Expanded(
+                child: Center(
+                  child: Text('No plugins are registered for this deployment.'),
+                ),
+              )
+            else
+              Expanded(
+                child: ListView.builder(
+                  itemCount: modules.length,
+                  itemBuilder: (context, index) {
+                    final module = modules[index];
+                    final isEnabled = pluginProvider.isEnabled(module.id);
+                    return SwitchListTile.adaptive(
+                      value: isEnabled,
+                      title: Text(module.name),
+                      subtitle: Text(module.description),
+                      onChanged: canManage
+                          ? (value) async {
+                              try {
+                                await pluginProvider.setPluginState(
+                                  module.id,
+                                  value,
+                                );
+                                if (!mounted) return;
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      '"${module.name}" ${value ? 'enabled' : 'disabled'} for ${store.name}.',
+                                    ),
+                                  ),
+                                );
+                              } catch (error) {
+                                if (!mounted) return;
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      'Failed to update plugin: $error',
+                                    ),
+                                    backgroundColor: Theme.of(
+                                      context,
+                                    ).colorScheme.error,
+                                  ),
+                                );
+                              }
+                            }
+                          : null,
+                    );
+                  },
+                ),
+              ),
+            if (!canManage)
+              const Padding(
+                padding: EdgeInsets.only(top: 8.0),
+                child: Text(
+                  'You do not have permission to modify plugin availability.',
+                  style: TextStyle(fontStyle: FontStyle.italic),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFeatureFlagCard(
+    BuildContext context,
+    StoreProvider storeProvider,
+    AuthService authService,
+  ) {
+    final featureFlagProvider = context.watch<FeatureFlagProvider>();
+    final terminalProvider = context.watch<TerminalProvider>();
+    final store = storeProvider.activeStore;
+    final flags = featureFlagProvider.activeFlags.entries.toList()
+      ..sort((a, b) => a.key.compareTo(b.key));
+
+    final terminalId = terminalProvider.terminalId ?? '';
+    if (_terminalIdController.text != terminalId) {
+      _terminalIdController.value = TextEditingValue(
+        text: terminalId,
+        selection: TextSelection.collapsed(offset: terminalId.length),
+      );
+    }
+
+    final canManage = authService.hasPermission(Permission.manageStores);
+
+    return Card(
+      margin: const EdgeInsets.all(16),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: const [
+                Icon(Icons.flag),
+                SizedBox(width: 8),
+                Text(
+                  'Feature Flags',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+            const Divider(),
+            if (store == null)
+              const Expanded(
+                child: Center(
+                  child: Text('Select a store to inspect feature flags.'),
+                ),
+              )
+            else ...[
+              Text('Tenant: ${store.tenantId}'),
+              Text('Store: ${store.name} (${store.id})'),
+              const SizedBox(height: 8),
+              TextField(
+                controller: _terminalIdController,
+                decoration: InputDecoration(
+                  labelText: 'Terminal identifier',
+                  helperText:
+                      'Terminal-scoped flags will apply to this identifier.',
+                  suffixIcon: IconButton(
+                    icon: const Icon(Icons.save),
+                    tooltip: 'Persist terminal identifier',
+                    onPressed: () => _persistTerminalId(context),
+                  ),
+                ),
+                onSubmitted: (_) => _persistTerminalId(context),
+              ),
+              const SizedBox(height: 12),
+              Expanded(
+                child: flags.isEmpty
+                    ? const Center(
+                        child: Text(
+                          'No feature flags configured for this scope.',
+                        ),
+                      )
+                    : ListView.builder(
+                        itemCount: flags.length,
+                        itemBuilder: (context, index) {
+                          final entry = flags[index];
+                          final isEnabled = entry.value;
+                          return ListTile(
+                            title: Text(entry.key),
+                            trailing: Chip(
+                              label: Text(isEnabled ? 'Enabled' : 'Disabled'),
+                              backgroundColor: isEnabled
+                                  ? Theme.of(
+                                      context,
+                                    ).colorScheme.primaryContainer
+                                  : Theme.of(
+                                      context,
+                                    ).colorScheme.surfaceVariant,
+                            ),
+                          );
+                        },
+                      ),
+              ),
+              const SizedBox(height: 12),
+              if (canManage) _buildFlagComposer(context, store),
+            ],
+            if (!canManage)
+              const Padding(
+                padding: EdgeInsets.only(top: 8.0),
+                child: Text(
+                  'You do not have permission to set feature flags.',
+                  style: TextStyle(fontStyle: FontStyle.italic),
                 ),
               ),
           ],
@@ -292,5 +526,153 @@ class _StoreManagementPageState extends State<StoreManagementPage> {
         });
       }
     }
+  }
+
+  Widget _buildFlagComposer(BuildContext context, Store store) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Create or override feature flag',
+          style: TextStyle(fontWeight: FontWeight.w600),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _flagNameController,
+                decoration: const InputDecoration(
+                  labelText: 'Flag key',
+                  hintText: 'e.g. enableNewCheckout',
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            DropdownButton<FeatureFlagScope>(
+              value: _selectedScope,
+              onChanged: (value) {
+                if (value == null) return;
+                setState(() {
+                  _selectedScope = value;
+                });
+              },
+              items: FeatureFlagScope.values
+                  .map(
+                    (scope) => DropdownMenuItem(
+                      value: scope,
+                      child: Text(
+                        scope.name[0].toUpperCase() + scope.name.substring(1),
+                      ),
+                    ),
+                  )
+                  .toList(),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Switch(
+              value: _flagValue,
+              onChanged: (value) {
+                setState(() {
+                  _flagValue = value;
+                });
+              },
+            ),
+            const SizedBox(width: 8),
+            Text(_flagValue ? 'Enabled' : 'Disabled'),
+            const Spacer(),
+            ElevatedButton.icon(
+              onPressed: () => _saveFlag(context, store),
+              icon: const Icon(Icons.save),
+              label: const Text('Save flag'),
+            ),
+          ],
+        ),
+        if (_selectedScope == FeatureFlagScope.store)
+          Padding(
+            padding: const EdgeInsets.only(top: 8.0),
+            child: Text(
+              'Store scoped flag for ${store.name} (${store.id}).',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ),
+        if (_selectedScope == FeatureFlagScope.terminal)
+          Padding(
+            padding: const EdgeInsets.only(top: 8.0),
+            child: Text(
+              _terminalIdController.text.trim().isEmpty
+                  ? 'Set a terminal identifier before saving a terminal scoped flag.'
+                  : 'Terminal scoped flag for "${_terminalIdController.text.trim()}".',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ),
+      ],
+    );
+  }
+
+  Future<void> _saveFlag(BuildContext context, Store store) async {
+    final flagKey = _flagNameController.text.trim();
+    if (flagKey.isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Please enter a flag key.')));
+      return;
+    }
+
+    final terminalId = _terminalIdController.text.trim();
+    if (_selectedScope == FeatureFlagScope.terminal && terminalId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Provide a terminal identifier to save terminal flags.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    final featureFlagProvider = context.read<FeatureFlagProvider>();
+    try {
+      await featureFlagProvider.setFlag(
+        scope: _selectedScope,
+        flag: flagKey,
+        isEnabled: _flagValue,
+        storeId: _selectedScope == FeatureFlagScope.store ? store.id : null,
+        terminalId: _selectedScope == FeatureFlagScope.terminal
+            ? terminalId
+            : null,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Flag "$flagKey" ${_flagValue ? 'enabled' : 'disabled'} at ${_selectedScope.name} scope.',
+          ),
+        ),
+      );
+      _flagNameController.clear();
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to update feature flag: $error'),
+          backgroundColor: Theme.of(context).colorScheme.error,
+        ),
+      );
+    }
+  }
+
+  Future<void> _persistTerminalId(BuildContext context) async {
+    final terminalProvider = context.read<TerminalProvider>();
+    await terminalProvider.setTerminalId(_terminalIdController.text.trim());
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Terminal identifier saved for this device.'),
+      ),
+    );
   }
 }
