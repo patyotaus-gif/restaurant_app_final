@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'models/product_model.dart'; // <-- 1. Use Product model
 import 'models/promotion_model.dart';
 import 'cart_provider.dart';
