@@ -61,8 +61,8 @@ import 'services/stocktake_service.dart';
 import 'feature_flags/feature_flag_provider.dart';
 import 'feature_flags/feature_flag_service.dart';
 import 'feature_flags/terminal_provider.dart';
-import 'plugins/plugin_provider.dart';
-import 'plugins/plugin_registry.dart';
+import 'admin/plugins/plugin_provider.dart';
+import 'admin/plugins/plugin_registry.dart';
 
 final _router = GoRouter(
   routes: [
