@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 
-import '../models/store_model.dart';
-import '../services/store_service.dart';
+import '../../models/store_model.dart';
+import '../../services/store_service.dart';
 import 'plugin_module.dart';
 import 'plugin_registry.dart';
 

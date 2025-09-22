@@ -1,4 +1,4 @@
-import '../models/store_model.dart';
+import '../../models/store_model.dart';
 import 'plugin_module.dart';
 
 class PluginRegistry {
