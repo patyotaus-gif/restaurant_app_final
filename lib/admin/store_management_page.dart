@@ -7,7 +7,7 @@ import '../feature_flags/feature_flag_scope.dart';
 import '../feature_flags/terminal_provider.dart';
 import '../models/role_permission_model.dart';
 import '../models/store_model.dart';
-import '../plugins/plugin_provider.dart';
+import 'plugins/plugin_provider.dart';
 import '../services/store_service.dart';
 import '../stock_provider.dart';
 import '../store_provider.dart';
