@@ -8,6 +8,8 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import 'models/receipt_models.dart';
+import 'services/payment_gateway_service.dart';
+import 'services/printer_drawer_service.dart';
 import 'services/printing_service.dart';
 import 'services/receipt_service.dart';
 import 'stock_provider.dart';
@@ -51,12 +53,23 @@ class _CheckoutPageState extends State<CheckoutPage> {
   bool _sendEmailReceipt = false;
   bool _isGeneratingReceipt = false;
   String? _generatedReceiptUrl;
+  late final TextEditingController _printerIpController;
+  late final TextEditingController _printerPortController;
+  bool _openDrawerAfterPrint = true;
+  bool _isPrintingEscPos = false;
 
   final _customerNameController = TextEditingController();
   final _customerTaxIdController = TextEditingController();
   final _customerAddressController = TextEditingController();
   final _customerEmailController = TextEditingController();
   final _customerPhoneController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _printerIpController = TextEditingController();
+    _printerPortController = TextEditingController(text: '9100');
+  }
 
   String _formatNumber(double value) {
     var text = value.toStringAsFixed(2);
@@ -493,6 +506,51 @@ class _CheckoutPageState extends State<CheckoutPage> {
       _isConfirming = true;
     });
 
+    final gatewayService = context.read<PaymentGatewayService>();
+    final paymentRequest = PaymentRequest(
+      amount: widget.totalAmount,
+      currency: 'THB',
+      orderId: widget.orderId,
+      description: 'Order ${widget.orderIdentifier}',
+      metadata: {
+        'orderIdentifier': widget.orderIdentifier,
+        'subtotal': widget.subtotal,
+        'discount': widget.discountAmount,
+        'serviceCharge': widget.serviceChargeAmount,
+        'tip': widget.tipAmount,
+        'splitCount': widget.splitCount,
+      },
+      customerEmail: _customerEmailController.text.trim().isEmpty
+          ? null
+          : _customerEmailController.text.trim(),
+      customerName: _customerNameController.text.trim().isEmpty
+          ? null
+          : _customerNameController.text.trim(),
+    );
+
+    PaymentResult paymentResult;
+    try {
+      paymentResult = await gatewayService.processPayment(paymentRequest);
+    } on PaymentGatewayException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isConfirming = false;
+      });
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Payment failed: ${e.message}')));
+      return;
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isConfirming = false;
+      });
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Payment failed: $e')));
+      return;
+    }
+
     final orderRef = FirebaseFirestore.instance
         .collection('orders')
         .doc(widget.orderId);
@@ -510,6 +568,23 @@ class _CheckoutPageState extends State<CheckoutPage> {
           (widget.splitCount <= 0
               ? widget.totalAmount
               : widget.totalAmount / widget.splitCount),
+      'paymentGateway': gatewayService.activeGateway.name,
+      'paymentTransactionId': paymentResult.transactionId,
+      if (paymentResult.receiptUrl != null)
+        'paymentReceiptUrl': paymentResult.receiptUrl,
+      if (paymentResult.metadata.isNotEmpty)
+        'paymentGatewayMetadata': paymentResult.metadata,
+      'payments': FieldValue.arrayUnion([
+        {
+          'method': PaymentGatewayService.describeGateway(
+            gatewayService.activeGateway,
+          ),
+          'amount': widget.totalAmount,
+          'currency': 'THB',
+          'transactionId': paymentResult.transactionId,
+          'processedAt': Timestamp.now(),
+        },
+      ]),
     };
 
     try {
@@ -554,6 +629,211 @@ class _CheckoutPageState extends State<CheckoutPage> {
     }
   }
 
+  String _maskCredential(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Not configured';
+    }
+    final visible = value.length <= 4
+        ? value
+        : value.substring(value.length - 4);
+    return '****$visible';
+  }
+
+  Widget _buildPaymentGatewayCard() {
+    final paymentService = context.watch<PaymentGatewayService>();
+    final labelStyle =
+        Theme.of(
+          context,
+        ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold) ??
+        const TextStyle(fontSize: 18, fontWeight: FontWeight.bold);
+    final helperStyle = Theme.of(context).textTheme.bodySmall;
+    final config = paymentService.activeConfig;
+
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 12),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Payment Gateway', style: labelStyle),
+            if (helperStyle != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 4, bottom: 12),
+                child: Text(
+                  'เลือกผู้ให้บริการสำหรับประมวลผลการชำระเงินออนไลน์ได้ทันที',
+                  style: helperStyle,
+                ),
+              ),
+            DropdownButtonFormField<PaymentGatewayType>(
+              value: paymentService.activeGateway,
+              decoration: const InputDecoration(
+                labelText: 'Active Gateway',
+                border: OutlineInputBorder(),
+              ),
+              items: paymentService.supportedGateways
+                  .map(
+                    (type) => DropdownMenuItem(
+                      value: type,
+                      child: Text(PaymentGatewayService.describeGateway(type)),
+                    ),
+                  )
+                  .toList(),
+              onChanged: (type) {
+                if (type != null) {
+                  paymentService.switchGateway(type);
+                }
+              },
+            ),
+            Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: Text(
+                'Adapter: ${PaymentGatewayService.describeGateway(paymentService.activeGateway)}',
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+            ),
+            if (config != null && config.merchantAccount != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text('Merchant: ${config.merchantAccount}'),
+              ),
+            if (config != null && config.apiKey != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text('API Key: ${_maskCredential(config.apiKey)}'),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPrinterCard() {
+    final labelStyle =
+        Theme.of(
+          context,
+        ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold) ??
+        const TextStyle(fontSize: 18, fontWeight: FontWeight.bold);
+    final helperStyle = Theme.of(context).textTheme.bodySmall;
+
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 12),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Thermal Printer & Cash Drawer', style: labelStyle),
+            if (helperStyle != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 4, bottom: 12),
+                child: Text(
+                  'พิมพ์ใบเสร็จผ่านเครื่อง ESC/POS ที่เชื่อมต่อผ่าน TCP และสั่งเปิดลิ้นชักเงินสดอัตโนมัติ',
+                  style: helperStyle,
+                ),
+              ),
+            TextField(
+              controller: _printerIpController,
+              decoration: const InputDecoration(
+                labelText: 'Printer IP Address',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.print),
+              ),
+              keyboardType: TextInputType.text,
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _printerPortController,
+              decoration: const InputDecoration(
+                labelText: 'Port',
+                border: OutlineInputBorder(),
+              ),
+              keyboardType: TextInputType.number,
+            ),
+            SwitchListTile.adaptive(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('เปิดลิ้นชักเงินสดหลังพิมพ์'),
+              value: _openDrawerAfterPrint,
+              onChanged: (value) {
+                setState(() {
+                  _openDrawerAfterPrint = value;
+                });
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _printViaEscPos() async {
+    final printerIp = _printerIpController.text.trim();
+    final printerPort = int.tryParse(_printerPortController.text.trim());
+
+    if (printerIp.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('กรุณาระบุ IP Address ของเครื่องพิมพ์')),
+      );
+      return;
+    }
+
+    setState(() {
+      _isPrintingEscPos = true;
+    });
+
+    try {
+      final orderSnapshot = await FirebaseFirestore.instance
+          .collection('orders')
+          .doc(widget.orderId)
+          .get();
+      final orderData = orderSnapshot.data();
+      if (orderData == null) {
+        throw Exception('Order not found');
+      }
+
+      final store = context.read<StoreProvider>().activeStore;
+      if (store == null) {
+        throw Exception('Store information not available');
+      }
+
+      final printerService = context.read<PrinterDrawerService>();
+      await printerService.printReceipt(
+        host: printerIp,
+        port: printerPort ?? 9100,
+        orderData: orderData,
+        storeDetails: StoreReceiptDetails.fromStore(store),
+        taxDetails: _buildTaxInvoiceDetails(),
+      );
+
+      if (_openDrawerAfterPrint) {
+        await printerService.openCashDrawer(
+          host: printerIp,
+          port: printerPort ?? 9100,
+        );
+      }
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'สั่งพิมพ์ใบเสร็จผ่านเครื่องพิมพ์ความร้อนเรียบร้อยแล้ว',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('ไม่สามารถสั่งพิมพ์ได้: $e')));
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isPrintingEscPos = false;
+        });
+      }
+    }
+  }
+
   @override
   void dispose() {
     _customerNameController.dispose();
@@ -561,6 +841,9 @@ class _CheckoutPageState extends State<CheckoutPage> {
     _customerAddressController.dispose();
     _customerEmailController.dispose();
     _customerPhoneController.dispose();
+    _printerIpController.dispose();
+    _printerPortController.dispose();
+
     super.dispose();
   }
 
@@ -602,7 +885,9 @@ class _CheckoutPageState extends State<CheckoutPage> {
                 ),
               ),
               _buildAmountBreakdown(),
+              _buildPaymentGatewayCard(),
               _buildDigitalReceiptCard(),
+              _buildPrinterCard(),
               const SizedBox(height: 24),
               Wrap(
                 spacing: 12,
@@ -620,6 +905,24 @@ class _CheckoutPageState extends State<CheckoutPage> {
                       textStyle: const TextStyle(fontSize: 16),
                     ),
                     onPressed: _handleReceiptPreview,
+                  ),
+                  OutlinedButton.icon(
+                    icon: _isPrintingEscPos
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.print),
+                    label: const Text('Print to ESC/POS'),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 15,
+                      ),
+                      textStyle: const TextStyle(fontSize: 16),
+                    ),
+                    onPressed: _isPrintingEscPos ? null : _printViaEscPos,
                   ),
                 ],
               ),

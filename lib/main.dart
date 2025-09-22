@@ -58,6 +58,8 @@ import 'store_provider.dart';
 import 'services/store_service.dart';
 import 'services/audit_log_service.dart';
 import 'services/stocktake_service.dart';
+import 'services/payment_gateway_service.dart';
+import 'services/printer_drawer_service.dart';
 import 'feature_flags/feature_flag_provider.dart';
 import 'feature_flags/feature_flag_service.dart';
 import 'feature_flags/terminal_provider.dart';
@@ -296,6 +298,8 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(
           create: (_) => SyncQueueService(FirebaseFirestore.instance),
         ),
+        ChangeNotifierProvider(create: (_) => PaymentGatewayService()),
+        Provider<PrinterDrawerService>(create: (_) => PrinterDrawerService()),
         Provider<AuditLogService>(
           create: (_) => AuditLogService(FirebaseFirestore.instance),
         ),
