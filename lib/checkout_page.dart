@@ -26,6 +26,10 @@ class CheckoutPage extends StatefulWidget {
   final double tipAmount;
   final int splitCount;
   final double? splitAmountPerGuest;
+  final double giftCardAmount;
+  final double storeCreditAmount;
+  final double amountDueAfterCredits;
+  final List<Map<String, dynamic>> payments;
 
   const CheckoutPage({
     super.key,
@@ -39,6 +43,10 @@ class CheckoutPage extends StatefulWidget {
     this.tipAmount = 0,
     this.splitCount = 1,
     this.splitAmountPerGuest,
+    this.giftCardAmount = 0,
+    this.storeCreditAmount = 0,
+    this.amountDueAfterCredits = 0,
+    this.payments = const [],
   });
 
   @override
@@ -164,6 +172,38 @@ class _CheckoutPageState extends State<CheckoutPage> {
         valueColor: Colors.green.shade700,
       ),
     );
+
+    if (widget.giftCardAmount > 0 || widget.storeCreditAmount > 0) {
+      rows.add(const Divider());
+      if (widget.giftCardAmount > 0) {
+        rows.add(
+          _buildSummaryRow(
+            'Gift Card Applied',
+            -widget.giftCardAmount,
+            valueColor: Colors.purple.shade700,
+          ),
+        );
+      }
+      if (widget.storeCreditAmount > 0) {
+        rows.add(
+          _buildSummaryRow(
+            'Store Credit Applied',
+            -widget.storeCreditAmount,
+            valueColor: Colors.blue.shade700,
+          ),
+        );
+      }
+      rows.add(
+        _buildSummaryRow(
+          'Amount Remaining',
+          widget.amountDueAfterCredits,
+          isTotal: true,
+          valueColor: widget.amountDueAfterCredits == 0
+              ? Colors.green.shade700
+              : Colors.deepPurple,
+        ),
+      );
+    }
 
     if (widget.splitCount > 1) {
       final perGuest =
@@ -358,6 +398,67 @@ class _CheckoutPageState extends State<CheckoutPage> {
     );
   }
 
+  Widget _buildExistingPaymentsCard() {
+    if (widget.payments.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 12),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Applied Payments',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
+            const SizedBox(height: 8),
+            ...widget.payments.map((payment) {
+              final method = payment['method']?.toString() ?? 'Unknown';
+              final amount = (payment['amount'] as num?)?.toDouble() ?? 0.0;
+              final reference = payment['reference']?.toString();
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4.0),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(Icons.payments, size: 18),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            method,
+                            style: const TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                          Text(
+                            '${amount.toStringAsFixed(2)} บาท',
+                            style: const TextStyle(color: Colors.green),
+                          ),
+                          if (reference != null && reference.isNotEmpty)
+                            Text(
+                              'Ref: $reference',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: Colors.black54,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }),
+          ],
+        ),
+      ),
+    );
+  }
+
   String _generatePromptPayPayload(double amount) {
     const promptPayId = '0812345678';
     return 'promptpay-qr-code-payload-for-$promptPayId-with-amount-$amount';
@@ -506,9 +607,44 @@ class _CheckoutPageState extends State<CheckoutPage> {
       _isConfirming = true;
     });
 
+    final outstanding = widget.amountDueAfterCredits <= 0
+        ? 0.0
+        : widget.amountDueAfterCredits;
+    final orderRef = FirebaseFirestore.instance
+        .collection('orders')
+        .doc(widget.orderId);
+
+    if (outstanding == 0) {
+      try {
+        await orderRef.update({
+          'status': 'completed',
+          'completedAt': Timestamp.now(),
+          'paidTotal': widget.totalAmount,
+          'paymentStatus': 'paid',
+        });
+        await _handlePostPaymentSuccess(
+          orderRef,
+          successMessage: 'Order settled using credits and gift cards.',
+        );
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to finalize order: $e')),
+          );
+        }
+      } finally {
+        if (mounted) {
+          setState(() {
+            _isConfirming = false;
+          });
+        }
+      }
+      return;
+    }
+
     final gatewayService = context.read<PaymentGatewayService>();
     final paymentRequest = PaymentRequest(
-      amount: widget.totalAmount,
+      amount: outstanding,
       currency: 'THB',
       orderId: widget.orderId,
       description: 'Order ${widget.orderIdentifier}',
@@ -551,14 +687,11 @@ class _CheckoutPageState extends State<CheckoutPage> {
       return;
     }
 
-    final orderRef = FirebaseFirestore.instance
-        .collection('orders')
-        .doc(widget.orderId);
-
     final payload = <String, dynamic>{
       'status': 'completed',
       'completedAt': Timestamp.now(),
       'paidTotal': widget.totalAmount,
+      'paymentStatus': 'paid',
       'serviceChargeAmount': widget.serviceChargeAmount,
       'serviceChargeRate': widget.serviceChargeRate,
       'tipAmount': widget.tipAmount,
@@ -579,7 +712,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
           'method': PaymentGatewayService.describeGateway(
             gatewayService.activeGateway,
           ),
-          'amount': widget.totalAmount,
+          'amount': outstanding,
           'currency': 'THB',
           'transactionId': paymentResult.transactionId,
           'processedAt': Timestamp.now(),
@@ -589,32 +722,10 @@ class _CheckoutPageState extends State<CheckoutPage> {
 
     try {
       await orderRef.update(payload);
-      final orderSnapshot = await orderRef.get();
-      final data = orderSnapshot.data();
-
-      if (data != null) {
-        final usage = (data['ingredientUsage'] as List<dynamic>?) ?? [];
-        final stockDeducted = data['stockDeducted'] == true;
-
-        if (usage.isNotEmpty && !stockDeducted) {
-          try {
-            final stockProvider = Provider.of<StockProvider>(
-              context,
-              listen: false,
-            );
-            await stockProvider.deductIngredientsFromUsage(usage);
-            await orderRef.update({'stockDeducted': true});
-          } catch (e) {
-            // If stock provider isn't available, skip deduction but do not fail.
-          }
-        }
-      }
-
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Payment confirmed successfully!')),
+      await _handlePostPaymentSuccess(
+        orderRef,
+        successMessage: 'Payment confirmed successfully!',
       );
-      context.go('/order-type-selection');
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(
@@ -834,6 +945,38 @@ class _CheckoutPageState extends State<CheckoutPage> {
     }
   }
 
+  Future<void> _handlePostPaymentSuccess(
+    DocumentReference<Map<String, dynamic>> orderRef, {
+    required String successMessage,
+  }) async {
+    final orderSnapshot = await orderRef.get();
+    final data = orderSnapshot.data();
+
+    if (data != null) {
+      final usage = (data['ingredientUsage'] as List<dynamic>?) ?? [];
+      final stockDeducted = data['stockDeducted'] == true;
+
+      if (usage.isNotEmpty && !stockDeducted) {
+        try {
+          final stockProvider = Provider.of<StockProvider>(
+            context,
+            listen: false,
+          );
+          await stockProvider.deductIngredientsFromUsage(usage);
+          await orderRef.update({'stockDeducted': true});
+        } catch (e) {
+          // If stock provider isn't available, skip deduction but do not fail.
+        }
+      }
+    }
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(successMessage)));
+    context.go('/order-type-selection');
+  }
+
   @override
   void dispose() {
     _customerNameController.dispose();
@@ -885,6 +1028,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
                 ),
               ),
               _buildAmountBreakdown(),
+              _buildExistingPaymentsCard(),
               _buildPaymentGatewayCard(),
               _buildDigitalReceiptCard(),
               _buildPrinterCard(),

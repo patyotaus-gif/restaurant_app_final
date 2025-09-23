@@ -8,6 +8,7 @@ import 'models/product_model.dart';
 import 'models/promotion_model.dart';
 import 'models/customer_model.dart';
 import 'models/punch_card_model.dart';
+import 'models/gift_card_model.dart';
 
 enum OrderType { dineIn, takeaway, retail }
 
@@ -56,6 +57,10 @@ class CartProvider with ChangeNotifier {
   double _serviceChargeRate = 0.10; // default 10%
   double _tipAmount = 0.0;
   int _splitCount = 1;
+  GiftCard? _appliedGiftCard;
+  double _giftCardAmount = 0.0;
+  double _storeCreditAmount = 0.0;
+  double? _customerStoreCreditOverride;
 
   Map<String, CartItem> get items => {..._items};
   OrderType? get orderType => _orderType;
@@ -69,6 +74,11 @@ class CartProvider with ChangeNotifier {
   double get serviceChargeRate => _serviceChargeRate;
   double get tipAmount => _tipAmount;
   int get splitCount => _splitCount;
+  GiftCard? get appliedGiftCard => _appliedGiftCard;
+  double get giftCardAmount => _giftCardAmount;
+  double get storeCreditAmount => _storeCreditAmount;
+  double get customerStoreCredit =>
+      _customerStoreCreditOverride ?? _customer?.storeCreditBalance ?? 0.0;
   Set<String> get categoriesInCart =>
       _items.values.map((item) => item.category).toSet();
 
@@ -116,6 +126,23 @@ class CartProvider with ChangeNotifier {
     final baseNonNegative = base < 0 ? 0 : base;
     return baseNonNegative + serviceChargeAmount + _tipAmount;
   }
+
+  double get maxGiftCardApplicable {
+    final outstanding = totalAmount - _storeCreditAmount;
+    return outstanding < 0 ? 0.0 : outstanding;
+  }
+
+  double get maxStoreCreditApplicable {
+    final outstanding = totalAmount - _giftCardAmount;
+    return outstanding < 0 ? 0.0 : outstanding;
+  }
+
+  double get amountDueAfterCredits {
+    final outstanding = totalAmount - _giftCardAmount - _storeCreditAmount;
+    return outstanding < 0 ? 0.0 : outstanding;
+  }
+
+  double get paidTotal => totalAmount - amountDueAfterCredits;
 
   int get totalQuantity {
     var total = 0;
@@ -194,15 +221,67 @@ class CartProvider with ChangeNotifier {
 
     if (customerDoc == null) {
       _customer = null;
+      _customerStoreCreditOverride = null;
+      removeStoreCredit();
     } else {
       _customer = Customer.fromFirestore(customerDoc);
+      _customerStoreCreditOverride = null;
     }
 
     if (previousCustomerId != _customer?.id) {
       _discount = 0.0;
       _discountType = 'none';
       _appliedPromotion = null;
+      removeGiftCard();
+      removeStoreCredit();
     }
+    notifyListeners();
+  }
+
+  void applyGiftCard(GiftCard card, double amount) {
+    final sanitizedAmount = amount < 0 ? 0.0 : amount;
+    final cappedByTotal = sanitizedAmount > maxGiftCardApplicable
+        ? maxGiftCardApplicable
+        : sanitizedAmount;
+    final cappedByBalance = cappedByTotal > card.balance
+        ? card.balance
+        : cappedByTotal;
+    _appliedGiftCard = card;
+    _giftCardAmount = cappedByBalance;
+    notifyListeners();
+  }
+
+  void removeGiftCard() {
+    if (_appliedGiftCard == null && _giftCardAmount == 0) {
+      return;
+    }
+    _appliedGiftCard = null;
+    _giftCardAmount = 0.0;
+    notifyListeners();
+  }
+
+  void applyStoreCredit(double amount, {double? availableBalance}) {
+    if (_customer == null) return;
+    final maxAvailable = availableBalance ?? customerStoreCredit;
+    final sanitizedAmount = amount < 0 ? 0.0 : amount;
+    final cappedByTotal = sanitizedAmount > maxStoreCreditApplicable
+        ? maxStoreCreditApplicable
+        : sanitizedAmount;
+    final cappedByBalance = cappedByTotal > maxAvailable
+        ? maxAvailable
+        : cappedByTotal;
+    _storeCreditAmount = cappedByBalance;
+    notifyListeners();
+  }
+
+  void removeStoreCredit() {
+    if (_storeCreditAmount == 0) return;
+    _storeCreditAmount = 0.0;
+    notifyListeners();
+  }
+
+  void overrideCustomerStoreCredit(double newBalance) {
+    _customerStoreCreditOverride = newBalance;
     notifyListeners();
   }
 
@@ -372,11 +451,14 @@ class CartProvider with ChangeNotifier {
     _orderType = null;
     _orderIdentifier = null;
     _customer = null;
+    _customerStoreCreditOverride = null;
     _serviceChargeEnabled = false;
     _serviceChargeRate = 0.10;
     _tipAmount = 0.0;
     _splitCount = 1;
     removeDiscount();
+    removeGiftCard();
+    removeStoreCredit();
     notifyListeners();
   }
 

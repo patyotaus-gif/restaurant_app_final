@@ -11,6 +11,7 @@ class Customer {
   final double lifetimeSpend;
   final String notes;
   final Timestamp? birthDate;
+  final double storeCreditBalance;
   // --- 1. Add new field for punch cards ---
   final Map<String, int> punchCards;
   final int? rfmRecencyScore;
@@ -31,6 +32,7 @@ class Customer {
     required this.lifetimeSpend,
     required this.notes,
     this.birthDate,
+    this.storeCreditBalance = 0,
     this.punchCards =
         const {}, // <-- 2. Add to constructor with a default value
     this.rfmRecencyScore,
@@ -55,6 +57,10 @@ class Customer {
       lifetimeSpend: (data['lifetimeSpend'] as num?)?.toDouble() ?? 0.0,
       notes: data['notes'] ?? '',
       birthDate: data['birthDate'],
+      storeCreditBalance:
+          (data['storeCredit'] as num?)?.toDouble() ??
+          (data['storeCreditBalance'] as num?)?.toDouble() ??
+          0.0,
       // --- 3. Read from Firestore, handling potential nulls ---
       punchCards: Map<String, int>.from(data['punchCards'] ?? {}),
       rfmRecencyScore: (rfmData?['recencyScore'] as num?)?.toInt(),
@@ -65,6 +71,47 @@ class Customer {
       lastOrderAt: rfmData?['lastOrderAt'] as Timestamp?,
       orderCount: (rfmData?['orderCount'] as num?)?.toInt(),
       averageOrderValue: (rfmData?['averageOrderValue'] as num?)?.toDouble(),
+    );
+  }
+
+  Customer copyWith({
+    String? name,
+    String? phoneNumber,
+    int? loyaltyPoints,
+    String? tier,
+    double? lifetimeSpend,
+    String? notes,
+    Timestamp? birthDate,
+    double? storeCreditBalance,
+    Map<String, int>? punchCards,
+    int? rfmRecencyScore,
+    int? rfmFrequencyScore,
+    int? rfmMonetaryScore,
+    int? rfmTotalScore,
+    String? rfmSegment,
+    Timestamp? lastOrderAt,
+    int? orderCount,
+    double? averageOrderValue,
+  }) {
+    return Customer(
+      id: id,
+      name: name ?? this.name,
+      phoneNumber: phoneNumber ?? this.phoneNumber,
+      loyaltyPoints: loyaltyPoints ?? this.loyaltyPoints,
+      tier: tier ?? this.tier,
+      lifetimeSpend: lifetimeSpend ?? this.lifetimeSpend,
+      notes: notes ?? this.notes,
+      birthDate: birthDate ?? this.birthDate,
+      storeCreditBalance: storeCreditBalance ?? this.storeCreditBalance,
+      punchCards: punchCards ?? this.punchCards,
+      rfmRecencyScore: rfmRecencyScore ?? this.rfmRecencyScore,
+      rfmFrequencyScore: rfmFrequencyScore ?? this.rfmFrequencyScore,
+      rfmMonetaryScore: rfmMonetaryScore ?? this.rfmMonetaryScore,
+      rfmTotalScore: rfmTotalScore ?? this.rfmTotalScore,
+      rfmSegment: rfmSegment ?? this.rfmSegment,
+      lastOrderAt: lastOrderAt ?? this.lastOrderAt,
+      orderCount: orderCount ?? this.orderCount,
+      averageOrderValue: averageOrderValue ?? this.averageOrderValue,
     );
   }
 }

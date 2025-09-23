@@ -6,9 +6,11 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'cart_provider.dart';
 import 'checkout_page.dart';
 import 'models/product_model.dart';
+import 'models/gift_card_model.dart';
 import 'auth_service.dart';
 import 'widgets/manager_approval_dialog.dart';
 import 'services/sync_queue_service.dart';
+import 'models/gift_card_service.dart';
 
 class CartPage extends StatefulWidget {
   const CartPage({super.key});
@@ -23,6 +25,16 @@ class _CartPageState extends State<CartPage> {
   final TextEditingController _serviceChargePercentController =
       TextEditingController();
   final TextEditingController _tipAmountController = TextEditingController();
+  final TextEditingController _giftCardCodeController = TextEditingController();
+  final TextEditingController _giftCardAmountController =
+      TextEditingController();
+  final TextEditingController _storeCreditAmountController =
+      TextEditingController();
+  final GiftCardService _giftCardService = GiftCardService();
+  GiftCard? _giftCardLookupResult;
+  bool _isCheckingGiftCard = false;
+  String? _giftCardError;
+  String? _storeCreditError;
 
   String _formatNumber(double value) {
     var text = value.toStringAsFixed(2);
@@ -58,7 +70,155 @@ class _CartPageState extends State<CartPage> {
     _promoCodeController.dispose();
     _serviceChargePercentController.dispose();
     _tipAmountController.dispose();
+    _giftCardCodeController.dispose();
+    _giftCardAmountController.dispose();
+    _storeCreditAmountController.dispose();
     super.dispose();
+  }
+
+  Future<void> _lookupGiftCard(CartProvider cart) async {
+    final code = _giftCardCodeController.text.trim();
+    if (code.isEmpty) {
+      setState(() {
+        _giftCardError = 'Please enter a gift card code.';
+      });
+      return;
+    }
+
+    setState(() {
+      _isCheckingGiftCard = true;
+      _giftCardError = null;
+    });
+
+    try {
+      final card = await _giftCardService.findByCode(code);
+      if (mounted) {
+        setState(() {
+          _giftCardLookupResult = card;
+          if (card == null) {
+            _giftCardError = 'Gift card not found or inactive.';
+          } else {
+            final suggested = cart.maxGiftCardApplicable < card.balance
+                ? cart.maxGiftCardApplicable
+                : card.balance;
+            if (suggested > 0) {
+              _giftCardAmountController.text = suggested.toStringAsFixed(2);
+            }
+          }
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _giftCardError = 'Unable to check gift card: $e';
+        });
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isCheckingGiftCard = false;
+        });
+      }
+    }
+  }
+
+  void _applyGiftCardToCart(CartProvider cart) {
+    if (_giftCardLookupResult == null) {
+      setState(() {
+        _giftCardError = 'Please verify the gift card first.';
+      });
+      return;
+    }
+    final amount = double.tryParse(_giftCardAmountController.text.trim());
+    if (amount == null || amount <= 0) {
+      setState(() {
+        _giftCardError = 'Enter a valid amount to apply.';
+      });
+      return;
+    }
+    cart.applyGiftCard(_giftCardLookupResult!, amount);
+    setState(() {
+      _giftCardError = null;
+    });
+  }
+
+  void _removeGiftCardFromCart(CartProvider cart) {
+    cart.removeGiftCard();
+    setState(() {
+      _giftCardLookupResult = null;
+      _giftCardAmountController.clear();
+    });
+  }
+
+  void _applyStoreCreditToCart(CartProvider cart) {
+    if (cart.customer == null) {
+      setState(() {
+        _storeCreditError = 'Store credit requires a selected customer.';
+      });
+      return;
+    }
+    final amount = double.tryParse(_storeCreditAmountController.text.trim());
+    if (amount == null || amount <= 0) {
+      setState(() {
+        _storeCreditError = 'Enter a valid amount to apply.';
+      });
+      return;
+    }
+    cart.applyStoreCredit(amount);
+    setState(() {
+      _storeCreditError = null;
+    });
+  }
+
+  void _removeStoreCreditFromCart(CartProvider cart) {
+    cart.removeStoreCredit();
+    setState(() {
+      _storeCreditError = null;
+      _storeCreditAmountController.clear();
+    });
+  }
+
+  Future<void> _finalizeAppliedCredits(
+    CartProvider cart,
+    Map<String, dynamic> orderData,
+  ) async {
+    final giftCard = cart.appliedGiftCard;
+    final giftCardAmount = cart.giftCardAmount;
+    final storeCreditAmount = cart.storeCreditAmount;
+    final customerId = cart.customer?.id;
+
+    if (giftCard != null && giftCardAmount > 0) {
+      try {
+        await _giftCardService.redeemBalance(giftCard, giftCardAmount);
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Gift card redemption failed: $e'),
+              backgroundColor: Colors.red.shade700,
+            ),
+          );
+        }
+      }
+    }
+
+    if (storeCreditAmount > 0 && customerId != null) {
+      try {
+        await FirebaseFirestore.instance
+            .collection('customers')
+            .doc(customerId)
+            .update({'storeCredit': FieldValue.increment(-storeCreditAmount)});
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to deduct store credit: $e'),
+              backgroundColor: Colors.red.shade700,
+            ),
+          );
+        }
+      }
+    }
   }
 
   void _handleItemRemoval(BuildContext context, Function removalAction) {
@@ -96,6 +256,30 @@ class _CartPageState extends State<CartPage> {
       'serviceChargeRate': cart.serviceChargeRate,
       'serviceChargeAmount': cart.serviceChargeAmount,
       'tipAmount': cart.tipAmount,
+      'giftCardCode': cart.appliedGiftCard?.code,
+      'giftCardAmount': cart.giftCardAmount,
+      'storeCreditAmount': cart.storeCreditAmount,
+      'storeCreditCustomerId': cart.storeCreditAmount > 0
+          ? cart.customer?.id
+          : null,
+      'customerStoreCreditBalance': cart.customerStoreCredit,
+      'payments': [
+        if (cart.giftCardAmount > 0)
+          {
+            'method': 'giftCard',
+            'amount': cart.giftCardAmount,
+            'reference': cart.appliedGiftCard?.code,
+          },
+        if (cart.storeCreditAmount > 0)
+          {
+            'method': 'storeCredit',
+            'amount': cart.storeCreditAmount,
+            'customerId': cart.customer?.id,
+          },
+      ],
+      'outstandingBalance': cart.amountDueAfterCredits,
+      'paidTotal': cart.paidTotal,
+      'paymentStatus': cart.amountDueAfterCredits == 0 ? 'paid' : 'partial',
       'splitCount': cart.splitCount,
       'splitAmountPerGuest': cart.splitAmountPerGuest,
       'pointsRedeemed': cart.discountType == 'points'
@@ -277,6 +461,7 @@ class _CartPageState extends State<CartPage> {
       final totalAmountForCheckout = orderData['total'];
       final identifierForCheckout = orderData['orderIdentifier'];
 
+      await _finalizeAppliedCredits(cart, orderData);
       cart.clear();
 
       Navigator.of(context).push(
@@ -297,6 +482,17 @@ class _CartPageState extends State<CartPage> {
             splitCount: (orderData['splitCount'] as num?)?.toInt() ?? 1,
             splitAmountPerGuest: (orderData['splitAmountPerGuest'] as num?)
                 ?.toDouble(),
+            giftCardAmount:
+                (orderData['giftCardAmount'] as num?)?.toDouble() ?? 0.0,
+            storeCreditAmount:
+                (orderData['storeCreditAmount'] as num?)?.toDouble() ?? 0.0,
+            amountDueAfterCredits:
+                (orderData['outstandingBalance'] as num?)?.toDouble() ??
+                totalAmountForCheckout,
+            payments:
+                (orderData['payments'] as List<dynamic>?)
+                    ?.cast<Map<String, dynamic>>() ??
+                const [],
           ),
         ),
       );
@@ -378,6 +574,226 @@ class _CartPageState extends State<CartPage> {
             child: const Text('Apply'),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildGiftCardSection(CartProvider cart) {
+    if (cart.items.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    final appliedCard = cart.appliedGiftCard;
+    if (appliedCard != null) {
+      _giftCardLookupResult ??= appliedCard;
+      if (_giftCardCodeController.text.isEmpty) {
+        _giftCardCodeController.text = appliedCard.code;
+      }
+      final appliedAmount = cart.giftCardAmount;
+      if (appliedAmount > 0) {
+        final currentValue = double.tryParse(_giftCardAmountController.text);
+        if (currentValue == null ||
+            (currentValue - appliedAmount).abs() > 0.009) {
+          _giftCardAmountController.text = appliedAmount.toStringAsFixed(2);
+        }
+      }
+    }
+
+    final outstanding = cart.amountDueAfterCredits + cart.giftCardAmount;
+
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Gift Card',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                TextButton.icon(
+                  onPressed: _isCheckingGiftCard
+                      ? null
+                      : () => _lookupGiftCard(cart),
+                  icon: _isCheckingGiftCard
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.search),
+                  label: const Text('Check Balance'),
+                ),
+              ],
+            ),
+            TextField(
+              controller: _giftCardCodeController,
+              decoration: const InputDecoration(
+                labelText: 'Gift Card Code',
+                isDense: true,
+              ),
+              textCapitalization: TextCapitalization.characters,
+            ),
+            if (_giftCardLookupResult != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 8.0),
+                child: Row(
+                  children: [
+                    const Icon(Icons.card_giftcard, color: Colors.purple),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Balance: ${_giftCardLookupResult!.balance.toStringAsFixed(2)} • Outstanding: ${outstanding.toStringAsFixed(2)}',
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _giftCardAmountController,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    decoration: const InputDecoration(
+                      labelText: 'Amount to Apply',
+                      isDense: true,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                if (cart.giftCardAmount > 0)
+                  OutlinedButton(
+                    onPressed: () => _removeGiftCardFromCart(cart),
+                    child: const Text('Remove'),
+                  )
+                else
+                  ElevatedButton(
+                    onPressed: _giftCardLookupResult == null
+                        ? null
+                        : () => _applyGiftCardToCart(cart),
+                    child: const Text('Apply'),
+                  ),
+              ],
+            ),
+            if (_giftCardError != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 6.0),
+                child: Text(
+                  _giftCardError!,
+                  style: TextStyle(color: Colors.red.shade700),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStoreCreditSection(CartProvider cart) {
+    final available = cart.customerStoreCredit;
+    if (cart.customer == null || available <= 0) {
+      if (_storeCreditAmountController.text.isNotEmpty) {
+        _storeCreditAmountController.clear();
+      }
+      return const SizedBox.shrink();
+    }
+
+    final outstandingBeforeStoreCredit = cart.maxStoreCreditApplicable;
+    final suggestedAmount = outstandingBeforeStoreCredit < available
+        ? outstandingBeforeStoreCredit
+        : available;
+    if (cart.storeCreditAmount == 0 &&
+        _storeCreditAmountController.text.isEmpty &&
+        suggestedAmount > 0) {
+      _storeCreditAmountController.text = suggestedAmount.toStringAsFixed(2);
+    } else if (cart.storeCreditAmount > 0) {
+      final currentValue = double.tryParse(_storeCreditAmountController.text);
+      if (currentValue == null ||
+          (currentValue - cart.storeCreditAmount).abs() > 0.009) {
+        _storeCreditAmountController.text = cart.storeCreditAmount
+            .toStringAsFixed(2);
+      }
+    }
+
+    final remainingBalance = (available - cart.storeCreditAmount).clamp(
+      0.0,
+      double.infinity,
+    );
+
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Store Credit',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                Text(
+                  'Available: ${available.toStringAsFixed(2)} • Remaining: ${remainingBalance.toStringAsFixed(2)}',
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _storeCreditAmountController,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    decoration: const InputDecoration(
+                      labelText: 'Amount to Apply',
+                      isDense: true,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                if (cart.storeCreditAmount > 0)
+                  OutlinedButton(
+                    onPressed: () => _removeStoreCreditFromCart(cart),
+                    child: const Text('Remove'),
+                  )
+                else
+                  ElevatedButton(
+                    onPressed: suggestedAmount <= 0
+                        ? null
+                        : () => _applyStoreCreditToCart(cart),
+                    child: const Text('Apply'),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Outstanding before credit: ${outstandingBeforeStoreCredit.toStringAsFixed(2)}',
+              style: const TextStyle(fontSize: 12, color: Colors.black54),
+            ),
+            if (_storeCreditError != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 6.0),
+                child: Text(
+                  _storeCreditError!,
+                  style: TextStyle(color: Colors.red.shade700),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -657,11 +1073,34 @@ class _CartPageState extends State<CartPage> {
                           ),
                         ),
                       ),
+                      if (cart.giftCardAmount > 0 || cart.storeCreditAmount > 0)
+                        ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: const Text('Paid so far'),
+                          trailing: Text(
+                            '- ${cart.paidTotal.toStringAsFixed(2)} บาท',
+                            style: const TextStyle(color: Colors.green),
+                          ),
+                        ),
+                      if (cart.amountDueAfterCredits < cart.totalAmount)
+                        ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: const Text(
+                            'Outstanding Balance',
+                            style: TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                          trailing: Text(
+                            '${cart.amountDueAfterCredits.toStringAsFixed(2)} บาท',
+                            style: const TextStyle(color: Colors.deepPurple),
+                          ),
+                        ),
                     ],
                   ),
                 ),
               ),
               _buildSplitBillSection(cart),
+              _buildGiftCardSection(cart),
+              _buildStoreCreditSection(cart),
               Expanded(
                 child: ListView.builder(
                   itemCount: cart.items.length,

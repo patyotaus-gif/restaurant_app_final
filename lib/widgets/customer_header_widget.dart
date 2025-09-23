@@ -56,7 +56,9 @@ class CustomerHeaderWidget extends StatelessWidget {
         cart.customer!.name,
         style: const TextStyle(fontWeight: FontWeight.bold),
       ),
-      subtitle: Text('Points: ${cart.customer!.loyaltyPoints}'),
+      subtitle: Text(
+        'Points: ${cart.customer!.loyaltyPoints} • Credit: ${cart.customer!.storeCreditBalance.toStringAsFixed(2)}',
+      ),
       tileColor: Colors.green.shade50,
       trailing: IconButton(
         icon: const Icon(Icons.close),
