@@ -3,9 +3,9 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
-import '../auth_service.dart';
-import '../models/gift_card_service.dart';
-import '../stock_provider.dart';
+import 'auth_service.dart';
+import 'models/gift_card_service.dart';
+import 'stock_provider.dart';
 
 class RefundableItem {
   final Map<String, dynamic> originalItem;
