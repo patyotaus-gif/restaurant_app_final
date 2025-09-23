@@ -42,3 +42,17 @@ flutter run
 ```
 
 For more Flutter resources see the [Flutter documentation](https://docs.flutter.dev/).
+
+## Testing
+
+The Firebase Functions integration tests live in the `functions` workspace. Running
+`npm test` from that directory will execute the Vitest suite against any available
+unit-level mocks. To exercise the Firestore-dependent integration coverage, start
+the Firebase emulators and run:
+
+```bash
+cd functions
+npm run test:emulator
+```
+
+Without the emulator the integration suite is skipped during `npm test`.
