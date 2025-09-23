@@ -32,7 +32,10 @@ describe("returnStockOnRefund", () => {
   });
 
   afterAll(async () => {
-    await Promise.all(admin.apps.map((app) => app.delete()));
+    const initializedApps = admin.apps.filter(
+      (app): app is admin.app.App => app != null,
+    );
+    await Promise.all(initializedApps.map((app) => app.delete()));
   });
 
   it("restores ingredient stock based on refunded menu items", async () => {

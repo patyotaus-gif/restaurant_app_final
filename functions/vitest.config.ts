@@ -6,5 +6,8 @@ export default defineConfig({
     globals: true,
     include: ["tests/**/*.test.ts"],
     testTimeout: 20000,
+    typecheck: {
+      tsconfig: "./tsconfig.vitest.json",
+    },
   },
 });
