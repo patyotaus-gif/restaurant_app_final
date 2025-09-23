@@ -63,6 +63,7 @@ import 'services/stocktake_service.dart';
 import 'services/payment_gateway_service.dart';
 import 'services/menu_cache_provider.dart';
 import 'services/printer_drawer_service.dart';
+import 'services/schema_migration_runner.dart';
 import 'feature_flags/feature_flag_provider.dart';
 import 'feature_flags/feature_flag_service.dart';
 import 'feature_flags/terminal_provider.dart';
@@ -264,6 +265,17 @@ class MyApp extends StatelessWidget {
                 previous ?? StoreProvider(ctx.read<StoreService>());
             provider.synchronizeWithAuth(auth);
             return provider;
+          },
+        ),
+        ChangeNotifierProxyProvider<StoreProvider, SchemaMigrationRunner>(
+          create: (ctx) => SchemaMigrationRunner(FirebaseFirestore.instance),
+          update: (ctx, storeProvider, runner) {
+            final service =
+                runner ?? SchemaMigrationRunner(FirebaseFirestore.instance);
+            service.ensureMigrationsForTenant(
+              storeProvider.activeStore?.tenantId,
+            );
+            return service;
           },
         ),
         ChangeNotifierProxyProvider<StoreProvider, PluginProvider>(
