@@ -97,7 +97,7 @@ class _AccountingExportPageState extends State<AccountingExportPage> {
           data['customerName'] ?? 'N/A',
         ]);
       }
-      _generateAndDownloadCsv(rows, "Sales");
+      await _generateAndDownloadCsv(rows, "Sales");
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(
@@ -164,7 +164,7 @@ class _AccountingExportPageState extends State<AccountingExportPage> {
           data['totalAmount'] ?? 0.0,
         ]);
       }
-      _generateAndDownloadCsv(rows, "Expenses");
+      await _generateAndDownloadCsv(rows, "Expenses");
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(

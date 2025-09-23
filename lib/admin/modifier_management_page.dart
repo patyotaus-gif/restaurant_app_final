@@ -70,7 +70,7 @@ class _ModifierManagementPageState extends State<ModifierManagementPage> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   // --- FIX: Added 'async' to the function signature ---
-  void _showModifierGroupDialog({ModifierGroup? existingGroup}) async {
+  Future<void> _showModifierGroupDialog({ModifierGroup? existingGroup}) async {
     final bool isNew = existingGroup == null;
     final group = isNew
         ? ModifierGroup()
@@ -80,6 +80,8 @@ class _ModifierManagementPageState extends State<ModifierManagementPage> {
                 .doc(existingGroup!.id)
                 .get(),
           );
+
+    if (!mounted) return;
 
     final groupNameController = TextEditingController(text: group.groupName);
 
