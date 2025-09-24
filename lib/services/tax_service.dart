@@ -29,7 +29,7 @@ class AdvancedTaxEngine {
     double inclusivePortion = 0;
     double roundingDelta = 0;
 
-    final baseSubtotal = max(subtotal - discount, 0);
+    final baseSubtotal = max(subtotal - discount, 0).toDouble();
 
     for (final rule in rules) {
       final base = _resolveBaseAmount(
