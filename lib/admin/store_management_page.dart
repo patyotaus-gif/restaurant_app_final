@@ -253,8 +253,9 @@ class _StoreManagementPageState extends State<StoreManagementPage> {
       authService: authService,
       storeProvider: context.read<StoreProvider>(),
     );
-    final canManage = PermissionPolicy.require(Permission.manageStores)
-        .evaluate(permissionContext);
+    final canManage = PermissionPolicy.require(
+      Permission.manageStores,
+    ).evaluate(permissionContext);
 
     return Card(
       margin: const EdgeInsets.all(16),
@@ -366,8 +367,9 @@ class _StoreManagementPageState extends State<StoreManagementPage> {
       authService: authService,
       storeProvider: storeProvider,
     );
-    final canManage = PermissionPolicy.require(Permission.manageStores)
-        .evaluate(permissionContext);
+    final canManage = PermissionPolicy.require(
+      Permission.manageStores,
+    ).evaluate(permissionContext);
 
     return Card(
       margin: const EdgeInsets.all(16),
@@ -488,18 +490,15 @@ class _StoreManagementPageState extends State<StoreManagementPage> {
     final lastSynced = currencyProvider.lastSynced;
     final dateFormatter = DateFormat('dd MMM yyyy HH:mm');
 
-    final baseOptions = {
-      ..._commonCurrencies,
-      ...supported,
-    }.toList()
-      ..sort();
+    final baseOptions = {..._commonCurrencies, ...supported}.toList()..sort();
 
     final permissionContext = PermissionContext(
       authService: context.read<AuthService>(),
       storeProvider: storeProvider,
     );
-    final canManage = PermissionPolicy.require(Permission.manageStores)
-        .evaluate(permissionContext);
+    final canManage = PermissionPolicy.require(
+      Permission.manageStores,
+    ).evaluate(permissionContext);
 
     return Card(
       margin: const EdgeInsets.all(16),
@@ -636,16 +635,17 @@ class _StoreManagementPageState extends State<StoreManagementPage> {
                   label: Text(code),
                   onDeleted: canManage && !isBase
                       ? () => _removeCurrency(
-                            context,
-                            store,
-                            settings,
-                            code,
-                            storeService,
-                            currencyProvider,
-                          )
+                          context,
+                          store,
+                          settings,
+                          code,
+                          storeService,
+                          currencyProvider,
+                        )
                       : null,
-                  deleteIcon:
-                      canManage && !isBase ? const Icon(Icons.close) : null,
+                  deleteIcon: canManage && !isBase
+                      ? const Icon(Icons.close)
+                      : null,
                 );
               }).toList(),
             ),
@@ -668,7 +668,7 @@ class _StoreManagementPageState extends State<StoreManagementPage> {
                           subtitle: Text(
                             rate > 0
                                 ? '1 $baseCurrency = '
-                                    '${rate.toStringAsFixed(4)} ${entry.key}'
+                                      '${rate.toStringAsFixed(4)} ${entry.key}'
                                 : 'No rate set for $baseCurrency → ${entry.key}',
                           ),
                           trailing: canManage
@@ -725,10 +725,7 @@ class _StoreManagementPageState extends State<StoreManagementPage> {
   ) async {
     final normalized = newBase.toUpperCase();
     final supported = settings.normalizedSupportedCurrencies;
-    final updatedSupported = {
-      ...supported,
-      normalized,
-    }.toList();
+    final updatedSupported = {...supported, normalized}.toList();
     final updatedSettings = settings.copyWith(
       baseCurrency: normalized,
       supportedCurrencies: updatedSupported,
@@ -761,7 +758,8 @@ class _StoreManagementPageState extends State<StoreManagementPage> {
       updatedSettings,
       storeService,
       currencyProvider,
-      successMessage: 'Display currency updated to ${displayCurrency.toUpperCase()}.',
+      successMessage:
+          'Display currency updated to ${displayCurrency.toUpperCase()}.',
     );
   }
 
@@ -773,10 +771,9 @@ class _StoreManagementPageState extends State<StoreManagementPage> {
     CurrencyProvider currencyProvider,
   ) async {
     final existing = settings.normalizedSupportedCurrencies;
-    final available = _commonCurrencies
-        .where((code) => !existing.contains(code))
-        .toList()
-      ..sort();
+    final available =
+        _commonCurrencies.where((code) => !existing.contains(code)).toList()
+          ..sort();
     final manualController = TextEditingController();
     try {
       String? selected = available.isNotEmpty ? available.first : null;
@@ -926,11 +923,15 @@ class _StoreManagementPageState extends State<StoreManagementPage> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: Text('Update ${settings.baseCurrency.toUpperCase()} → ${currency.toUpperCase()}'),
+          title: Text(
+            'Update ${settings.baseCurrency.toUpperCase()} → ${currency.toUpperCase()}',
+          ),
           content: TextField(
             controller: controller,
-            keyboardType:
-                const TextInputType.numberWithOptions(decimal: true, signed: false),
+            keyboardType: const TextInputType.numberWithOptions(
+              decimal: true,
+              signed: false,
+            ),
             decoration: const InputDecoration(
               labelText: 'Rate',
               helperText: 'Amount of quote currency for 1 base currency',
@@ -1007,9 +1008,9 @@ class _StoreManagementPageState extends State<StoreManagementPage> {
     try {
       await currencyProvider.refreshRates();
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('FX rates refreshed.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('FX rates refreshed.')));
     } catch (error) {
       if (mounted) {
         setState(() {
@@ -1030,9 +1031,9 @@ class _StoreManagementPageState extends State<StoreManagementPage> {
     Store store,
     CurrencySettings settings,
     StoreService storeService,
-    CurrencyProvider currencyProvider,
-    {String? successMessage},
-  ) async {
+    CurrencyProvider currencyProvider, {
+    String? successMessage,
+  }) async {
     setState(() {
       _isUpdatingCurrency = true;
       _errorMessage = null;
@@ -1043,9 +1044,9 @@ class _StoreManagementPageState extends State<StoreManagementPage> {
       await currencyProvider.applyStore(updatedStore);
       if (!mounted) return;
       if (successMessage != null && successMessage.isNotEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(successMessage)),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(successMessage)));
       }
     } catch (error) {
       if (mounted) {
