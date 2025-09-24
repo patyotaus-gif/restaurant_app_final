@@ -1,16 +1,22 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../auth_service.dart';
+import '../currency_provider.dart';
 import '../feature_flags/feature_flag_provider.dart';
 import '../feature_flags/feature_flag_scope.dart';
 import '../feature_flags/terminal_provider.dart';
 import '../models/role_permission_model.dart';
+import '../models/permission_policy.dart';
+import '../models/currency_settings.dart';
+import '../models/fx_rate.dart';
 import '../models/store_model.dart';
 import 'plugins/plugin_provider.dart';
 import '../services/store_service.dart';
 import '../stock_provider.dart';
 import '../store_provider.dart';
+import '../widgets/permission_gate.dart';
 
 class StoreManagementPage extends StatefulWidget {
   const StoreManagementPage({super.key});
@@ -26,6 +32,27 @@ class _StoreManagementPageState extends State<StoreManagementPage> {
   final TextEditingController _terminalIdController = TextEditingController();
   FeatureFlagScope _selectedScope = FeatureFlagScope.tenant;
   bool _flagValue = true;
+  bool _isUpdatingCurrency = false;
+
+  static const List<String> _commonCurrencies = [
+    'THB',
+    'USD',
+    'EUR',
+    'GBP',
+    'JPY',
+    'AUD',
+    'CAD',
+    'CNY',
+    'HKD',
+    'SGD',
+    'MYR',
+    'IDR',
+    'PHP',
+    'VND',
+    'INR',
+    'KRW',
+    'CHF',
+  ];
 
   @override
   void dispose() {
@@ -39,6 +66,7 @@ class _StoreManagementPageState extends State<StoreManagementPage> {
     final storeProvider = context.watch<StoreProvider>();
     final authService = context.watch<AuthService>();
     final storeService = context.read<StoreService>();
+    final currencyProvider = context.watch<CurrencyProvider>();
 
     return Scaffold(
       appBar: AppBar(
@@ -57,13 +85,14 @@ class _StoreManagementPageState extends State<StoreManagementPage> {
           ),
         ],
       ),
-      floatingActionButton: authService.hasPermission(Permission.manageStores)
-          ? FloatingActionButton.extended(
-              onPressed: () => _showCreateStoreDialog(context, storeService),
-              icon: const Icon(Icons.add_business),
-              label: const Text('Add Store'),
-            )
-          : null,
+      floatingActionButton: PermissionGate(
+        policy: PermissionPolicy.require(Permission.manageStores),
+        builder: (_) => FloatingActionButton.extended(
+          onPressed: () => _showCreateStoreDialog(context, storeService),
+          icon: const Icon(Icons.add_business),
+          label: const Text('Add Store'),
+        ),
+      ),
       body: Column(
         children: [
           if (_errorMessage != null)
@@ -103,11 +132,28 @@ class _StoreManagementPageState extends State<StoreManagementPage> {
                     ],
                   ),
                 ),
-                Expanded(flex: 3, child: _buildRoleCard()),
+                Expanded(
+                  flex: 3,
+                  child: Column(
+                    children: [
+                      Expanded(
+                        child: _buildCurrencyCard(
+                          context,
+                          storeProvider,
+                          storeService,
+                          currencyProvider,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Expanded(child: _buildRoleCard()),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),
-          if (_isSaving) const LinearProgressIndicator(minHeight: 2),
+          if (_isSaving || _isUpdatingCurrency)
+            const LinearProgressIndicator(minHeight: 2),
         ],
       ),
     );
@@ -137,13 +183,15 @@ class _StoreManagementPageState extends State<StoreManagementPage> {
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
                 const Spacer(),
-                if (authService.hasPermission(Permission.manageStores))
-                  TextButton.icon(
+                PermissionGate(
+                  policy: PermissionPolicy.require(Permission.manageStores),
+                  builder: (_) => TextButton.icon(
                     onPressed: () =>
                         _showCreateStoreDialog(context, storeService),
                     icon: const Icon(Icons.add),
                     label: const Text('New store'),
                   ),
+                ),
               ],
             ),
             const Divider(),
@@ -201,7 +249,12 @@ class _StoreManagementPageState extends State<StoreManagementPage> {
     final pluginProvider = context.watch<PluginProvider>();
     final store = pluginProvider.activeStore;
     final modules = pluginProvider.availableModules.toList();
-    final canManage = authService.hasPermission(Permission.manageStores);
+    final permissionContext = PermissionContext(
+      authService: authService,
+      storeProvider: context.read<StoreProvider>(),
+    );
+    final canManage = PermissionPolicy.require(Permission.manageStores)
+        .evaluate(permissionContext);
 
     return Card(
       margin: const EdgeInsets.all(16),
@@ -309,7 +362,12 @@ class _StoreManagementPageState extends State<StoreManagementPage> {
       );
     }
 
-    final canManage = authService.hasPermission(Permission.manageStores);
+    final permissionContext = PermissionContext(
+      authService: authService,
+      storeProvider: storeProvider,
+    );
+    final canManage = PermissionPolicy.require(Permission.manageStores)
+        .evaluate(permissionContext);
 
     return Card(
       margin: const EdgeInsets.all(16),
@@ -397,6 +455,611 @@ class _StoreManagementPageState extends State<StoreManagementPage> {
         ),
       ),
     );
+  }
+
+  Widget _buildCurrencyCard(
+    BuildContext context,
+    StoreProvider storeProvider,
+    StoreService storeService,
+    CurrencyProvider currencyProvider,
+  ) {
+    final store = storeProvider.activeStore;
+    if (store == null) {
+      return const Card(
+        margin: EdgeInsets.all(16),
+        child: Center(
+          child: Padding(
+            padding: EdgeInsets.all(16.0),
+            child: Text('Select a store to configure currency preferences.'),
+          ),
+        ),
+      );
+    }
+
+    final settings = store.currencySettings;
+    final baseCurrency = settings.baseCurrency.toUpperCase();
+    final supported = settings.normalizedSupportedCurrencies;
+    final displayCurrency = settings.effectiveDisplayCurrency;
+    final rates = currencyProvider.quotedRates;
+    final rateEntries = supported
+        .where((code) => code != baseCurrency)
+        .map((code) => MapEntry(code, rates[code] ?? 0))
+        .toList();
+    final lastSynced = currencyProvider.lastSynced;
+    final dateFormatter = DateFormat('dd MMM yyyy HH:mm');
+
+    final baseOptions = {
+      ..._commonCurrencies,
+      ...supported,
+    }.toList()
+      ..sort();
+
+    final permissionContext = PermissionContext(
+      authService: context.read<AuthService>(),
+      storeProvider: storeProvider,
+    );
+    final canManage = PermissionPolicy.require(Permission.manageStores)
+        .evaluate(permissionContext);
+
+    return Card(
+      margin: const EdgeInsets.all(16),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: const [
+                Icon(Icons.currency_exchange),
+                SizedBox(width: 8),
+                Text(
+                  'Currency & FX Rates',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+            const Divider(),
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Base currency',
+                        style: TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      const SizedBox(height: 4),
+                      DropdownButtonFormField<String>(
+                        value: baseCurrency,
+                        items: baseOptions
+                            .map(
+                              (code) => DropdownMenuItem<String>(
+                                value: code,
+                                child: Text(code),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: canManage
+                            ? (value) {
+                                if (value == null) return;
+                                _onBaseCurrencyChanged(
+                                  context,
+                                  store,
+                                  settings,
+                                  value,
+                                  storeService,
+                                  currencyProvider,
+                                );
+                              }
+                            : null,
+                        decoration: const InputDecoration(
+                          border: OutlineInputBorder(),
+                          isDense: true,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Display currency',
+                        style: TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      const SizedBox(height: 4),
+                      DropdownButtonFormField<String>(
+                        value: displayCurrency,
+                        items: supported
+                            .map(
+                              (code) => DropdownMenuItem<String>(
+                                value: code,
+                                child: Text(code),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: canManage
+                            ? (value) {
+                                if (value == null) return;
+                                _updateDisplayCurrency(
+                                  context,
+                                  store,
+                                  settings,
+                                  value,
+                                  storeService,
+                                  currencyProvider,
+                                );
+                              }
+                            : null,
+                        decoration: const InputDecoration(
+                          border: OutlineInputBorder(),
+                          isDense: true,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                const Text(
+                  'Supported currencies',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+                const Spacer(),
+                if (canManage)
+                  TextButton.icon(
+                    onPressed: () => _showAddCurrencyDialog(
+                      context,
+                      store,
+                      settings,
+                      storeService,
+                      currencyProvider,
+                    ),
+                    icon: const Icon(Icons.add),
+                    label: const Text('Add currency'),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: supported.map((code) {
+                final isBase = code == baseCurrency;
+                return InputChip(
+                  label: Text(code),
+                  onDeleted: canManage && !isBase
+                      ? () => _removeCurrency(
+                            context,
+                            store,
+                            settings,
+                            code,
+                            storeService,
+                            currencyProvider,
+                          )
+                      : null,
+                  deleteIcon:
+                      canManage && !isBase ? const Icon(Icons.close) : null,
+                );
+              }).toList(),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Daily FX rates',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 8),
+            Expanded(
+              child: rateEntries.isEmpty
+                  ? const Center(child: Text('No FX rates available.'))
+                  : ListView.builder(
+                      itemCount: rateEntries.length,
+                      itemBuilder: (context, index) {
+                        final entry = rateEntries[index];
+                        final rate = entry.value;
+                        return ListTile(
+                          title: Text(entry.key),
+                          subtitle: Text(
+                            rate > 0
+                                ? '1 $baseCurrency = '
+                                    '${rate.toStringAsFixed(4)} ${entry.key}'
+                                : 'No rate set for $baseCurrency → ${entry.key}',
+                          ),
+                          trailing: canManage
+                              ? IconButton(
+                                  tooltip: 'Update rate',
+                                  icon: const Icon(Icons.edit_outlined),
+                                  onPressed: () => _showUpdateRateDialog(
+                                    context,
+                                    store,
+                                    settings,
+                                    entry.key,
+                                    rate > 0 ? rate : null,
+                                    currencyProvider,
+                                  ),
+                                )
+                              : null,
+                        );
+                      },
+                    ),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    lastSynced == null
+                        ? 'Last synced: Never'
+                        : 'Last synced: ${dateFormatter.format(lastSynced.toLocal())}',
+                  ),
+                ),
+                if (canManage)
+                  TextButton.icon(
+                    onPressed: _isUpdatingCurrency
+                        ? null
+                        : () => _refreshFxRates(context, currencyProvider),
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('Refresh'),
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _onBaseCurrencyChanged(
+    BuildContext context,
+    Store store,
+    CurrencySettings settings,
+    String newBase,
+    StoreService storeService,
+    CurrencyProvider currencyProvider,
+  ) async {
+    final normalized = newBase.toUpperCase();
+    final supported = settings.normalizedSupportedCurrencies;
+    final updatedSupported = {
+      ...supported,
+      normalized,
+    }.toList();
+    final updatedSettings = settings.copyWith(
+      baseCurrency: normalized,
+      supportedCurrencies: updatedSupported,
+      displayCurrency: settings.effectiveDisplayCurrency,
+    );
+    await _persistCurrencySettings(
+      context,
+      store,
+      updatedSettings,
+      storeService,
+      currencyProvider,
+      successMessage: 'Base currency updated to $normalized.',
+    );
+  }
+
+  Future<void> _updateDisplayCurrency(
+    BuildContext context,
+    Store store,
+    CurrencySettings settings,
+    String displayCurrency,
+    StoreService storeService,
+    CurrencyProvider currencyProvider,
+  ) async {
+    final updatedSettings = settings.copyWith(
+      displayCurrency: displayCurrency.toUpperCase(),
+    );
+    await _persistCurrencySettings(
+      context,
+      store,
+      updatedSettings,
+      storeService,
+      currencyProvider,
+      successMessage: 'Display currency updated to ${displayCurrency.toUpperCase()}.',
+    );
+  }
+
+  Future<void> _showAddCurrencyDialog(
+    BuildContext context,
+    Store store,
+    CurrencySettings settings,
+    StoreService storeService,
+    CurrencyProvider currencyProvider,
+  ) async {
+    final existing = settings.normalizedSupportedCurrencies;
+    final available = _commonCurrencies
+        .where((code) => !existing.contains(code))
+        .toList()
+      ..sort();
+    final manualController = TextEditingController();
+    try {
+      String? selected = available.isNotEmpty ? available.first : null;
+
+      final chosen = await showDialog<String>(
+        context: context,
+        builder: (dialogContext) {
+          return StatefulBuilder(
+            builder: (context, setState) {
+              return AlertDialog(
+                title: const Text('Add supported currency'),
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (available.isNotEmpty)
+                      DropdownButtonFormField<String>(
+                        value: selected,
+                        decoration: const InputDecoration(
+                          labelText: 'Common currencies',
+                        ),
+                        items: available
+                            .map(
+                              (code) => DropdownMenuItem<String>(
+                                value: code,
+                                child: Text(code),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (value) {
+                          setState(() {
+                            selected = value;
+                          });
+                        },
+                      ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: manualController,
+                      textCapitalization: TextCapitalization.characters,
+                      decoration: const InputDecoration(
+                        labelText: 'ISO code',
+                        hintText: 'e.g. USD',
+                      ),
+                    ),
+                  ],
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('Cancel'),
+                  ),
+                  ElevatedButton(
+                    onPressed: () {
+                      final manual = manualController.text.trim().toUpperCase();
+                      final resolved = manual.isNotEmpty
+                          ? manual
+                          : (selected?.toUpperCase() ?? '');
+                      if (resolved.isEmpty) {
+                        Navigator.of(context).pop();
+                        return;
+                      }
+                      Navigator.of(context).pop(resolved);
+                    },
+                    child: const Text('Add'),
+                  ),
+                ],
+              );
+            },
+          );
+        },
+      );
+
+      if (chosen == null || chosen.isEmpty) {
+        return;
+      }
+      if (existing.contains(chosen)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('$chosen is already supported.')),
+        );
+        return;
+      }
+
+      final updatedSettings = settings.copyWith(
+        supportedCurrencies: [...existing, chosen],
+      );
+      await _persistCurrencySettings(
+        context,
+        store,
+        updatedSettings,
+        storeService,
+        currencyProvider,
+        successMessage: '$chosen added to supported currencies.',
+      );
+    } finally {
+      manualController.dispose();
+    }
+  }
+
+  Future<void> _removeCurrency(
+    BuildContext context,
+    Store store,
+    CurrencySettings settings,
+    String currency,
+    StoreService storeService,
+    CurrencyProvider currencyProvider,
+  ) async {
+    final normalized = currency.toUpperCase();
+    final base = settings.baseCurrency.toUpperCase();
+    if (normalized == base) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Cannot remove the base currency.')),
+      );
+      return;
+    }
+    final supported = settings.normalizedSupportedCurrencies
+        .where((code) => code != normalized)
+        .toList();
+    var display = settings.effectiveDisplayCurrency;
+    if (display == normalized) {
+      display = base;
+    }
+    final updatedSettings = settings.copyWith(
+      supportedCurrencies: supported,
+      displayCurrency: display,
+    );
+    await _persistCurrencySettings(
+      context,
+      store,
+      updatedSettings,
+      storeService,
+      currencyProvider,
+      successMessage: '$normalized removed from supported currencies.',
+    );
+  }
+
+  Future<void> _showUpdateRateDialog(
+    BuildContext context,
+    Store store,
+    CurrencySettings settings,
+    String currency,
+    double? currentRate,
+    CurrencyProvider currencyProvider,
+  ) async {
+    final controller = TextEditingController(
+      text: currentRate != null ? currentRate.toStringAsFixed(4) : '',
+    );
+    final result = await showDialog<double>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('Update ${settings.baseCurrency.toUpperCase()} → ${currency.toUpperCase()}'),
+          content: TextField(
+            controller: controller,
+            keyboardType:
+                const TextInputType.numberWithOptions(decimal: true, signed: false),
+            decoration: const InputDecoration(
+              labelText: 'Rate',
+              helperText: 'Amount of quote currency for 1 base currency',
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                final parsed = double.tryParse(controller.text.trim());
+                if (parsed == null || parsed <= 0) {
+                  Navigator.of(context).pop();
+                  return;
+                }
+                Navigator.of(context).pop(parsed);
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        );
+      },
+    );
+    controller.dispose();
+
+    if (result == null) {
+      return;
+    }
+
+    setState(() {
+      _isUpdatingCurrency = true;
+    });
+    try {
+      await currencyProvider.upsertRate(
+        FxRate(
+          baseCurrency: settings.baseCurrency,
+          quoteCurrency: currency,
+          rate: result,
+        ),
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Updated FX rate: 1 ${settings.baseCurrency.toUpperCase()} = '
+            '${result.toStringAsFixed(4)} ${currency.toUpperCase()}',
+          ),
+        ),
+      );
+    } catch (error) {
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'Failed to update FX rate: $error';
+        });
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isUpdatingCurrency = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _refreshFxRates(
+    BuildContext context,
+    CurrencyProvider currencyProvider,
+  ) async {
+    setState(() {
+      _isUpdatingCurrency = true;
+    });
+    try {
+      await currencyProvider.refreshRates();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('FX rates refreshed.')),
+      );
+    } catch (error) {
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'Unable to refresh FX rates: $error';
+        });
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isUpdatingCurrency = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _persistCurrencySettings(
+    BuildContext context,
+    Store store,
+    CurrencySettings settings,
+    StoreService storeService,
+    CurrencyProvider currencyProvider,
+    {String? successMessage},
+  ) async {
+    setState(() {
+      _isUpdatingCurrency = true;
+      _errorMessage = null;
+    });
+    final updatedStore = store.copyWith(currencySettings: settings);
+    try {
+      await storeService.saveStore(updatedStore);
+      await currencyProvider.applyStore(updatedStore);
+      if (!mounted) return;
+      if (successMessage != null && successMessage.isNotEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(successMessage)),
+        );
+      }
+    } catch (error) {
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'Failed to update currency settings: $error';
+        });
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isUpdatingCurrency = false;
+        });
+      }
+    }
   }
 
   Widget _buildRoleCard() {

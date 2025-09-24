@@ -18,6 +18,7 @@ import 'notifications_repository.dart';
 import 'notification_provider.dart';
 import 'services/sync_queue_service.dart';
 import 'services/client_cache_service.dart';
+import 'currency_provider.dart';
 
 import 'customer_menu_page.dart';
 import 'role_selection_page.dart';
@@ -58,6 +59,7 @@ import 'admin/audit_log_page.dart';
 import 'admin/analytics_page.dart';
 import 'store_provider.dart';
 import 'services/store_service.dart';
+import 'services/fx_rate_service.dart';
 import 'services/audit_log_service.dart';
 import 'services/stocktake_service.dart';
 import 'services/payment_gateway_service.dart';
@@ -69,6 +71,9 @@ import 'feature_flags/feature_flag_service.dart';
 import 'feature_flags/terminal_provider.dart';
 import 'admin/plugins/plugin_provider.dart';
 import 'admin/plugins/plugin_registry.dart';
+import 'models/role_permission_model.dart';
+import 'models/permission_policy.dart';
+import 'widgets/route_permission_guard.dart';
 
 final _router = GoRouter(
   routes: [
@@ -104,108 +109,211 @@ final _router = GoRouter(
     ),
     GoRoute(
       path: '/admin',
-      builder: (context, state) => const AdminPage(),
+      builder: (context, state) => RoutePermissionGuard(
+        state: state,
+        policy: PermissionPolicy.anyOf({
+          Permission.manageStores,
+          Permission.manageEmployees,
+          Permission.managePurchaseOrders,
+          Permission.viewAuditLogs,
+          Permission.adjustInventory,
+        }),
+        builder: (context, state) => const AdminPage(),
+      ),
       routes: [
         GoRoute(
           path: 'reservations',
-          builder: (context, state) => const ReservationManagementPage(),
+          builder: (context, state) => RoutePermissionGuard(
+            state: state,
+            policy: PermissionPolicy.require(Permission.manageStores),
+            builder: (context, state) => const ReservationManagementPage(),
+          ),
         ),
         GoRoute(
           path: 'low-stock-alerts',
-          builder: (context, state) => const LowStockAlertPage(),
+          builder: (context, state) => RoutePermissionGuard(
+            state: state,
+            policy: PermissionPolicy.require(Permission.viewInventory),
+            builder: (context, state) => const LowStockAlertPage(),
+          ),
         ),
         GoRoute(
           path: 'employees',
-          builder: (context, state) => const EmployeeManagementPage(),
+          builder: (context, state) => RoutePermissionGuard(
+            state: state,
+            policy: PermissionPolicy.require(Permission.manageEmployees),
+            builder: (context, state) => const EmployeeManagementPage(),
+          ),
         ),
         GoRoute(
           path: 'time-report',
-          builder: (context, state) => const TimeReportPage(),
+          builder: (context, state) => RoutePermissionGuard(
+            state: state,
+            policy: PermissionPolicy.require(Permission.manageEmployees),
+            builder: (context, state) => const TimeReportPage(),
+          ),
         ),
         GoRoute(
           path: 'waste',
-          builder: (context, state) => const WasteTrackingPage(),
+          builder: (context, state) => RoutePermissionGuard(
+            state: state,
+            policy: PermissionPolicy.require(Permission.adjustInventory),
+            builder: (context, state) => const WasteTrackingPage(),
+          ),
         ),
         GoRoute(
           path: 'promotions',
-          builder: (context, state) => const PromotionManagementPage(),
+          builder: (context, state) => RoutePermissionGuard(
+            state: state,
+            policy: PermissionPolicy.require(Permission.manageStores),
+            builder: (context, state) => const PromotionManagementPage(),
+          ),
         ),
         GoRoute(
           path: 'punch-cards',
-          builder: (context, state) => const PunchCardManagementPage(),
+          builder: (context, state) => RoutePermissionGuard(
+            state: state,
+            policy: PermissionPolicy.require(Permission.manageStores),
+            builder: (context, state) => const PunchCardManagementPage(),
+          ),
         ),
-        // --- ADDED THIS NEW ROUTE ---
         GoRoute(
           path: 'modifiers',
-          builder: (context, state) => const ModifierManagementPage(),
+          builder: (context, state) => RoutePermissionGuard(
+            state: state,
+            policy: PermissionPolicy.require(Permission.manageStores),
+            builder: (context, state) => const ModifierManagementPage(),
+          ),
         ),
-        // -----------------------------
         GoRoute(
           path: 'accounting-export',
-          builder: (context, state) => const AccountingExportPage(),
+          builder: (context, state) => RoutePermissionGuard(
+            state: state,
+            policy: PermissionPolicy.require(Permission.manageStores),
+            builder: (context, state) => const AccountingExportPage(),
+          ),
         ),
         GoRoute(
           path: 'customer-profile/:customerId',
-          builder: (context, state) {
-            final customerId = state.pathParameters['customerId']!;
-            return CustomerProfilePage(customerId: customerId);
-          },
+          builder: (context, state) => RoutePermissionGuard(
+            state: state,
+            policy: PermissionPolicy.require(Permission.manageStores),
+            builder: (context, state) {
+              final customerId = state.pathParameters['customerId']!;
+              return CustomerProfilePage(customerId: customerId);
+            },
+          ),
         ),
         GoRoute(
           path: 'products',
-          builder: (context, state) => const ProductManagementPage(),
+          builder: (context, state) => RoutePermissionGuard(
+            state: state,
+            policy: PermissionPolicy.require(Permission.adjustInventory),
+            builder: (context, state) => const ProductManagementPage(),
+          ),
         ),
         GoRoute(
           path: 'products/edit',
-          builder: (context, state) {
-            final product = state.extra as Product?;
-            return EditProductPage(product: product);
-          },
+          builder: (context, state) => RoutePermissionGuard(
+            state: state,
+            policy: PermissionPolicy.require(Permission.adjustInventory),
+            builder: (context, state) {
+              final product = state.extra as Product?;
+              return EditProductPage(product: product);
+            },
+          ),
         ),
         GoRoute(
           path: 'suppliers',
-          builder: (context, state) => const SupplierManagementPage(),
+          builder: (context, state) => RoutePermissionGuard(
+            state: state,
+            policy: PermissionPolicy.require(Permission.managePurchaseOrders),
+            builder: (context, state) => const SupplierManagementPage(),
+          ),
         ),
         GoRoute(
           path: 'purchase-orders',
-          builder: (context, state) => const PurchaseOrderListPage(),
+          builder: (context, state) => RoutePermissionGuard(
+            state: state,
+            policy: PermissionPolicy.require(Permission.managePurchaseOrders),
+            builder: (context, state) => const PurchaseOrderListPage(),
+          ),
         ),
         GoRoute(
           path: 'purchase-orders/create',
-          builder: (context, state) => const CreatePurchaseOrderPage(),
+          builder: (context, state) => RoutePermissionGuard(
+            state: state,
+            policy: PermissionPolicy.require(Permission.managePurchaseOrders),
+            builder: (context, state) => const CreatePurchaseOrderPage(),
+          ),
         ),
         GoRoute(
           path: 'stocktake',
-          builder: (context, state) => const StocktakePage(),
+          builder: (context, state) => RoutePermissionGuard(
+            state: state,
+            policy: PermissionPolicy.require(Permission.adjustInventory),
+            builder: (context, state) => const StocktakePage(),
+          ),
         ),
         GoRoute(
           path: 'dashboard',
-          builder: (context, state) => const DashboardPage(),
+          builder: (context, state) => RoutePermissionGuard(
+            state: state,
+            policy: PermissionPolicy.require(Permission.viewInventory),
+            builder: (context, state) => const DashboardPage(),
+          ),
         ),
         GoRoute(
           path: 'eod',
-          builder: (context, state) => const EndOfDayReportPage(),
+          builder: (context, state) => RoutePermissionGuard(
+            state: state,
+            policy: PermissionPolicy.require(Permission.manageStores),
+            builder: (context, state) => const EndOfDayReportPage(),
+          ),
         ),
         GoRoute(
           path: 'stores',
-          builder: (context, state) => const StoreManagementPage(),
+          builder: (context, state) => RoutePermissionGuard(
+            state: state,
+            policy: PermissionPolicy.require(Permission.manageStores),
+            builder: (context, state) => const StoreManagementPage(),
+          ),
         ),
         GoRoute(
           path: 'audit-log',
-          builder: (context, state) => const AuditLogPage(),
+          builder: (context, state) => RoutePermissionGuard(
+            state: state,
+            policy: PermissionPolicy.require(Permission.viewAuditLogs),
+            builder: (context, state) => const AuditLogPage(),
+          ),
         ),
         GoRoute(
           path: 'inventory',
-          builder: (context, state) => const IngredientManagementPage(),
+          builder: (context, state) => RoutePermissionGuard(
+            state: state,
+            policy: PermissionPolicy.require(Permission.viewInventory),
+            builder: (context, state) => const IngredientManagementPage(),
+          ),
         ),
         GoRoute(
           path: 'analytics',
-          builder: (context, state) => const AnalyticsPage(),
+          builder: (context, state) => RoutePermissionGuard(
+            state: state,
+            policy: PermissionPolicy.anyOf({
+              Permission.manageStores,
+              Permission.viewInventory,
+            }),
+            builder: (context, state) => const AnalyticsPage(),
+          ),
         ),
         GoRoute(
           path: 'kds',
-          builder: (context, state) => KitchenDisplayPage(
-            initialStationId: state.uri.queryParameters['station'],
+          builder: (context, state) => RoutePermissionGuard(
+            state: state,
+            policy: PermissionPolicy.require(Permission.processSales),
+            builder: (context, state) => KitchenDisplayPage(
+              initialStationId: state.uri.queryParameters['station'],
+            ),
           ),
         ),
       ],
@@ -252,6 +360,9 @@ class MyApp extends StatelessWidget {
         Provider<StoreService>(
           create: (_) => StoreService(FirebaseFirestore.instance),
         ),
+        Provider<FxRateService>(
+          create: (_) => FxRateService(FirebaseFirestore.instance),
+        ),
         ChangeNotifierProvider(
           create: (ctx) => MenuCacheProvider(
             FirebaseFirestore.instance,
@@ -284,6 +395,14 @@ class MyApp extends StatelessWidget {
             final provider =
                 pluginProvider ?? PluginProvider(ctx.read<StoreService>());
             provider.updateStore(storeProvider.activeStore);
+            return provider;
+          },
+        ),
+        ChangeNotifierProxyProvider2<StoreProvider, FxRateService, CurrencyProvider>(
+          create: (ctx) => CurrencyProvider(ctx.read<FxRateService>()),
+          update: (ctx, storeProvider, fxService, currencyProvider) {
+            final provider = currencyProvider ?? CurrencyProvider(fxService);
+            provider.applyStore(storeProvider.activeStore);
             return provider;
           },
         ),
