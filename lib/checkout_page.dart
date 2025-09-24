@@ -9,7 +9,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
 
+import 'currency_provider.dart';
 import 'models/receipt_models.dart';
 import 'services/payment_gateway_service.dart';
 import 'services/printer_drawer_service.dart';
@@ -183,6 +185,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
     bool isTotal = false,
     Color? valueColor,
   }) {
+    final currencyProvider = context.watch<CurrencyProvider>();
     final baseStyle = TextStyle(
       fontSize: isTotal ? 18 : 16,
       fontWeight: isTotal ? FontWeight.bold : FontWeight.w600,
@@ -190,15 +193,29 @@ class _CheckoutPageState extends State<CheckoutPage> {
     final colorStyle = valueColor != null
         ? baseStyle.copyWith(color: valueColor)
         : baseStyle;
-    final formatted =
-        '${amount < 0 ? '- ' : ''}${amount.abs().toStringAsFixed(2)} บาท';
+    final formatted = currencyProvider.formatBaseAmount(amount);
+    String? baseBreakdown;
+    if (currencyProvider.displayCurrency != currencyProvider.baseCurrency) {
+      baseBreakdown =
+          '${amount < 0 ? '- ' : ''}${amount.abs().toStringAsFixed(2)} ${currencyProvider.baseCurrency}';
+    }
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4.0),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(label, style: baseStyle),
-          Text(formatted, style: colorStyle),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(formatted, style: colorStyle),
+              if (baseBreakdown != null)
+                Text(
+                  baseBreakdown,
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+            ],
+          ),
         ],
       ),
     );
@@ -213,6 +230,8 @@ class _CheckoutPageState extends State<CheckoutPage> {
               widget.tipAmount == 0)
         ? widget.totalAmount
         : widget.subtotal;
+
+    final currencyProvider = context.watch<CurrencyProvider>();
 
     final rows = <Widget>[_buildSummaryRow('Subtotal', effectiveSubtotal)];
 
@@ -285,7 +304,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
             child: Align(
               alignment: Alignment.centerLeft,
               child: Text(
-                'รวมภาษีในราคาแล้ว ${widget.taxInclusivePortion.toStringAsFixed(2)} บาท',
+                'รวมภาษีในราคาแล้ว ${currencyProvider.formatBaseAmount(widget.taxInclusivePortion)}',
                 style: TextStyle(color: Colors.teal.shade300, fontSize: 12),
               ),
             ),
@@ -345,7 +364,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
       rows.add(const SizedBox(height: 8));
       rows.add(
         Text(
-          'Split between ${widget.splitCount} guests: ${perGuest.toStringAsFixed(2)} บาท each',
+          'Split between ${widget.splitCount} guests: ${currencyProvider.formatBaseAmount(perGuest)} each',
           style: const TextStyle(fontWeight: FontWeight.w600),
         ),
       );
@@ -534,6 +553,8 @@ class _CheckoutPageState extends State<CheckoutPage> {
       return const SizedBox.shrink();
     }
 
+    final currencyProvider = context.watch<CurrencyProvider>();
+
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 12),
       child: Padding(
@@ -549,6 +570,23 @@ class _CheckoutPageState extends State<CheckoutPage> {
             ...widget.payments.map((payment) {
               final method = payment['method']?.toString() ?? 'Unknown';
               final amount = (payment['amount'] as num?)?.toDouble() ?? 0.0;
+              final baseAmount =
+                  (payment['baseAmount'] as num?)?.toDouble();
+              final currencyCode =
+                  (payment['currency'] as String?)?.toUpperCase();
+              final formatter = currencyCode != null
+                  ? NumberFormat.simpleCurrency(name: currencyCode)
+                  : currencyProvider.currencyFormatter;
+              final amountDisplay = formatter.format(amount);
+              String? baseAmountDisplay;
+              if (baseAmount != null &&
+                  (currencyCode == null ||
+                      currencyCode != currencyProvider.baseCurrency)) {
+                final baseFormatter = NumberFormat.simpleCurrency(
+                  name: currencyProvider.baseCurrency,
+                );
+                baseAmountDisplay = baseFormatter.format(baseAmount);
+              }
               final reference = payment['reference']?.toString();
               return Padding(
                 padding: const EdgeInsets.symmetric(vertical: 4.0),
@@ -566,9 +604,21 @@ class _CheckoutPageState extends State<CheckoutPage> {
                             style: const TextStyle(fontWeight: FontWeight.w600),
                           ),
                           Text(
-                            '${amount.toStringAsFixed(2)} บาท',
+                            amountDisplay,
                             style: const TextStyle(color: Colors.green),
                           ),
+                          if (baseAmountDisplay != null)
+                            Text(
+                              baseAmountDisplay,
+                              style: Theme.of(context)
+                                      .textTheme
+                                      .bodySmall
+                                      ?.copyWith(color: Colors.black54) ??
+                                  const TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.black54,
+                                  ),
+                            ),
                           if (reference != null && reference.isNotEmpty)
                             Text(
                               'Ref: $reference',
@@ -762,6 +812,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
     final bool hasAccounts = _houseAccounts.isNotEmpty;
     final bool alreadyInvoiced = widget.invoiceToHouseAccount;
     final theme = Theme.of(context);
+    final currencyProvider = context.watch<CurrencyProvider>();
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 12),
       child: Padding(
@@ -779,7 +830,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
                 if (amountToInvoice > 0)
                   Chip(
                     label: Text(
-                      '${amountToInvoice.toStringAsFixed(2)} บาท',
+                      currencyProvider.formatBaseAmount(amountToInvoice),
                       style: const TextStyle(color: Colors.white),
                     ),
                     backgroundColor: theme.colorScheme.primary,
@@ -814,7 +865,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
                         child: Text(
                           account.creditLimit <= 0
                               ? account.customerName
-                              : '${account.customerName} (คงเหลือ ${account.availableCredit.toStringAsFixed(2)} บาท)',
+                              : '${account.customerName} (คงเหลือ ${currencyProvider.formatBaseAmount(account.availableCredit)})',
                         ),
                       ),
                     )
@@ -834,8 +885,8 @@ class _CheckoutPageState extends State<CheckoutPage> {
             if (_selectedHouseAccount != null) ...[
               const SizedBox(height: 12),
               Text(
-                'วงเงิน: ${_selectedHouseAccount!.creditLimit <= 0 ? 'ไม่จำกัด' : _selectedHouseAccount!.creditLimit.toStringAsFixed(2)} บาท'
-                ' | ยอดคงค้าง: ${_selectedHouseAccount!.currentBalance.toStringAsFixed(2)} บาท',
+                'วงเงิน: ${_selectedHouseAccount!.creditLimit <= 0 ? 'ไม่จำกัด' : currencyProvider.formatBaseAmount(_selectedHouseAccount!.creditLimit)}'
+                ' | ยอดคงค้าง: ${currencyProvider.formatBaseAmount(_selectedHouseAccount!.currentBalance)}',
               ),
               Text(
                 'วันตัดรอบ: ทุกวันที่ ${_selectedHouseAccount!.statementDay} | เงื่อนไขชำระ ${_selectedHouseAccount!.paymentTermsDays} วัน',
@@ -890,7 +941,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
                       )
                     : const Icon(Icons.receipt_long),
                 label: Text(
-                  'วางบิล ${(amountToInvoice > 0 ? amountToInvoice : 0).toStringAsFixed(2)} บาท',
+                  'วางบิล ${currencyProvider.formatBaseAmount(amountToInvoice > 0 ? amountToInvoice : 0)}',
                 ),
                 onPressed:
                     (!hasAccounts ||
@@ -1054,6 +1105,16 @@ class _CheckoutPageState extends State<CheckoutPage> {
     final outstanding = widget.amountDueAfterCredits <= 0
         ? 0.0
         : widget.amountDueAfterCredits;
+    final currencyProvider = context.read<CurrencyProvider>();
+    final baseCurrency = currencyProvider.baseCurrency;
+    final tenderCurrency = currencyProvider.displayCurrency;
+    final convertedOutstanding = outstanding <= 0
+        ? 0.0
+        : currencyProvider.convert(
+            amount: outstanding,
+            fromCurrency: baseCurrency,
+            toCurrency: tenderCurrency,
+          );
     final orderRef = FirebaseFirestore.instance
         .collection('orders')
         .doc(widget.orderId);
@@ -1088,8 +1149,8 @@ class _CheckoutPageState extends State<CheckoutPage> {
 
     final gatewayService = context.read<PaymentGatewayService>();
     final paymentRequest = PaymentRequest(
-      amount: outstanding,
-      currency: 'THB',
+      amount: convertedOutstanding,
+      currency: tenderCurrency,
       orderId: widget.orderId,
       description: 'Order ${widget.orderIdentifier}',
       metadata: {
@@ -1099,6 +1160,13 @@ class _CheckoutPageState extends State<CheckoutPage> {
         'serviceCharge': widget.serviceChargeAmount,
         'tip': widget.tipAmount,
         'splitCount': widget.splitCount,
+        'baseCurrency': baseCurrency,
+        'displayCurrency': tenderCurrency,
+        'baseAmount': outstanding,
+        'displayAmount': convertedOutstanding,
+        'fxRate': outstanding == 0
+            ? 1.0
+            : convertedOutstanding / outstanding,
       },
       customerEmail: _customerEmailController.text.trim().isEmpty
           ? null
@@ -1156,8 +1224,13 @@ class _CheckoutPageState extends State<CheckoutPage> {
           'method': PaymentGatewayService.describeGateway(
             gatewayService.activeGateway,
           ),
-          'amount': outstanding,
-          'currency': 'THB',
+          'amount': convertedOutstanding,
+          'currency': tenderCurrency,
+          'baseAmount': outstanding,
+          'baseCurrency': baseCurrency,
+          'fxRate': outstanding == 0
+              ? 1.0
+              : convertedOutstanding / outstanding,
           'transactionId': paymentResult.transactionId,
           'processedAt': Timestamp.now(),
         },
@@ -1196,6 +1269,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
 
   Widget _buildPaymentGatewayCard() {
     final paymentService = context.watch<PaymentGatewayService>();
+    final currencyProvider = context.watch<CurrencyProvider>();
     final labelStyle =
         Theme.of(
           context,
@@ -1203,6 +1277,10 @@ class _CheckoutPageState extends State<CheckoutPage> {
         const TextStyle(fontSize: 18, fontWeight: FontWeight.bold);
     final helperStyle = Theme.of(context).textTheme.bodySmall;
     final config = paymentService.activeConfig;
+    final tenderCurrency = currencyProvider.displayCurrency;
+    final tenderRate = currencyProvider.quotedRates[tenderCurrency] ?? 1.0;
+    final lastSynced = currencyProvider.lastSynced;
+    final rateFormatter = NumberFormat('###,##0.0000');
 
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 12),
@@ -1240,6 +1318,42 @@ class _CheckoutPageState extends State<CheckoutPage> {
                 }
               },
             ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String>(
+              value: tenderCurrency,
+              decoration: const InputDecoration(
+                labelText: 'Tender Currency',
+                border: OutlineInputBorder(),
+              ),
+              items: currencyProvider.supportedCurrencies
+                  .map(
+                    (code) => DropdownMenuItem<String>(
+                      value: code,
+                      child: Text(code),
+                    ),
+                  )
+                  .toList(),
+              onChanged: (value) {
+                if (value != null) {
+                  currencyProvider.setDisplayCurrency(value);
+                }
+              },
+            ),
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(
+                '1 ${currencyProvider.baseCurrency} ≈ ${rateFormatter.format(tenderRate)} $tenderCurrency',
+                style: helperStyle,
+              ),
+            ),
+            if (lastSynced != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(
+                  'FX rates updated: ${DateFormat('dd MMM yyyy HH:mm').format(lastSynced.toLocal())}',
+                  style: helperStyle,
+                ),
+              ),
             Padding(
               padding: const EdgeInsets.only(top: 12),
               child: Text(
@@ -1438,6 +1552,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
   @override
   Widget build(BuildContext context) {
     final qrData = _generatePromptPayPayload(widget.totalAmount);
+    final currencyProvider = context.watch<CurrencyProvider>();
 
     return Scaffold(
       appBar: AppBar(
@@ -1466,7 +1581,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
               ),
               const SizedBox(height: 30),
               Text(
-                'Total Amount: ${widget.totalAmount.toStringAsFixed(2)} บาท',
+                'Total Amount: ${currencyProvider.formatBaseAmount(widget.totalAmount)}',
                 style: const TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,

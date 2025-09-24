@@ -4,7 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 import 'dart:math';
+
+import 'currency_provider.dart';
 
 // NOTE: This model is a local helper, not from a file, so it's okay.
 class _ProfitData {
@@ -188,6 +191,7 @@ class _DashboardPageState extends State<DashboardPage> {
     double currentValue, {
     double? previousValue,
   }) {
+    final currencyProvider = context.watch<CurrencyProvider>();
     double percentageChange = 0.0;
     bool isOrderCount = title == 'Total Orders';
     bool showComparison = previousValue != null;
@@ -215,10 +219,7 @@ class _DashboardPageState extends State<DashboardPage> {
             Text(
               isOrderCount
                   ? currentValue.toInt().toString()
-                  : NumberFormat.currency(
-                      symbol: '฿',
-                      decimalDigits: 2,
-                    ).format(currentValue),
+                  : currencyProvider.formatBaseAmount(currentValue),
               style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 4),
