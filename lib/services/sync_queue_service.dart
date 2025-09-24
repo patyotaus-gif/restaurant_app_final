@@ -7,6 +7,9 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'offline_queue_encryption.dart';
+import 'ops_observability_service.dart';
+
 class SyncResult {
   final String operationId;
   final bool isSynced;
@@ -131,8 +134,12 @@ class QueuedOperation {
 }
 
 class SyncQueueService extends ChangeNotifier {
-  SyncQueueService(this._firestore, {Connectivity? connectivity})
-    : _connectivity = connectivity ?? Connectivity() {
+  SyncQueueService(
+    this._firestore, {
+    Connectivity? connectivity,
+    OpsObservabilityService? observability,
+  })  : _connectivity = connectivity ?? Connectivity(),
+        _observability = observability {
     _init();
   }
 
@@ -140,12 +147,14 @@ class SyncQueueService extends ChangeNotifier {
 
   final FirebaseFirestore _firestore;
   final Connectivity _connectivity;
+  final OfflineQueueEncryption _encryption = OfflineQueueEncryption();
 
   final List<QueuedOperation> _queue = [];
   final Map<String, Completer<SyncResult>> _pendingCompleters = {};
 
   SharedPreferences? _prefs;
   StreamSubscription<List<ConnectivityResult>>? _connectivitySub;
+  OpsObservabilityService? _observability;
 
   bool _isOnline = true;
   bool _isProcessing = false;
@@ -173,20 +182,53 @@ class SyncQueueService extends ChangeNotifier {
   Future<void> _loadQueue() async {
     _prefs ??= await SharedPreferences.getInstance();
     final stored = _prefs!.getStringList(_storageKey) ?? [];
+    final List<QueuedOperation> decodedOperations = [];
+    bool needsMigration = false;
+    for (final raw in stored) {
+      try {
+        final decoded = await _encryption.decryptPayload(raw);
+        decodedOperations.add(QueuedOperation.fromJson(decoded));
+      } catch (error, stackTrace) {
+        needsMigration = true;
+        try {
+          final legacy = jsonDecode(raw);
+          if (legacy is Map<String, dynamic>) {
+            decodedOperations.add(QueuedOperation.fromJson(legacy));
+            continue;
+          }
+        } catch (_) {
+          // Ignore – handled below.
+        }
+        _recordObservability(
+          'Failed to decode queued operation',
+          level: OpsLogLevel.error,
+          error: error,
+          stackTrace: stackTrace,
+          sendRemote: true,
+        );
+      }
+    }
     _queue
       ..clear()
-      ..addAll(
-        stored.map((raw) {
-          final decoded = jsonDecode(raw) as Map<String, dynamic>;
-          return QueuedOperation.fromJson(decoded);
-        }),
-      );
+      ..addAll(decodedOperations);
     notifyListeners();
+
+    if (needsMigration && _queue.isNotEmpty) {
+      await _persistQueue();
+      _recordObservability(
+        'Migrated ${_queue.length} queued operations to encrypted storage',
+        level: OpsLogLevel.info,
+      );
+    }
   }
 
   Future<void> _persistQueue() async {
     _prefs ??= await SharedPreferences.getInstance();
-    final encoded = _queue.map((op) => jsonEncode(op.toJson())).toList();
+    final encoded = <String>[];
+    for (final op in _queue) {
+      final encrypted = await _encryption.encryptPayload(op.toJson());
+      encoded.add(encrypted);
+    }
     await _prefs!.setStringList(_storageKey, encoded);
   }
 
@@ -214,6 +256,17 @@ class SyncQueueService extends ChangeNotifier {
     _queue.add(operation);
     await _persistQueue();
     notifyListeners();
+
+    _recordObservability(
+      'Operation queued for offline sync',
+      level: OpsLogLevel.debug,
+      context: {
+        'operationId': operation.id,
+        'collection': collectionPath,
+        'pending': _queue.length,
+      },
+      sendRemote: false,
+    );
 
     final completer = Completer<SyncResult>();
     _pendingCompleters[operation.id] = completer;
@@ -260,6 +313,18 @@ class SyncQueueService extends ChangeNotifier {
         _lastError = null;
         notifyListeners();
 
+        _recordObservability(
+          'Queued operation synced',
+          level: OpsLogLevel.info,
+          context: {
+            'operationId': operation.id,
+            'collection': operation.collectionPath,
+            'type': operation.type,
+            'pending': _queue.length,
+          },
+          sendRemote: false,
+        );
+
         final completer = _pendingCompleters.remove(operation.id);
         completer?.complete(
           SyncResult(
@@ -273,6 +338,19 @@ class SyncQueueService extends ChangeNotifier {
         debugPrint('SyncQueue error for ${operation.id}: $e');
         debugPrint(stackTrace.toString());
         notifyListeners();
+
+        _recordObservability(
+          'Failed to sync queued operation',
+          level: OpsLogLevel.error,
+          context: {
+            'operationId': operation.id,
+            'collection': operation.collectionPath,
+            'type': operation.type,
+          },
+          error: e,
+          stackTrace: stackTrace,
+          sendRemote: true,
+        );
 
         final completer = _pendingCompleters.remove(operation.id);
         if (completer != null && !completer.isCompleted) {
@@ -298,5 +376,54 @@ class SyncQueueService extends ChangeNotifier {
     });
     _pendingCompleters.clear();
     super.dispose();
+  }
+
+  void _recordObservability(
+    String message, {
+    OpsLogLevel level = OpsLogLevel.info,
+    Map<String, dynamic>? context,
+    Object? error,
+    StackTrace? stackTrace,
+    bool sendRemote = false,
+  }) {
+    final service = _observability;
+    if (service == null) {
+      return;
+    }
+    unawaited(
+      service.log(
+        message,
+        level: level,
+        context: context,
+        error: error,
+        stackTrace: stackTrace,
+        sendRemote: sendRemote,
+      ),
+    );
+  }
+
+  Future<void> rotateEncryptionKey() async {
+    _prefs ??= await SharedPreferences.getInstance();
+    final stored = _prefs!.getStringList(_storageKey) ?? [];
+    if (stored.isEmpty) {
+      _recordObservability(
+        'Queue encryption key rotated (no pending payloads)',
+        level: OpsLogLevel.debug,
+        sendRemote: false,
+      );
+      return;
+    }
+    final reencrypted = await _encryption.rotateKeyAndReencrypt(stored);
+    await _prefs!.setStringList(_storageKey, reencrypted);
+    _recordObservability(
+      'Queue encryption key rotated',
+      level: OpsLogLevel.info,
+      context: {'payloads': reencrypted.length},
+      sendRemote: false,
+    );
+  }
+
+  void attachObservability(OpsObservabilityService? service) {
+    _observability = service;
   }
 }

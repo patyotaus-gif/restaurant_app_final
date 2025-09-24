@@ -66,6 +66,7 @@ import 'services/payment_gateway_service.dart';
 import 'services/menu_cache_provider.dart';
 import 'services/printer_drawer_service.dart';
 import 'services/schema_migration_runner.dart';
+import 'services/ops_observability_service.dart';
 import 'feature_flags/feature_flag_provider.dart';
 import 'feature_flags/feature_flag_service.dart';
 import 'feature_flags/terminal_provider.dart';
@@ -74,6 +75,7 @@ import 'admin/plugins/plugin_registry.dart';
 import 'models/role_permission_model.dart';
 import 'models/permission_policy.dart';
 import 'widgets/route_permission_guard.dart';
+import 'widgets/ops_debug_overlay.dart';
 
 final _router = GoRouter(
   routes: [
@@ -443,7 +445,19 @@ class MyApp extends StatelessWidget {
           },
         ),
         ChangeNotifierProvider(
-          create: (_) => SyncQueueService(FirebaseFirestore.instance),
+          create: (_) => OpsObservabilityService(FirebaseFirestore.instance),
+        ),
+        ChangeNotifierProxyProvider<OpsObservabilityService, SyncQueueService>(
+          create: (ctx) => SyncQueueService(
+            FirebaseFirestore.instance,
+            observability: ctx.read<OpsObservabilityService>(),
+          ),
+          update: (ctx, observability, previous) {
+            final service =
+                previous ?? SyncQueueService(FirebaseFirestore.instance);
+            service.attachObservability(observability);
+            return service;
+          },
         ),
         ChangeNotifierProvider(create: (_) => PaymentGatewayService()),
         Provider<PrinterDrawerService>(create: (_) => PrinterDrawerService()),
@@ -511,6 +525,11 @@ class MyApp extends StatelessWidget {
             title: 'Restaurant App (POS)',
             debugShowCheckedModeBanner: false,
             themeMode: themeProvider.themeMode,
+            builder: (context, child) {
+              return OpsDebugOverlayHost(
+                child: child ?? const SizedBox.shrink(),
+              );
+            },
             theme: ThemeData(
               brightness: Brightness.light,
               colorScheme: ColorScheme.fromSeed(seedColor: Colors.indigo),
