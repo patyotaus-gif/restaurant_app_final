@@ -1,5 +1,8 @@
 // lib/checkout_page.dart
 
+import 'dart:async';
+
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -12,8 +15,10 @@ import 'services/payment_gateway_service.dart';
 import 'services/printer_drawer_service.dart';
 import 'services/printing_service.dart';
 import 'services/receipt_service.dart';
+import 'services/house_account_service.dart';
 import 'stock_provider.dart';
 import 'store_provider.dart';
+import 'models/house_account_model.dart';
 
 class CheckoutPage extends StatefulWidget {
   final String orderId;
@@ -30,6 +35,15 @@ class CheckoutPage extends StatefulWidget {
   final double storeCreditAmount;
   final double amountDueAfterCredits;
   final List<Map<String, dynamic>> payments;
+  final double taxTotal;
+  final Map<String, double> taxBreakdown;
+  final double taxExclusivePortion;
+  final double taxInclusivePortion;
+  final double taxRoundingDelta;
+  final Map<String, dynamic>? taxSummary;
+  final Map<String, dynamic>? houseAccountDraft;
+  final double houseAccountChargeAmount;
+  final bool invoiceToHouseAccount;
 
   const CheckoutPage({
     super.key,
@@ -47,6 +61,15 @@ class CheckoutPage extends StatefulWidget {
     this.storeCreditAmount = 0,
     this.amountDueAfterCredits = 0,
     this.payments = const [],
+    this.taxTotal = 0,
+    this.taxBreakdown = const {},
+    this.taxExclusivePortion = 0,
+    this.taxInclusivePortion = 0,
+    this.taxRoundingDelta = 0,
+    this.taxSummary,
+    this.houseAccountDraft,
+    this.houseAccountChargeAmount = 0,
+    this.invoiceToHouseAccount = false,
   });
 
   @override
@@ -56,6 +79,7 @@ class CheckoutPage extends StatefulWidget {
 class _CheckoutPageState extends State<CheckoutPage> {
   final PrintingService _printingService = PrintingService();
   final ReceiptService _receiptService = ReceiptService();
+  final HouseAccountService _houseAccountService = HouseAccountService();
   bool _isConfirming = false;
   bool _includeTaxInvoice = false;
   bool _sendEmailReceipt = false;
@@ -65,6 +89,15 @@ class _CheckoutPageState extends State<CheckoutPage> {
   late final TextEditingController _printerPortController;
   bool _openDrawerAfterPrint = true;
   bool _isPrintingEscPos = false;
+  StreamSubscription<List<HouseAccount>>? _houseAccountSubscription;
+  List<HouseAccount> _houseAccounts = [];
+  HouseAccount? _selectedHouseAccount;
+  bool _isPostingHouseCharge = false;
+  bool _houseAccountsEnabled = false;
+  String? _houseAccountStatusMessage;
+  String? _currentStoreId;
+  DateTime? _selectedHouseAccountDueDate;
+  String? _draftHouseAccountId;
 
   final _customerNameController = TextEditingController();
   final _customerTaxIdController = TextEditingController();
@@ -77,6 +110,59 @@ class _CheckoutPageState extends State<CheckoutPage> {
     super.initState();
     _printerIpController = TextEditingController();
     _printerPortController = TextEditingController(text: '9100');
+    _draftHouseAccountId = widget.houseAccountDraft?['accountId'] as String?;
+    _selectedHouseAccountDueDate = _parseDraftDueDate(
+      widget.houseAccountDraft?['dueDate'],
+    );
+    if (widget.invoiceToHouseAccount) {
+      _houseAccountStatusMessage = 'ออเดอร์นี้ถูกวางบิลลูกหนี้แล้ว';
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final storeProvider = context.read<StoreProvider>();
+    final store = storeProvider.activeStore;
+    final storeId = store?.id;
+    if (_currentStoreId == storeId) {
+      return;
+    }
+    _currentStoreId = storeId;
+    _houseAccountSubscription?.cancel();
+    final enabled = store?.houseAccountsEnabled ?? false;
+    setState(() {
+      _houseAccountsEnabled = enabled;
+      _houseAccounts = [];
+      if (!enabled) {
+        _selectedHouseAccount = null;
+      }
+    });
+    if (!enabled || store == null) {
+      return;
+    }
+    _houseAccountSubscription = _houseAccountService
+        .watchAccounts(tenantId: store.tenantId, storeId: store.id)
+        .listen((accounts) {
+          if (!mounted) return;
+          final draftId = _draftHouseAccountId;
+          HouseAccount? selected = _selectedHouseAccount;
+          if (selected == null && draftId != null) {
+            selected = accounts.firstWhereOrNull(
+              (account) => account.id == draftId,
+            );
+          }
+          setState(() {
+            _houseAccounts = accounts;
+            if (selected != null) {
+              _selectedHouseAccount =
+                  accounts.firstWhereOrNull(
+                    (account) => account.id == selected!.id,
+                  ) ??
+                  selected;
+            }
+          });
+        });
   }
 
   String _formatNumber(double value) {
@@ -161,6 +247,51 @@ class _CheckoutPageState extends State<CheckoutPage> {
           valueColor: Colors.orange.shade700,
         ),
       );
+    }
+
+    if (widget.taxTotal > 0) {
+      rows.add(
+        _buildSummaryRow(
+          'Tax',
+          widget.taxTotal,
+          valueColor: Colors.teal.shade700,
+        ),
+      );
+      widget.taxBreakdown.forEach((name, amount) {
+        rows.add(
+          Padding(
+            padding: const EdgeInsets.only(left: 12.0),
+            child: _buildSummaryRow(
+              name,
+              amount,
+              valueColor: Colors.teal.shade400,
+            ),
+          ),
+        );
+      });
+      if (widget.taxRoundingDelta != 0) {
+        rows.add(
+          _buildSummaryRow(
+            'Tax Rounding',
+            widget.taxRoundingDelta,
+            valueColor: Colors.teal.shade300,
+          ),
+        );
+      }
+      if (widget.taxInclusivePortion > 0) {
+        rows.add(
+          Padding(
+            padding: const EdgeInsets.only(top: 4.0),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'รวมภาษีในราคาแล้ว ${widget.taxInclusivePortion.toStringAsFixed(2)} บาท',
+                style: TextStyle(color: Colors.teal.shade300, fontSize: 12),
+              ),
+            ),
+          ),
+        );
+      }
     }
 
     rows.add(const Divider());
@@ -462,6 +593,319 @@ class _CheckoutPageState extends State<CheckoutPage> {
   String _generatePromptPayPayload(double amount) {
     const promptPayId = '0812345678';
     return 'promptpay-qr-code-payload-for-$promptPayId-with-amount-$amount';
+  }
+
+  DateTime? _parseDraftDueDate(dynamic value) {
+    if (value == null) return null;
+    if (value is Timestamp) {
+      return value.toDate();
+    }
+    if (value is DateTime) {
+      return value;
+    }
+    if (value is String) {
+      return DateTime.tryParse(value);
+    }
+    return null;
+  }
+
+  double get _currentHouseAccountCharge {
+    if (widget.houseAccountChargeAmount > 0) {
+      return widget.houseAccountChargeAmount;
+    }
+    if (widget.amountDueAfterCredits > 0) {
+      return widget.amountDueAfterCredits;
+    }
+    final creditAdjusted =
+        widget.totalAmount - widget.giftCardAmount - widget.storeCreditAmount;
+    return creditAdjusted < 0 ? 0.0 : creditAdjusted;
+  }
+
+  Future<void> _pickHouseAccountDueDate() async {
+    if (_selectedHouseAccount == null) return;
+    final now = DateTime.now();
+    final initial =
+        _selectedHouseAccountDueDate ??
+        _selectedHouseAccount!.calculateDueDate(now);
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: initial,
+      firstDate: now.subtract(const Duration(days: 1)),
+      lastDate: now.add(const Duration(days: 730)),
+    );
+    if (picked != null) {
+      setState(() {
+        _selectedHouseAccountDueDate = picked;
+      });
+    }
+  }
+
+  Future<void> _handleHouseAccountInvoice() async {
+    if (_selectedHouseAccount == null) {
+      setState(() {
+        _houseAccountStatusMessage =
+            'กรุณาเลือกบัญชีลูกหนี้ (House Account) ก่อนทำการวางบิล';
+      });
+      return;
+    }
+    final account = _selectedHouseAccount!;
+    final amount = _currentHouseAccountCharge;
+    if (amount <= 0) {
+      setState(() {
+        _houseAccountStatusMessage =
+            'ไม่มีจำนวนเงินที่ต้องวางบิลสำหรับออเดอร์นี้';
+      });
+      return;
+    }
+
+    final store = context.read<StoreProvider>().activeStore;
+    if (store == null) {
+      setState(() {
+        _houseAccountStatusMessage = 'ไม่พบข้อมูลสาขาเพื่อวางบิลลูกหนี้';
+      });
+      return;
+    }
+
+    setState(() {
+      _isPostingHouseCharge = true;
+      _houseAccountStatusMessage = null;
+    });
+
+    try {
+      final dueDate =
+          _selectedHouseAccountDueDate ??
+          account.calculateDueDate(DateTime.now());
+      final taxSummary =
+          widget.taxSummary ??
+          {
+            'exclusiveTax': widget.taxExclusivePortion,
+            'inclusiveTaxPortion': widget.taxInclusivePortion,
+            'roundingDelta': widget.taxRoundingDelta,
+            'total': widget.taxTotal,
+            'lines': widget.taxBreakdown.entries
+                .map(
+                  (entry) => {
+                    'id': entry.key,
+                    'name': entry.key,
+                    'amount': entry.value,
+                  },
+                )
+                .toList(),
+          };
+
+      await _houseAccountService.recordCharge(
+        account: account,
+        orderId: widget.orderId,
+        orderIdentifier: widget.orderIdentifier,
+        amount: amount,
+        subtotal: widget.subtotal,
+        discount: widget.discountAmount,
+        serviceCharge: widget.serviceChargeAmount,
+        taxSummary: taxSummary,
+        chargedAt: DateTime.now(),
+        dueDate: dueDate,
+      );
+
+      await FirebaseFirestore.instance
+          .collection('orders')
+          .doc(widget.orderId)
+          .set({
+            'paymentStatus': 'invoiced',
+            'settlementType': 'houseAccount',
+            'invoiceToHouseAccount': true,
+            'houseAccountId': account.id,
+            'houseAccountChargeAmount': amount,
+            'houseAccount': {
+              'accountId': account.id,
+              'customerId': account.customerId,
+              'customerName': account.customerName,
+              'dueDate': Timestamp.fromDate(dueDate),
+              'statementDay': account.statementDay,
+              'paymentTermsDays': account.paymentTermsDays,
+            },
+            'outstandingBalance': 0.0,
+            'paidTotal': widget.totalAmount - amount,
+            'invoicedAt': Timestamp.now(),
+          }, SetOptions(merge: true));
+
+      if (!mounted) return;
+      setState(() {
+        _isPostingHouseCharge = false;
+        _houseAccountStatusMessage =
+            'วางบิลเรียบร้อยสำหรับ ${account.customerName}';
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Order ถูกวางบิลไปยังบัญชีลูกหนี้ ${account.customerName} แล้ว',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isPostingHouseCharge = false;
+        _houseAccountStatusMessage = 'ไม่สามารถวางบิลได้: $e';
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('วางบิล House Account ไม่สำเร็จ: $e')),
+      );
+    }
+  }
+
+  Widget _buildHouseAccountSection() {
+    if (!_houseAccountsEnabled) {
+      return const SizedBox.shrink();
+    }
+
+    final amountToInvoice = _currentHouseAccountCharge;
+    final bool hasAccounts = _houseAccounts.isNotEmpty;
+    final bool alreadyInvoiced = widget.invoiceToHouseAccount;
+    final theme = Theme.of(context);
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 12),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'House Account / B2B Invoicing',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
+                if (amountToInvoice > 0)
+                  Chip(
+                    label: Text(
+                      '${amountToInvoice.toStringAsFixed(2)} บาท',
+                      style: const TextStyle(color: Colors.white),
+                    ),
+                    backgroundColor: theme.colorScheme.primary,
+                  ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            if (!hasAccounts)
+              Text(
+                'ยังไม่มีบัญชีลูกหนี้ที่เปิดใช้งานสำหรับสาขานี้',
+                style: theme.textTheme.bodyMedium,
+              )
+            else
+              DropdownButtonFormField<HouseAccount>(
+                value:
+                    _selectedHouseAccount != null &&
+                        _houseAccounts.any(
+                          (acc) => acc.id == _selectedHouseAccount!.id,
+                        )
+                    ? _houseAccounts.firstWhere(
+                        (acc) => acc.id == _selectedHouseAccount!.id,
+                      )
+                    : null,
+                decoration: const InputDecoration(
+                  labelText: 'เลือกบัญชีลูกหนี้',
+                  border: OutlineInputBorder(),
+                ),
+                items: _houseAccounts
+                    .map(
+                      (account) => DropdownMenuItem<HouseAccount>(
+                        value: account,
+                        child: Text(
+                          account.creditLimit <= 0
+                              ? account.customerName
+                              : '${account.customerName} (คงเหลือ ${account.availableCredit.toStringAsFixed(2)} บาท)',
+                        ),
+                      ),
+                    )
+                    .toList(),
+                onChanged: (value) {
+                  setState(() {
+                    _selectedHouseAccount = value;
+                    _draftHouseAccountId = value?.id;
+                    if (value != null) {
+                      _selectedHouseAccountDueDate = value.calculateDueDate(
+                        DateTime.now(),
+                      );
+                    }
+                  });
+                },
+              ),
+            if (_selectedHouseAccount != null) ...[
+              const SizedBox(height: 12),
+              Text(
+                'วงเงิน: ${_selectedHouseAccount!.creditLimit <= 0 ? 'ไม่จำกัด' : _selectedHouseAccount!.creditLimit.toStringAsFixed(2)} บาท'
+                ' | ยอดคงค้าง: ${_selectedHouseAccount!.currentBalance.toStringAsFixed(2)} บาท',
+              ),
+              Text(
+                'วันตัดรอบ: ทุกวันที่ ${_selectedHouseAccount!.statementDay} | เงื่อนไขชำระ ${_selectedHouseAccount!.paymentTermsDays} วัน',
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'ครบกำหนดชำระ: ${MaterialLocalizations.of(context).formatMediumDate(_selectedHouseAccountDueDate ?? _selectedHouseAccount!.calculateDueDate(DateTime.now()))}',
+                    ),
+                  ),
+                  TextButton.icon(
+                    onPressed: _pickHouseAccountDueDate,
+                    icon: const Icon(Icons.calendar_today),
+                    label: const Text('เลือกวันครบกำหนด'),
+                  ),
+                ],
+              ),
+            ],
+            if (alreadyInvoiced)
+              Padding(
+                padding: const EdgeInsets.only(top: 8.0),
+                child: Text(
+                  'ออเดอร์นี้ถูกวางบิลลูกหนี้แล้ว สามารถแก้ไขรายละเอียดได้จากหน้า House Account',
+                  style: TextStyle(
+                    color: Colors.blueGrey.shade700,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+            if (_houseAccountStatusMessage != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                _houseAccountStatusMessage!,
+                style: TextStyle(
+                  color: _houseAccountStatusMessage!.startsWith('ไม่สามารถ')
+                      ? Colors.red
+                      : Colors.green,
+                ),
+              ),
+            ],
+            const SizedBox(height: 12),
+            Align(
+              alignment: Alignment.centerRight,
+              child: ElevatedButton.icon(
+                icon: _isPostingHouseCharge
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.receipt_long),
+                label: Text(
+                  'วางบิล ${(amountToInvoice > 0 ? amountToInvoice : 0).toStringAsFixed(2)} บาท',
+                ),
+                onPressed:
+                    (!hasAccounts ||
+                        amountToInvoice <= 0 ||
+                        _selectedHouseAccount == null ||
+                        _isPostingHouseCharge ||
+                        alreadyInvoiced)
+                    ? null
+                    : _handleHouseAccountInvoice,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _handleReceiptPreview() async {
@@ -986,6 +1430,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
     _customerPhoneController.dispose();
     _printerIpController.dispose();
     _printerPortController.dispose();
+    _houseAccountSubscription?.cancel();
 
     super.dispose();
   }
@@ -1029,6 +1474,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
               ),
               _buildAmountBreakdown(),
               _buildExistingPaymentsCard(),
+              _buildHouseAccountSection(),
               _buildPaymentGatewayCard(),
               _buildDigitalReceiptCard(),
               _buildPrinterCard(),

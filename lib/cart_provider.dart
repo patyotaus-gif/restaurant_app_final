@@ -9,6 +9,10 @@ import 'models/promotion_model.dart';
 import 'models/customer_model.dart';
 import 'models/punch_card_model.dart';
 import 'models/gift_card_model.dart';
+import 'models/house_account_model.dart';
+import 'models/store_model.dart';
+import 'models/tax_model.dart';
+import 'services/tax_service.dart';
 
 enum OrderType { dineIn, takeaway, retail }
 
@@ -61,6 +65,14 @@ class CartProvider with ChangeNotifier {
   double _giftCardAmount = 0.0;
   double _storeCreditAmount = 0.0;
   double? _customerStoreCreditOverride;
+  final AdvancedTaxEngine _taxEngine = const AdvancedTaxEngine();
+  TaxConfiguration _taxConfiguration = const TaxConfiguration();
+  TaxComputationResult _taxResult = TaxComputationResult.empty();
+  bool _taxNeedsRecalculation = true;
+  bool _houseAccountsAllowed = false;
+  HouseAccount? _selectedHouseAccount;
+  bool _invoiceToHouseAccount = false;
+  DateTime? _customHouseAccountDueDate;
 
   Map<String, CartItem> get items => {..._items};
   OrderType? get orderType => _orderType;
@@ -81,6 +93,15 @@ class CartProvider with ChangeNotifier {
       _customerStoreCreditOverride ?? _customer?.storeCreditBalance ?? 0.0;
   Set<String> get categoriesInCart =>
       _items.values.map((item) => item.category).toSet();
+  bool get houseAccountsAllowed => _houseAccountsAllowed;
+  bool get invoiceToHouseAccount =>
+      _invoiceToHouseAccount && _selectedHouseAccount != null;
+  HouseAccount? get selectedHouseAccount => _selectedHouseAccount;
+  DateTime? get houseAccountDueDate =>
+      _customHouseAccountDueDate ??
+      (_selectedHouseAccount != null
+          ? _selectedHouseAccount!.calculateDueDate(DateTime.now())
+          : null);
 
   double get prepTimeSlaMinutes {
     double maxPrep = 0;
@@ -95,6 +116,36 @@ class CartProvider with ChangeNotifier {
   double get splitAmountPerGuest {
     final normalizedCount = _splitCount <= 0 ? 1 : _splitCount;
     return normalizedCount == 0 ? totalAmount : totalAmount / normalizedCount;
+  }
+
+  double get taxTotal {
+    _ensureDerivedTotals();
+    return _taxResult.totalTax;
+  }
+
+  double get taxExclusivePortion {
+    _ensureDerivedTotals();
+    return _taxResult.exclusiveTax + _taxResult.roundingDelta;
+  }
+
+  double get taxInclusivePortion {
+    _ensureDerivedTotals();
+    return _taxResult.inclusiveTaxPortion;
+  }
+
+  double get taxRoundingDelta {
+    _ensureDerivedTotals();
+    return _taxResult.roundingDelta;
+  }
+
+  Map<String, double> get taxBreakdown {
+    _ensureDerivedTotals();
+    return Map<String, double>.unmodifiable(_taxResult.breakdown);
+  }
+
+  Map<String, dynamic> get taxSummary {
+    _ensureDerivedTotals();
+    return _taxResult.toMap();
   }
 
   bool get isCustomerBirthdayMonth {
@@ -124,7 +175,11 @@ class CartProvider with ChangeNotifier {
   double get totalAmount {
     final base = subtotal - _discount;
     final baseNonNegative = base < 0 ? 0 : base;
-    return baseNonNegative + serviceChargeAmount + _tipAmount;
+    _ensureDerivedTotals();
+    return baseNonNegative +
+        serviceChargeAmount +
+        _tipAmount +
+        (_taxResult.exclusiveTax + _taxResult.roundingDelta);
   }
 
   double get maxGiftCardApplicable {
@@ -143,6 +198,28 @@ class CartProvider with ChangeNotifier {
   }
 
   double get paidTotal => totalAmount - amountDueAfterCredits;
+
+  double get houseAccountChargeAmount =>
+      invoiceToHouseAccount ? amountDueAfterCredits : 0.0;
+
+  Map<String, dynamic>? get houseAccountDraft {
+    if (!invoiceToHouseAccount || _selectedHouseAccount == null) {
+      return null;
+    }
+    final account = _selectedHouseAccount!;
+    final now = DateTime.now();
+    final dueDate = houseAccountDueDate ?? account.calculateDueDate(now);
+    final statementAnchor = account.calculateStatementAnchor(now);
+    return {
+      'accountId': account.id,
+      'customerId': account.customerId,
+      'customerName': account.customerName,
+      'statementDay': account.statementDay,
+      'paymentTermsDays': account.paymentTermsDays,
+      'dueDate': dueDate.toIso8601String(),
+      'statementAnchor': statementAnchor.toIso8601String(),
+    };
+  }
 
   int get totalQuantity {
     var total = 0;
@@ -212,8 +289,101 @@ class CartProvider with ChangeNotifier {
         .toList();
   }
 
+  void _ensureDerivedTotals() {
+    if (!_taxNeedsRecalculation) {
+      return;
+    }
+
+    if (!_taxConfiguration.hasRules || _items.isEmpty) {
+      _taxResult = TaxComputationResult.empty();
+      _taxNeedsRecalculation = false;
+      return;
+    }
+
+    final categoryTotals = <String, double>{};
+    for (final cartItem in _items.values) {
+      final amount = cartItem.priceWithModifiers * cartItem.quantity;
+      categoryTotals.update(
+        cartItem.category,
+        (value) => value + amount,
+        ifAbsent: () => amount,
+      );
+    }
+
+    _taxResult = _taxEngine.calculate(
+      subtotal: subtotal,
+      discount: _discount,
+      serviceCharge: serviceChargeAmount,
+      categoryTotals: categoryTotals,
+      configuration: _taxConfiguration,
+      tipAmount: _tipAmount,
+    );
+    _taxNeedsRecalculation = false;
+  }
+
+  @override
+  void notifyListeners() {
+    _taxNeedsRecalculation = true;
+    super.notifyListeners();
+  }
+
   void update(StockProvider stock) {
     _stockProvider = stock;
+  }
+
+  void applyStore(Store? store) {
+    final newConfig = store?.taxConfiguration ?? const TaxConfiguration();
+    final bool newHouseAllowance = store?.houseAccountsEnabled ?? false;
+
+    bool shouldNotify = false;
+
+    if (newConfig.toMap().toString() != _taxConfiguration.toMap().toString()) {
+      _taxConfiguration = newConfig;
+      _taxNeedsRecalculation = true;
+      shouldNotify = true;
+    }
+
+    if (_houseAccountsAllowed != newHouseAllowance) {
+      _houseAccountsAllowed = newHouseAllowance;
+      if (!newHouseAllowance) {
+        _selectedHouseAccount = null;
+        _invoiceToHouseAccount = false;
+        _customHouseAccountDueDate = null;
+      }
+      shouldNotify = true;
+    }
+
+    if (shouldNotify) {
+      notifyListeners();
+    }
+  }
+
+  void enableHouseAccount(HouseAccount account) {
+    if (!_houseAccountsAllowed) {
+      return;
+    }
+    _selectedHouseAccount = account;
+    _invoiceToHouseAccount = true;
+    _customHouseAccountDueDate = null;
+    notifyListeners();
+  }
+
+  void disableHouseAccount() {
+    if (!_invoiceToHouseAccount && _selectedHouseAccount == null) {
+      return;
+    }
+    _selectedHouseAccount = null;
+    _invoiceToHouseAccount = false;
+    _customHouseAccountDueDate = null;
+    notifyListeners();
+  }
+
+  void setHouseAccountDueDate(DateTime? dueDate) {
+    if (!_invoiceToHouseAccount) {
+      return;
+    }
+    _customHouseAccountDueDate = dueDate;
+    notifyListeners();
   }
 
   void setCustomer(DocumentSnapshot? customerDoc) {
@@ -234,6 +404,9 @@ class CartProvider with ChangeNotifier {
       _appliedPromotion = null;
       removeGiftCard();
       removeStoreCredit();
+      _selectedHouseAccount = null;
+      _invoiceToHouseAccount = false;
+      _customHouseAccountDueDate = null;
     }
     notifyListeners();
   }
@@ -456,6 +629,9 @@ class CartProvider with ChangeNotifier {
     _serviceChargeRate = 0.10;
     _tipAmount = 0.0;
     _splitCount = 1;
+    _selectedHouseAccount = null;
+    _invoiceToHouseAccount = false;
+    _customHouseAccountDueDate = null;
     removeDiscount();
     removeGiftCard();
     removeStoreCredit();

@@ -90,6 +90,58 @@ class _AllOrdersPageState extends State<AllOrdersPage> {
               splitCount: (orderData['splitCount'] as num?)?.toInt() ?? 1,
               splitAmountPerGuest: (orderData['splitAmountPerGuest'] as num?)
                   ?.toDouble(),
+              amountDueAfterCredits:
+                  (orderData['outstandingBalance'] as num?)?.toDouble() ??
+                  ((orderData['total'] as num?)?.toDouble() ?? 0.0) -
+                      ((orderData['paidTotal'] as num?)?.toDouble() ?? 0.0),
+              payments:
+                  (orderData['payments'] as List<dynamic>?)
+                      ?.cast<Map<String, dynamic>>() ??
+                  const [],
+              giftCardAmount:
+                  (orderData['giftCardAmount'] as num?)?.toDouble() ?? 0.0,
+              storeCreditAmount:
+                  (orderData['storeCreditAmount'] as num?)?.toDouble() ?? 0.0,
+              taxTotal: (orderData['tax']?['total'] as num?)?.toDouble() ?? 0.0,
+              taxBreakdown: () {
+                final tax = orderData['tax'];
+                if (tax is Map<String, dynamic>) {
+                  final lines = tax['lines'];
+                  if (lines is List) {
+                    return {
+                      for (final line in lines)
+                        if (line is Map<String, dynamic>)
+                          line['name']?.toString() ?? 'Tax':
+                              (line['amount'] as num?)?.toDouble() ?? 0.0,
+                    };
+                  }
+                }
+                return const <String, double>{};
+              }(),
+              taxExclusivePortion:
+                  (orderData['tax']?['exclusiveTax'] as num?)?.toDouble() ??
+                  (orderData['tax']?['exclusivePortion'] as num?)?.toDouble() ??
+                  0.0,
+              taxInclusivePortion:
+                  (orderData['tax']?['inclusiveTaxPortion'] as num?)
+                      ?.toDouble() ??
+                  0.0,
+              taxRoundingDelta:
+                  (orderData['tax']?['roundingDelta'] as num?)?.toDouble() ??
+                  0.0,
+              taxSummary: orderData['tax'] is Map<String, dynamic>
+                  ? Map<String, dynamic>.from(
+                      orderData['tax'] as Map<String, dynamic>,
+                    )
+                  : null,
+              houseAccountDraft:
+                  orderData['houseAccount'] as Map<String, dynamic>?,
+              houseAccountChargeAmount:
+                  (orderData['houseAccountChargeAmount'] as num?)?.toDouble() ??
+                  0.0,
+              invoiceToHouseAccount:
+                  orderData['invoiceToHouseAccount'] == true ||
+                  orderData['settlementType'] == 'houseAccount',
             ),
           ),
         );

@@ -245,6 +245,16 @@ class _CartPageState extends State<CartPage> {
       return null;
     }
     final ingredientUsage = cart.ingredientUsage;
+    final shouldInvoice = cart.invoiceToHouseAccount;
+    final outstandingAfterCredits = cart.amountDueAfterCredits;
+    final houseAccountAmount = cart.houseAccountChargeAmount;
+    final outstandingBalance = shouldInvoice ? 0.0 : outstandingAfterCredits;
+    final paidTotal = shouldInvoice
+        ? cart.totalAmount - houseAccountAmount
+        : cart.paidTotal;
+    final paymentStatus = shouldInvoice
+        ? 'invoiced'
+        : (outstandingBalance == 0 ? 'paid' : 'partial');
     return {
       'total': cart.totalAmount,
       'subtotal': cart.subtotal,
@@ -256,6 +266,7 @@ class _CartPageState extends State<CartPage> {
       'serviceChargeRate': cart.serviceChargeRate,
       'serviceChargeAmount': cart.serviceChargeAmount,
       'tipAmount': cart.tipAmount,
+      'tax': cart.taxSummary,
       'giftCardCode': cart.appliedGiftCard?.code,
       'giftCardAmount': cart.giftCardAmount,
       'storeCreditAmount': cart.storeCreditAmount,
@@ -263,6 +274,12 @@ class _CartPageState extends State<CartPage> {
           ? cart.customer?.id
           : null,
       'customerStoreCreditBalance': cart.customerStoreCredit,
+      'houseAccount': cart.houseAccountDraft,
+      'houseAccountId': cart.selectedHouseAccount?.id,
+      'invoiceToHouseAccount': shouldInvoice,
+      'houseAccountChargeAmount': houseAccountAmount,
+      'houseAccountDueDate': cart.houseAccountDueDate?.toIso8601String(),
+      'settlementType': shouldInvoice ? 'houseAccount' : 'pos',
       'payments': [
         if (cart.giftCardAmount > 0)
           {
@@ -276,10 +293,16 @@ class _CartPageState extends State<CartPage> {
             'amount': cart.storeCreditAmount,
             'customerId': cart.customer?.id,
           },
+        if (houseAccountAmount > 0)
+          {
+            'method': 'houseAccount',
+            'amount': houseAccountAmount,
+            'accountId': cart.selectedHouseAccount?.id,
+          },
       ],
-      'outstandingBalance': cart.amountDueAfterCredits,
-      'paidTotal': cart.paidTotal,
-      'paymentStatus': cart.amountDueAfterCredits == 0 ? 'paid' : 'partial',
+      'outstandingBalance': outstandingBalance,
+      'paidTotal': paidTotal,
+      'paymentStatus': paymentStatus,
       'splitCount': cart.splitCount,
       'splitAmountPerGuest': cart.splitAmountPerGuest,
       'pointsRedeemed': cart.discountType == 'points'
@@ -493,6 +516,15 @@ class _CartPageState extends State<CartPage> {
                 (orderData['payments'] as List<dynamic>?)
                     ?.cast<Map<String, dynamic>>() ??
                 const [],
+            taxTotal: cart.taxTotal,
+            taxBreakdown: cart.taxBreakdown,
+            taxExclusivePortion: cart.taxExclusivePortion,
+            taxInclusivePortion: cart.taxInclusivePortion,
+            taxRoundingDelta: cart.taxRoundingDelta,
+            taxSummary: cart.taxSummary,
+            houseAccountDraft: cart.houseAccountDraft,
+            houseAccountChargeAmount: cart.houseAccountChargeAmount,
+            invoiceToHouseAccount: cart.invoiceToHouseAccount,
           ),
         ),
       );

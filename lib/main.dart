@@ -340,11 +340,17 @@ class MyApp extends StatelessWidget {
         Provider<NotificationsRepository>(
           create: (_) => NotificationsRepository(FirebaseFirestore.instance),
         ),
-        ChangeNotifierProxyProvider<StockProvider, CartProvider>(
+        ChangeNotifierProxyProvider2<
+          StockProvider,
+          StoreProvider,
+          CartProvider
+        >(
           create: (ctx) => CartProvider(),
-          update: (ctx, stock, previousCart) {
-            previousCart?.update(stock);
-            return previousCart ?? CartProvider();
+          update: (ctx, stock, storeProvider, previousCart) {
+            final cart = previousCart ?? CartProvider();
+            cart.update(stock);
+            cart.applyStore(storeProvider.activeStore);
+            return cart;
           },
         ),
         ChangeNotifierProxyProvider2<

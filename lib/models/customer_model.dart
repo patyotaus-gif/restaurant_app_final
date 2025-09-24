@@ -22,6 +22,14 @@ class Customer {
   final Timestamp? lastOrderAt;
   final int? orderCount;
   final double? averageOrderValue;
+  final bool houseAccountEnabled;
+  final double houseAccountBalance;
+  final double houseAccountCreditLimit;
+  final String? billingCompanyName;
+  final String? billingAddress;
+  final String? billingTaxId;
+  final String? billingEmail;
+  final String? billingPhone;
 
   Customer({
     required this.id,
@@ -43,11 +51,24 @@ class Customer {
     this.lastOrderAt,
     this.orderCount,
     this.averageOrderValue,
+    this.houseAccountEnabled = false,
+    this.houseAccountBalance = 0,
+    this.houseAccountCreditLimit = 0,
+    this.billingCompanyName,
+    this.billingAddress,
+    this.billingTaxId,
+    this.billingEmail,
+    this.billingPhone,
   });
 
   factory Customer.fromFirestore(DocumentSnapshot doc) {
     Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
     final Map<String, dynamic>? rfmData = data['rfm'] as Map<String, dynamic>?;
+    final dynamic houseAccountRaw = data['houseAccount'];
+    final Map<String, dynamic>? houseAccountData =
+        houseAccountRaw is Map<String, dynamic>
+        ? Map<String, dynamic>.from(houseAccountRaw)
+        : null;
     return Customer(
       id: doc.id,
       name: data['name'] ?? '',
@@ -71,6 +92,16 @@ class Customer {
       lastOrderAt: rfmData?['lastOrderAt'] as Timestamp?,
       orderCount: (rfmData?['orderCount'] as num?)?.toInt(),
       averageOrderValue: (rfmData?['averageOrderValue'] as num?)?.toDouble(),
+      houseAccountEnabled: data['houseAccountEnabled'] == true,
+      houseAccountBalance:
+          (houseAccountData?['balance'] as num?)?.toDouble() ?? 0.0,
+      houseAccountCreditLimit:
+          (houseAccountData?['creditLimit'] as num?)?.toDouble() ?? 0.0,
+      billingCompanyName: data['billingCompanyName'] as String?,
+      billingAddress: data['billingAddress'] as String?,
+      billingTaxId: data['billingTaxId'] as String?,
+      billingEmail: data['billingEmail'] as String?,
+      billingPhone: data['billingPhone'] as String?,
     );
   }
 
@@ -92,6 +123,14 @@ class Customer {
     Timestamp? lastOrderAt,
     int? orderCount,
     double? averageOrderValue,
+    bool? houseAccountEnabled,
+    double? houseAccountBalance,
+    double? houseAccountCreditLimit,
+    String? billingCompanyName,
+    String? billingAddress,
+    String? billingTaxId,
+    String? billingEmail,
+    String? billingPhone,
   }) {
     return Customer(
       id: id,
@@ -112,6 +151,15 @@ class Customer {
       lastOrderAt: lastOrderAt ?? this.lastOrderAt,
       orderCount: orderCount ?? this.orderCount,
       averageOrderValue: averageOrderValue ?? this.averageOrderValue,
+      houseAccountEnabled: houseAccountEnabled ?? this.houseAccountEnabled,
+      houseAccountBalance: houseAccountBalance ?? this.houseAccountBalance,
+      houseAccountCreditLimit:
+          houseAccountCreditLimit ?? this.houseAccountCreditLimit,
+      billingCompanyName: billingCompanyName ?? this.billingCompanyName,
+      billingAddress: billingAddress ?? this.billingAddress,
+      billingTaxId: billingTaxId ?? this.billingTaxId,
+      billingEmail: billingEmail ?? this.billingEmail,
+      billingPhone: billingPhone ?? this.billingPhone,
     );
   }
 }

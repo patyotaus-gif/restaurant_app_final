@@ -1,5 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import 'tax_model.dart';
+
 class Store {
   final String id;
   final String name;
@@ -11,6 +13,8 @@ class Store {
   final String? timezone;
   final String tenantId;
   final Map<String, bool> pluginOverrides;
+  final TaxConfiguration? taxConfiguration;
+  final bool houseAccountsEnabled;
 
   const Store({
     required this.id,
@@ -23,6 +27,8 @@ class Store {
     this.timezone,
     this.tenantId = 'default',
     this.pluginOverrides = const {},
+    this.taxConfiguration,
+    this.houseAccountsEnabled = false,
   });
 
   factory Store.fromFirestore(DocumentSnapshot<Map<String, dynamic>> doc) {
@@ -42,6 +48,14 @@ class Store {
           (key, dynamic value) => MapEntry(key, value == true),
         ),
       ),
+      taxConfiguration: data['taxConfiguration'] == null
+          ? null
+          : TaxConfiguration.fromMap(
+              Map<String, dynamic>.from(
+                data['taxConfiguration'] as Map<String, dynamic>,
+              ),
+            ),
+      houseAccountsEnabled: data['houseAccountsEnabled'] == true,
     );
   }
 
@@ -56,6 +70,9 @@ class Store {
       if (timezone != null) 'timezone': timezone,
       'tenantId': tenantId,
       if (pluginOverrides.isNotEmpty) 'pluginOverrides': pluginOverrides,
+      if (taxConfiguration != null)
+        'taxConfiguration': taxConfiguration!.toMap(),
+      'houseAccountsEnabled': houseAccountsEnabled,
     };
   }
 

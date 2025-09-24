@@ -55,12 +55,38 @@ class PrintingService {
     final num tip = orderData['tipAmount'] as num? ?? 0;
     final num total = orderData['total'] as num? ?? subtotal;
 
-    num vatRate = 0;
-    num vatAmount = 0;
-    if (orderData['vat'] is Map<String, dynamic>) {
+    final Map<String, dynamic>? taxData =
+        orderData['tax'] is Map<String, dynamic>
+        ? Map<String, dynamic>.from(orderData['tax'] as Map<String, dynamic>)
+        : null;
+    final List<MapEntry<String, double>> taxLines = [];
+    double taxRounding = 0;
+    if (taxData != null) {
+      final List<dynamic>? rawLines = taxData['lines'] as List<dynamic>?;
+      if (rawLines != null) {
+        for (final raw in rawLines) {
+          if (raw is Map<String, dynamic>) {
+            final name = raw['name']?.toString() ?? 'Tax';
+            final amount = (raw['amount'] as num?)?.toDouble() ?? 0.0;
+            taxLines.add(MapEntry(name, amount));
+          }
+        }
+      }
+      taxRounding = (taxData['roundingDelta'] as num?)?.toDouble() ?? 0.0;
+      if (taxLines.isEmpty) {
+        final totalTax = (taxData['total'] as num?)?.toDouble() ?? 0.0;
+        if (totalTax > 0) {
+          taxLines.add(MapEntry('Tax', totalTax));
+        }
+      }
+    } else if (orderData['vat'] is Map<String, dynamic>) {
       final vatData = orderData['vat'] as Map<String, dynamic>;
-      vatRate = vatData['rate'] as num? ?? 0;
-      vatAmount = vatData['amount'] as num? ?? 0;
+      final num vatRate = vatData['rate'] as num? ?? 0;
+      final double vatAmount = (vatData['amount'] as num?)?.toDouble() ?? 0.0;
+      final label = vatRate > 0
+          ? 'VAT (${(vatRate * 100).toStringAsFixed(0)}%)'
+          : 'VAT';
+      taxLines.add(MapEntry(label, vatAmount));
     }
 
     doc.addPage(
@@ -98,8 +124,8 @@ class PrintingService {
                   discount: discount,
                   serviceCharge: serviceCharge,
                   tip: tip,
-                  vatRate: vatRate,
-                  vatAmount: vatAmount,
+                  taxLines: taxLines,
+                  taxRounding: taxRounding,
                   total: total,
                 ),
                 pw.SizedBox(height: 24),
@@ -283,8 +309,8 @@ class PrintingService {
     required num discount,
     required num serviceCharge,
     required num tip,
-    required num vatRate,
-    required num vatAmount,
+    required List<MapEntry<String, double>> taxLines,
+    required num taxRounding,
     required num total,
   }) {
     final rows = <pw.Widget>[];
@@ -299,11 +325,23 @@ class PrintingService {
     if (tip > 0) {
       rows.add(_buildTotalRow(ttf, 'Tip', tip));
     }
-    if (vatAmount > 0) {
-      final vatLabel = vatRate > 0
-          ? 'VAT (${(vatRate * 100).toStringAsFixed(0)}%)'
-          : 'VAT';
-      rows.add(_buildTotalRow(ttf, vatLabel, vatAmount));
+    if (taxLines.isNotEmpty) {
+      final double aggregatedTax = taxLines.fold<double>(
+        0,
+        (sum, line) => sum + line.value,
+      );
+      rows.add(_buildTotalRow(ttf, 'Tax', aggregatedTax));
+      for (final tax in taxLines) {
+        rows.add(
+          pw.Padding(
+            padding: const pw.EdgeInsets.only(left: 12),
+            child: _buildTotalRow(ttf, tax.key, tax.value),
+          ),
+        );
+      }
+      if (taxRounding != 0) {
+        rows.add(_buildTotalRow(ttf, 'Tax Rounding', taxRounding));
+      }
     }
 
     rows.add(
