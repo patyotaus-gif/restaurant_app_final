@@ -23,4 +23,24 @@ class NotificationsRepository {
       'seenBy.$uid': FieldValue.serverTimestamp(),
     });
   }
+
+  Future<void> publishSystemNotification({
+    required String tenantId,
+    required String title,
+    required String message,
+    String type = 'PRINT_SPOOLER',
+    String severity = 'warning',
+    Map<String, dynamic>? data,
+  }) async {
+    await db.collection('notifications').add({
+      'tenantId': tenantId,
+      'title': title,
+      'message': message,
+      'type': type,
+      'severity': severity,
+      'data': data ?? <String, dynamic>{},
+      'createdAt': FieldValue.serverTimestamp(),
+      'seenBy': <String, dynamic>{},
+    });
+  }
 }

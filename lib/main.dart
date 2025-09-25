@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_strategy/url_strategy.dart';
 
+import 'background/background_sync.dart';
 import 'firebase_options.dart';
 import 'cart_provider.dart';
 import 'auth_service.dart';
@@ -65,6 +66,7 @@ import 'services/stocktake_service.dart';
 import 'services/payment_gateway_service.dart';
 import 'services/menu_cache_provider.dart';
 import 'services/printer_drawer_service.dart';
+import 'services/print_spooler_service.dart';
 import 'services/schema_migration_runner.dart';
 import 'services/ops_observability_service.dart';
 import 'services/experiment_service.dart';
@@ -347,6 +349,7 @@ Future<void> main() async {
     persistenceEnabled: true,
     cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
   );
+  await BackgroundSyncManager.instance.registerPeriodicSync();
   runApp(const MyApp());
 }
 
@@ -486,6 +489,12 @@ class MyApp extends StatelessWidget {
             final service =
                 previous ?? SyncQueueService(FirebaseFirestore.instance);
             service.attachObservability(observability);
+            service.attachBackgroundSyncScheduler(
+              ({Duration? delay}) =>
+                  BackgroundSyncManager.instance.scheduleImmediateSync(
+                delay: delay,
+              ),
+            );
             return service;
           },
         ),
@@ -502,6 +511,39 @@ class MyApp extends StatelessWidget {
         ),
         Provider<NotificationsRepository>(
           create: (_) => NotificationsRepository(FirebaseFirestore.instance),
+        ),
+        ChangeNotifierProxyProvider3<
+          StoreProvider,
+          NotificationsRepository,
+          OpsObservabilityService,
+          PrintSpoolerService
+        >(
+          create: (ctx) => PrintSpoolerService(
+            printerService: ctx.read<PrinterDrawerService>(),
+            notificationsRepository: ctx.read<NotificationsRepository>(),
+            observability: ctx.read<OpsObservabilityService>(),
+          ),
+          update: (
+            ctx,
+            storeProvider,
+            notificationsRepository,
+            observability,
+            previousService,
+          ) {
+            final service = previousService ??
+                PrintSpoolerService(
+                  printerService: ctx.read<PrinterDrawerService>(),
+                  notificationsRepository: notificationsRepository,
+                  observability: observability,
+                );
+            service.updateNotificationsRepository(notificationsRepository);
+            service.attachObservability(observability);
+            service.updateContext(
+              tenantId: storeProvider.activeStore?.tenantId,
+              storeId: storeProvider.activeStore?.id,
+            );
+            return service;
+          },
         ),
         ChangeNotifierProxyProvider2<
           StockProvider,

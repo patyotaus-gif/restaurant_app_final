@@ -143,7 +143,7 @@ class SyncQueueService extends ChangeNotifier {
     _init();
   }
 
-  static const _storageKey = 'sync_queue_operations_v1';
+  static const storageKey = 'sync_queue_operations_v1';
 
   final FirebaseFirestore _firestore;
   final Connectivity _connectivity;
@@ -151,6 +151,7 @@ class SyncQueueService extends ChangeNotifier {
 
   final List<QueuedOperation> _queue = [];
   final Map<String, Completer<SyncResult>> _pendingCompleters = {};
+  Future<void> Function({Duration? delay})? _backgroundSyncScheduler;
 
   SharedPreferences? _prefs;
   StreamSubscription<List<ConnectivityResult>>? _connectivitySub;
@@ -181,7 +182,7 @@ class SyncQueueService extends ChangeNotifier {
 
   Future<void> _loadQueue() async {
     _prefs ??= await SharedPreferences.getInstance();
-    final stored = _prefs!.getStringList(_storageKey) ?? [];
+    final stored = _prefs!.getStringList(storageKey) ?? [];
     final List<QueuedOperation> decodedOperations = [];
     bool needsMigration = false;
     for (final raw in stored) {
@@ -213,6 +214,10 @@ class SyncQueueService extends ChangeNotifier {
       ..addAll(decodedOperations);
     notifyListeners();
 
+    if (_queue.isNotEmpty) {
+      _requestBackgroundSync();
+    }
+
     if (needsMigration && _queue.isNotEmpty) {
       await _persistQueue();
       _recordObservability(
@@ -229,7 +234,7 @@ class SyncQueueService extends ChangeNotifier {
       final encrypted = await _encryption.encryptPayload(op.toJson());
       encoded.add(encrypted);
     }
-    await _prefs!.setStringList(_storageKey, encoded);
+    await _prefs!.setStringList(storageKey, encoded);
   }
 
   void _updateConnectivityState(List<ConnectivityResult> results) {
@@ -255,6 +260,7 @@ class SyncQueueService extends ChangeNotifier {
     );
     _queue.add(operation);
     await _persistQueue();
+    _requestBackgroundSync();
     notifyListeners();
 
     _recordObservability(
@@ -280,6 +286,20 @@ class SyncQueueService extends ChangeNotifier {
 
   Future<void> triggerSync() async {
     await _processQueue();
+  }
+
+  void attachBackgroundSyncScheduler(
+    Future<void> Function({Duration? delay})? scheduler,
+  ) {
+    _backgroundSyncScheduler = scheduler;
+  }
+
+  void _requestBackgroundSync() {
+    final scheduler = _backgroundSyncScheduler;
+    if (scheduler == null) {
+      return;
+    }
+    unawaited(scheduler());
   }
 
   Future<void> _processQueue() async {
@@ -338,6 +358,8 @@ class SyncQueueService extends ChangeNotifier {
         debugPrint('SyncQueue error for ${operation.id}: $e');
         debugPrint(stackTrace.toString());
         notifyListeners();
+
+        _requestBackgroundSync();
 
         _recordObservability(
           'Failed to sync queued operation',
@@ -404,7 +426,7 @@ class SyncQueueService extends ChangeNotifier {
 
   Future<void> rotateEncryptionKey() async {
     _prefs ??= await SharedPreferences.getInstance();
-    final stored = _prefs!.getStringList(_storageKey) ?? [];
+    final stored = _prefs!.getStringList(storageKey) ?? [];
     if (stored.isEmpty) {
       _recordObservability(
         'Queue encryption key rotated (no pending payloads)',
@@ -414,7 +436,7 @@ class SyncQueueService extends ChangeNotifier {
       return;
     }
     final reencrypted = await _encryption.rotateKeyAndReencrypt(stored);
-    await _prefs!.setStringList(_storageKey, reencrypted);
+    await _prefs!.setStringList(storageKey, reencrypted);
     _recordObservability(
       'Queue encryption key rotated',
       level: OpsLogLevel.info,
