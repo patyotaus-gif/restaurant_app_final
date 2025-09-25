@@ -915,7 +915,7 @@ packages:
   restaurant_models:
     dependency: "direct main"
     description:
-      path: packages/restaurant_models
+      path: "packages/restaurant_models"
       relative: true
     source: path
     version: "0.1.0"
