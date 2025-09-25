@@ -1,7 +1,6 @@
 // lib/models/tax_model.dart
 
 import 'dart:math';
-
 enum TaxRuleApplication { inclusive, exclusive }
 
 enum TaxRoundingMode { halfUp, halfDown, bankers, up, down, none }

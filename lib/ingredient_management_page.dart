@@ -1,10 +1,10 @@
 // lib/ingredient_management_page.dart
 
-import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../models/ingredient_model.dart';
-import 'add_purchase_order_page.dart'; // <-- 1. Add this import
+import 'package:flutter/material.dart';
+import 'package:restaurant_models/restaurant_models.dart';
 
+import 'add_purchase_order_page.dart'; // <-- 1. Add this import
 class IngredientManagementPage extends StatefulWidget {
   const IngredientManagementPage({super.key});
 

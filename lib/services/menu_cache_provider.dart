@@ -2,10 +2,9 @@ import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
+import 'package:restaurant_models/restaurant_models.dart';
 
-import '../models/product_model.dart';
 import 'client_cache_service.dart';
-
 class MenuCacheProvider with ChangeNotifier {
   MenuCacheProvider(this._firestore, this._cacheService) {
     _initialize();

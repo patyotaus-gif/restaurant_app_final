@@ -1,16 +1,16 @@
 // lib/admin/admin_page.dart
 
-import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'package:go_router/go_router.dart';
 import 'package:badges/badges.dart' as badges;
+import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
+import 'package:restaurant_models/restaurant_models.dart';
+
+import '../add_expense_page.dart';
+import '../app_mode_provider.dart';
+import '../qr_generator_page.dart';
 import '../stock_provider.dart';
 import '../theme_provider.dart';
-import '../add_expense_page.dart';
-import '../qr_generator_page.dart';
-import '../models/app_mode.dart';
-import '../app_mode_provider.dart';
-
 class AdminPage extends StatelessWidget {
   const AdminPage({super.key});
 

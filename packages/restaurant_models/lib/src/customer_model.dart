@@ -1,7 +1,6 @@
 // lib/models/customer_model.dart
 
 import 'package:cloud_firestore/cloud_firestore.dart';
-
 class Customer {
   final String id;
   final String name;

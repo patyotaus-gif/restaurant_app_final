@@ -1,10 +1,10 @@
 // lib/widgets/modifier_selection_dialog.dart
 
-import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../models/product_model.dart';
-import '../admin/modifier_management_page.dart';
+import 'package:flutter/material.dart';
+import 'package:restaurant_models/restaurant_models.dart';
 
+import '../admin/modifier_management_page.dart';
 class ModifierSelectionDialog extends StatefulWidget {
   final Product product;
 

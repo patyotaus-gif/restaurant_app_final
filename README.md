@@ -43,6 +43,25 @@ flutter run
 
 For more Flutter resources see the [Flutter documentation](https://docs.flutter.dev/).
 
+## Monorepo Structure
+
+The application now adopts a [Melos](https://melos.invertase.dev/) workspace to
+scale modular development across multiple Dart and Flutter packages.
+
+- `melos.yaml` defines the workspace and shared scripts.
+- `packages/restaurant_models` hosts the shared domain models and Firebase data
+  mappers that can be reused by future apps or services.
+- The root app consumes the local package via a path dependency declared in
+  `pubspec.yaml`.
+
+Common workspace commands:
+
+```bash
+melos bootstrap   # Fetch dependencies for all packages
+melos run analyze # Analyze every package with the shared lint rules
+melos run test    # Run the Flutter test suite (if Flutter is available)
+```
+
 ## Testing
 
 The Firebase Functions integration tests live in the `functions` workspace. Running

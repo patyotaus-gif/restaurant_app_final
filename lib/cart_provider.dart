@@ -1,19 +1,12 @@
 // lib/cart_provider.dart
 
-import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart';
+import 'package:restaurant_models/restaurant_models.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'stock_provider.dart';
-import 'models/product_model.dart';
-import 'models/promotion_model.dart';
-import 'models/customer_model.dart';
-import 'models/punch_card_model.dart';
-import 'models/gift_card_model.dart';
-import 'models/house_account_model.dart';
-import 'models/store_model.dart';
-import 'models/tax_model.dart';
-import 'services/tax_service.dart';
 
+import 'services/tax_service.dart';
+import 'stock_provider.dart';
 enum OrderType { dineIn, takeaway, retail }
 
 class CartItem {

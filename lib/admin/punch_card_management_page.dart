@@ -1,9 +1,8 @@
 // lib/admin/punch_card_management_page.dart
 
-import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../models/punch_card_model.dart';
-
+import 'package:flutter/material.dart';
+import 'package:restaurant_models/restaurant_models.dart';
 class PunchCardManagementPage extends StatefulWidget {
   const PunchCardManagementPage({super.key});
 

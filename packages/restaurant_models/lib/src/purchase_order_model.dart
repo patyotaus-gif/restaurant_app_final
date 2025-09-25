@@ -1,7 +1,6 @@
 // lib/models/purchase_order_model.dart
 
 import 'package:cloud_firestore/cloud_firestore.dart';
-
 enum PoStatus { draft, ordered, received, cancelled }
 
 class PurchaseOrderItem {

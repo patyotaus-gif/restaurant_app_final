@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 
 import '../services/ops_observability_service.dart';
 import '../services/sync_queue_service.dart';
-
 class OpsDebugOverlayHost extends StatelessWidget {
   const OpsDebugOverlayHost({required this.child, super.key});
 

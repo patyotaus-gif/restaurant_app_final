@@ -1,6 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'models/notification_model.dart';
-
+import 'package:restaurant_models/restaurant_models.dart';
 class NotificationsRepository {
   final FirebaseFirestore db;
   NotificationsRepository(this.db);

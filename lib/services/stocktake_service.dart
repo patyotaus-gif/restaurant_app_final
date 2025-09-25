@@ -1,8 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:restaurant_models/restaurant_models.dart';
 
-import '../models/ingredient_model.dart';
 import 'audit_log_service.dart';
-
 class StocktakeService {
   StocktakeService(this._firestore, this._auditLogService);
 

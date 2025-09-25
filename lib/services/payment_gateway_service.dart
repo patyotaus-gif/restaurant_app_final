@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
-
 /// Supported payment gateways for the POS checkout flow.
 enum PaymentGatewayType { stripe, square, adyen }
 

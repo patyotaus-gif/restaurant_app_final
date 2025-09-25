@@ -1,9 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-import '../feature_flags/release_environment.dart';
 import 'currency_settings.dart';
+import 'feature_flags/release_environment.dart';
 import 'tax_model.dart';
-
 class Store {
   final String id;
   final String name;

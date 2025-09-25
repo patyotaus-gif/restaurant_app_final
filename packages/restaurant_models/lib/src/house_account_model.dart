@@ -1,7 +1,6 @@
 // lib/models/house_account_model.dart
 
 import 'package:cloud_firestore/cloud_firestore.dart';
-
 class HouseAccount {
   final String id;
   final String tenantId;

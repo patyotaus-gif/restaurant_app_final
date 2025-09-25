@@ -1,7 +1,6 @@
 // lib/widgets/order_dashboard/category_panel.dart
 
 import 'package:flutter/material.dart';
-
 class CategoryPanel extends StatelessWidget {
   // Map of category keys and their display names
   final Map<String, String> categories = const {

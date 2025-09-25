@@ -1,13 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:restaurant_models/restaurant_models.dart';
 
 import '../auth_service.dart';
-import '../models/audit_log_entry.dart';
-import '../models/role_permission_model.dart';
-import '../models/store_model.dart';
 import '../services/audit_log_service.dart';
 import '../store_provider.dart';
-
 class AuditLogPage extends StatelessWidget {
   const AuditLogPage({super.key});
 

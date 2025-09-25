@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-
 class UnauthorizedPage extends StatelessWidget {
   const UnauthorizedPage({super.key, this.attemptedRoute});
 

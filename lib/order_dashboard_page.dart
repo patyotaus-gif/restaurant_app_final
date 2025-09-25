@@ -1,15 +1,14 @@
 // lib/order_dashboard_page.dart
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:restaurant_models/restaurant_models.dart';
 
 import 'cart_provider.dart';
-import 'models/product_model.dart';
+import 'widgets/order_dashboard/cart_summary_panel.dart';
 import 'widgets/order_dashboard/category_panel.dart';
 import 'widgets/order_dashboard/menu_grid_panel.dart';
-import 'widgets/order_dashboard/cart_summary_panel.dart';
-
 class OrderDashboardPage extends StatefulWidget {
   final String? orderId;
   final int? tableNumber;

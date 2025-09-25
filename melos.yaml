@@ -1,0 +1,14 @@
+name: restaurant_app_workspace
+packages:
+  - packages/**
+
+command:
+  bootstrap:
+    runPubGetInParallel: true
+    usePubspecOverrides: true
+
+scripts:
+  analyze:
+    run: flutter analyze
+  test:
+    run: flutter test

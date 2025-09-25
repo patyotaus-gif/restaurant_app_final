@@ -1,9 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:restaurant_models/restaurant_models.dart';
 
 import 'feature_flag_configuration.dart';
 import 'feature_flag_scope.dart';
-import 'release_environment.dart';
-
 class FeatureFlagService {
   FeatureFlagService(this._firestore);
 

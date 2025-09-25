@@ -1,6 +1,6 @@
-import '../../models/store_model.dart';
-import 'plugin_module.dart';
+import 'package:restaurant_models/restaurant_models.dart';
 
+import 'plugin_module.dart';
 class PluginRegistry {
   static final Map<String, PluginModule> _modules = {};
   static bool _hasRegisteredDefaults = false;

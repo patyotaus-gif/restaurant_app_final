@@ -1,10 +1,10 @@
 // lib/role_selection_page.dart
 
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart'; // Import go_router
-import 'auth_service.dart';
+import 'package:provider/provider.dart';
 
+import 'auth_service.dart';
 class RoleSelectionPage extends StatelessWidget {
   const RoleSelectionPage({super.key});
 

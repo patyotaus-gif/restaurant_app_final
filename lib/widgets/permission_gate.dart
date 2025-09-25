@@ -2,9 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../auth_service.dart';
-import '../models/permission_policy.dart';
+import '../security/permission_policy.dart';
 import '../store_provider.dart';
-
 class PermissionGate extends StatelessWidget {
   const PermissionGate({
     super.key,

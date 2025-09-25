@@ -2,8 +2,7 @@ import 'dart:math';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-import '../models/gift_card_model.dart';
-
+import 'gift_card_model.dart';
 class GiftCardService {
   GiftCardService({FirebaseFirestore? firestore})
     : _firestore = firestore ?? FirebaseFirestore.instance;

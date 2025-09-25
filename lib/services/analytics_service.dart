@@ -1,7 +1,6 @@
 import 'dart:math';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
-
 class AnalyticsService {
   AnalyticsService(FirebaseFirestore firestore) : _firestore = firestore;
 

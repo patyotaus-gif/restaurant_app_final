@@ -1,11 +1,9 @@
 // lib/clock_in_out_page.dart
 
-import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'models/employee_model.dart';
-import 'models/time_record_model.dart';
-
+import 'package:restaurant_models/restaurant_models.dart';
 class ClockInOutPage extends StatefulWidget {
   const ClockInOutPage({super.key});
 

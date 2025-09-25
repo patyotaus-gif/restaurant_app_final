@@ -1,7 +1,6 @@
 // lib/models/menu_item_model.dart
 
 import 'package:cloud_firestore/cloud_firestore.dart';
-
 class MenuItem {
   final String id;
   final String name;

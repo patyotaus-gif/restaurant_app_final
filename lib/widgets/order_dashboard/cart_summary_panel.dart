@@ -1,15 +1,15 @@
 // lib/widgets/order_dashboard/cart_summary_panel.dart
 
-import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
+import 'package:restaurant_models/restaurant_models.dart';
+
 import '../../cart_provider.dart';
 import '../../checkout_page.dart';
-import '../customer_header_widget.dart';
-import '../../models/punch_card_model.dart';
 import '../../services/sync_queue_service.dart';
-
+import '../customer_header_widget.dart';
 class CartSummaryPanel extends StatefulWidget {
   const CartSummaryPanel({super.key});
 
