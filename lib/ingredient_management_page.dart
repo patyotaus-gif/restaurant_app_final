@@ -2,13 +2,13 @@
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
 import 'package:restaurant_models/restaurant_models.dart';
 
 import 'add_purchase_order_page.dart'; // <-- 1. Add this import
 import 'currency_provider.dart';
 import 'locale_provider.dart';
+import 'localization/app_localizations.dart';
 import 'localization/localization_extensions.dart';
 class IngredientManagementPage extends StatefulWidget {
   const IngredientManagementPage({super.key});

@@ -6,14 +6,15 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:restaurant_models/restaurant_models.dart';
 
 import 'currency_provider.dart';
 import 'locale_provider.dart';
+import 'localization/app_localizations.dart';
 import 'services/house_account_service.dart';
 import 'services/payment_gateway_service.dart';
 import 'services/print_spooler_service.dart';
