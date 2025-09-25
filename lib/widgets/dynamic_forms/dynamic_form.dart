@@ -188,6 +188,9 @@ class _DynamicFormState extends State<DynamicForm>
       case DateFieldSchema dateField:
         return _buildDateField(dateField);
     }
+    throw UnsupportedError(
+      'Unsupported dynamic form field type: ${field.runtimeType}',
+    );
   }
 
   Widget _buildTextField(TextFieldSchema field) {

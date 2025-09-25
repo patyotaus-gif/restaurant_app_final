@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -40,11 +42,11 @@ void main() {
     expect(timings, isNotEmpty, reason: 'No frame timings were collected');
 
     final summary = FrameTimingSummarizer(timings);
-    expect(summary.buildFrameRate, greaterThanOrEqualTo(55));
-    expect(summary.rasterizerFrameRate, greaterThanOrEqualTo(55));
-    expect(summary.averageBuildTimeMillis, lessThan(8),
+    expect(summary.frameBuildRate, greaterThanOrEqualTo(55));
+    expect(summary.frameRasterizerRate, greaterThanOrEqualTo(55));
+    expect(summary.averageFrameBuildTimeMillis, lessThan(8),
         reason: 'Build time should stay well below a frame budget');
-    expect(summary.averageRasterizerTimeMillis, lessThan(8),
+    expect(summary.averageFrameRasterizerTimeMillis, lessThan(8),
         reason: 'Rasterizer time should stay well below a frame budget');
   });
 }
