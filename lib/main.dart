@@ -13,6 +13,7 @@ import 'admin/accounting_export_page.dart';
 import 'admin/admin_page.dart';
 import 'admin/analytics_page.dart';
 import 'admin/audit_log_page.dart';
+import 'admin/backoffice_schema_page.dart';
 import 'admin/create_purchase_order_page.dart';
 import 'admin/customer_profile_page.dart';
 import 'admin/employee_management_page.dart';
@@ -185,6 +186,14 @@ final _router = GoRouter(
             state: state,
             policy: PermissionPolicy.require(Permission.manageStores),
             builder: (context, state) => const ModifierManagementPage(),
+          ),
+        ),
+        GoRoute(
+          path: 'schema-designer',
+          builder: (context, state) => RoutePermissionGuard(
+            state: state,
+            policy: PermissionPolicy.require(Permission.manageStores),
+            builder: (context, state) => const BackofficeSchemaPage(),
           ),
         ),
         GoRoute(
