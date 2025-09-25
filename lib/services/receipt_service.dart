@@ -4,10 +4,9 @@ import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:restaurant_models/restaurant_models.dart';
 
-import '../models/receipt_models.dart';
 import 'printing_service.dart';
-
 class ReceiptService {
   ReceiptService({
     FirebaseStorage? storage,

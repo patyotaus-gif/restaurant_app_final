@@ -1,10 +1,9 @@
 import 'dart:convert';
 
+import 'package:restaurant_models/restaurant_models.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../feature_flags/feature_flag_configuration.dart';
-import '../models/product_model.dart';
-
 class ClientCacheService {
   ClientCacheService();
 

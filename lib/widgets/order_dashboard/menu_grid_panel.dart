@@ -2,12 +2,12 @@
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../cart_provider.dart';
-import '../../stock_provider.dart';
-import '../../models/product_model.dart';
-import '../../services/menu_cache_provider.dart';
-import '../modifier_selection_dialog.dart'; // <-- 1. IMPORT THE DIALOG
+import 'package:restaurant_models/restaurant_models.dart';
 
+import '../../cart_provider.dart';
+import '../../services/menu_cache_provider.dart';
+import '../../stock_provider.dart';
+import '../modifier_selection_dialog.dart'; // <-- 1. IMPORT THE DIALOG
 class MenuGridPanel extends StatelessWidget {
   final String selectedCategory;
 

@@ -1,14 +1,13 @@
 // lib/customer_menu_page.dart
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'models/product_model.dart'; // <-- 1. Use Product model
-import 'models/promotion_model.dart';
+import 'package:restaurant_models/restaurant_models.dart';
+
 import 'cart_provider.dart';
 import 'customer_checkout_page.dart';
 import 'services/menu_cache_provider.dart';
-
 class CustomerMenuPage extends StatefulWidget {
   final String tableNumber;
 

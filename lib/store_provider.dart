@@ -2,13 +2,10 @@ import 'dart:async';
 
 import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart';
+import 'package:restaurant_models/restaurant_models.dart';
 
 import 'auth_service.dart';
-import 'models/employee_model.dart';
-import 'models/role_permission_model.dart';
-import 'models/store_model.dart';
 import 'services/store_service.dart';
-
 class StoreProvider with ChangeNotifier {
   StoreProvider(this._storeService);
 

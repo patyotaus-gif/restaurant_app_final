@@ -1,11 +1,10 @@
 // lib/customer_lookup_page.dart
 
-import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart'; // <-- Import intl for date formatting
-import '../models/customer_model.dart';
-
+import 'package:restaurant_models/restaurant_models.dart';
 class CustomerLookupPage extends StatefulWidget {
   const CustomerLookupPage({super.key});
 

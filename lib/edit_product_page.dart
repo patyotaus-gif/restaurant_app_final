@@ -1,16 +1,16 @@
 // lib/edit_product_page.dart
 
 import 'dart:io';
-import 'package:flutter/material.dart';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-import 'package:image_picker/image_picker.dart';
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'models/product_model.dart';
-import 'barcode_scanner_page.dart';
-import 'admin/modifier_management_page.dart';
-import 'models/ingredient_model.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:restaurant_models/restaurant_models.dart';
 
+import 'admin/modifier_management_page.dart';
+import 'barcode_scanner_page.dart';
 class EditProductPage extends StatefulWidget {
   final Product? product;
 

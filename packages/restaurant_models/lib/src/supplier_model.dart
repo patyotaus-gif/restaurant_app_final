@@ -1,7 +1,6 @@
 // lib/models/supplier_model.dart
 
 import 'package:cloud_firestore/cloud_firestore.dart';
-
 class Supplier {
   final String id;
   final String name;

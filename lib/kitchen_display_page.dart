@@ -2,12 +2,10 @@
 
 import 'dart:async';
 
-import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-
-import 'models/kitchen_station_model.dart';
-
+import 'package:restaurant_models/restaurant_models.dart';
 class KitchenDisplayPage extends StatefulWidget {
   const KitchenDisplayPage({super.key, this.initialStationId});
 

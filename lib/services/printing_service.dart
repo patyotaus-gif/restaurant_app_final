@@ -6,9 +6,7 @@ import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
-
-import '../models/receipt_models.dart';
-
+import 'package:restaurant_models/restaurant_models.dart';
 class PrintingService {
   Future<void> previewReceipt(
     Map<String, dynamic> orderData, {

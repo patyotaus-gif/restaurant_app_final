@@ -2,12 +2,11 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/foundation.dart';
+import 'package:restaurant_models/restaurant_models.dart';
 
-import '../models/receipt_models.dart';
 import '../notifications_repository.dart';
 import 'ops_observability_service.dart';
 import 'printer_drawer_service.dart';
-
 final Random _printJobRandom = Random();
 
 enum PrintJobType { receipt }

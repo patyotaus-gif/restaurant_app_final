@@ -1,10 +1,8 @@
 import 'package:go_router/go_router.dart';
+import 'package:restaurant_models/restaurant_models.dart';
 
 import '../auth_service.dart';
 import '../store_provider.dart';
-import 'role_permission_model.dart';
-import 'store_model.dart';
-
 class PermissionContext {
   PermissionContext({
     required this.authService,

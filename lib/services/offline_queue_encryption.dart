@@ -4,7 +4,6 @@ import 'dart:math';
 import 'package:cryptography/cryptography.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
 /// Manages encryption of offline queue payloads using an AES-GCM keyring.
 ///
 /// Keys are stored locally in [SharedPreferences] so that encrypted payloads can

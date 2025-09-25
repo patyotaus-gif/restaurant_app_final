@@ -2,12 +2,9 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
+import 'package:restaurant_models/restaurant_models.dart';
 
-import 'models/currency_settings.dart';
-import 'models/store_model.dart';
-import 'models/fx_rate.dart';
 import 'services/fx_rate_service.dart';
-
 class CurrencyProvider with ChangeNotifier {
   CurrencyProvider(this._fxRateService);
 

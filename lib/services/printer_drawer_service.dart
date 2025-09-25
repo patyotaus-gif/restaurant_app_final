@@ -4,9 +4,7 @@ import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:esc_pos_utils_plus/esc_pos_utils_plus.dart';
 import 'package:intl/intl.dart';
-
-import '../models/receipt_models.dart';
-
+import 'package:restaurant_models/restaurant_models.dart';
 class PrinterDrawerException implements Exception {
   PrinterDrawerException(this.message);
 

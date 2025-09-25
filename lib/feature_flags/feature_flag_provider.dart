@@ -1,14 +1,12 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:restaurant_models/restaurant_models.dart';
 
-import '../models/store_model.dart';
 import '../services/client_cache_service.dart';
 import 'feature_flag_configuration.dart';
 import 'feature_flag_scope.dart';
 import 'feature_flag_service.dart';
-import 'release_environment.dart';
-
 class FeatureFlagProvider with ChangeNotifier {
   FeatureFlagProvider(this._featureFlagService, this._cacheService);
 

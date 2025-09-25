@@ -1,5 +1,4 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-
 class Reservation {
   final String id;
   final String customerName;

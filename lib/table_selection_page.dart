@@ -2,8 +2,8 @@
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'cart_provider.dart';
 
+import 'cart_provider.dart';
 class TableSelectionPage extends StatelessWidget {
   const TableSelectionPage({super.key});
 

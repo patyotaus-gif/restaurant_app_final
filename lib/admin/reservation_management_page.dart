@@ -1,9 +1,8 @@
-import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:restaurant_models/restaurant_models.dart';
 import 'package:table_calendar/table_calendar.dart';
-import '../models/reservation_model.dart';
-
 class ReservationManagementPage extends StatefulWidget {
   const ReservationManagementPage({super.key});
 

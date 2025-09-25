@@ -1,7 +1,6 @@
 // lib/models/time_record_model.dart
 
 import 'package:cloud_firestore/cloud_firestore.dart';
-
 class TimeRecord {
   final String id;
   final String employeeId;

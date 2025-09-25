@@ -1,7 +1,6 @@
 // lib/models/punch_card_model.dart
 
 import 'package:cloud_firestore/cloud_firestore.dart';
-
 class PunchCardCampaign {
   final String id;
   final String name;

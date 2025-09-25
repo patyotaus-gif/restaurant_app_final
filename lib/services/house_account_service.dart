@@ -1,9 +1,7 @@
 // lib/services/house_account_service.dart
 
 import 'package:cloud_firestore/cloud_firestore.dart';
-
-import '../models/house_account_model.dart';
-
+import 'package:restaurant_models/restaurant_models.dart';
 class HouseAccountService {
   HouseAccountService({FirebaseFirestore? firestore})
     : _firestore = firestore ?? FirebaseFirestore.instance;

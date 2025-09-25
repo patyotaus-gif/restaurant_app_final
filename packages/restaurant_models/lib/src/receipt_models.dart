@@ -1,5 +1,4 @@
 import 'store_model.dart';
-
 class StoreReceiptDetails {
   final String name;
   final String? branch;

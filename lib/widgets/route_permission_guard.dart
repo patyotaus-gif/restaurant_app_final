@@ -3,10 +3,9 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../auth_service.dart';
-import '../models/permission_policy.dart';
+import '../security/permission_policy.dart';
 import '../store_provider.dart';
 import '../unauthorized_page.dart';
-
 class RoutePermissionGuard extends StatelessWidget {
   const RoutePermissionGuard({
     super.key,

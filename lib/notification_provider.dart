@@ -1,10 +1,11 @@
 // lib/notification_provider.dart
 
 import 'dart:async';
-import 'package:flutter/foundation.dart';
-import 'models/notification_model.dart';
-import 'notifications_repository.dart';
 
+import 'package:flutter/foundation.dart';
+import 'package:restaurant_models/restaurant_models.dart';
+
+import 'notifications_repository.dart';
 class NotificationProvider extends ChangeNotifier {
   final NotificationsRepository repo;
   String uid; // <-- ทำให้ public เพื่อให้ update ได้

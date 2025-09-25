@@ -1,9 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-
-import '../models/employee_model.dart';
-import '../models/role_permission_model.dart';
-import '../models/store_model.dart';
-
+import 'package:restaurant_models/restaurant_models.dart';
 class StoreService {
   StoreService(this._firestore);
 
