@@ -24,11 +24,11 @@ class FeatureFlagConfiguration {
   EnvironmentConfiguration get global => _global;
 
   factory FeatureFlagConfiguration.empty() => FeatureFlagConfiguration(
-        global: EnvironmentConfiguration.empty(),
-        environments: const {},
-        releaseChannels: const {},
-        experiments: const {},
-      );
+    global: EnvironmentConfiguration.empty(),
+    environments: const {},
+    releaseChannels: const {},
+    experiments: const {},
+  );
 
   factory FeatureFlagConfiguration.fromMap(Map<String, dynamic> data) {
     EnvironmentConfiguration parseEnvironment(dynamic value) {
@@ -128,23 +128,26 @@ class FeatureFlagConfiguration {
       releaseChannel,
     );
     final environmentConfig = environments[resolvedEnvironment];
-    final releaseConfig =
-        releaseChannel != null ? releaseChannels[releaseChannel] : null;
+    final releaseConfig = releaseChannel != null
+        ? releaseChannels[releaseChannel]
+        : null;
 
     final merged = Map<String, bool>.from(
       _global.collectFlags(storeId: storeId, terminalId: terminalId),
     );
     if (environmentConfig != null) {
       merged.addAll(
-        environmentConfig.collectFlags(storeId: storeId, terminalId: terminalId),
+        environmentConfig.collectFlags(
+          storeId: storeId,
+          terminalId: terminalId,
+        ),
       );
     }
     if (releaseConfig != null && releaseConfig.flagOverrides.isNotEmpty) {
       merged.addAll(releaseConfig.flagOverrides);
     }
 
-    final unitId =
-        (rolloutUnitId ?? terminalId ?? storeId ?? '').trim();
+    final unitId = (rolloutUnitId ?? terminalId ?? storeId ?? '').trim();
 
     final rolloutMap = <String, StagedRollout>{}
       ..addAll(_global.rollouts)
@@ -205,9 +208,10 @@ class FeatureFlagConfiguration {
     String? releaseChannel,
   }) {
     return experiments.values.where(
-      (experiment) =>
-          experiment.isEligible(resolveEnvironment(environment, releaseChannel),
-              releaseChannel),
+      (experiment) => experiment.isEligible(
+        resolveEnvironment(environment, releaseChannel),
+        releaseChannel,
+      ),
     );
   }
 }
@@ -226,11 +230,11 @@ class EnvironmentConfiguration {
   final Map<String, StagedRollout> rollouts;
 
   factory EnvironmentConfiguration.empty() => const EnvironmentConfiguration(
-        tenantFlags: {},
-        storeFlags: {},
-        terminalFlags: {},
-        rollouts: {},
-      );
+    tenantFlags: {},
+    storeFlags: {},
+    terminalFlags: {},
+    rollouts: {},
+  );
 
   factory EnvironmentConfiguration.fromFlatMap(Map<String, dynamic> data) {
     return EnvironmentConfiguration(
@@ -267,9 +271,7 @@ class EnvironmentConfiguration {
       'stores': storeFlags,
       'terminals': terminalFlags,
       if (rollouts.isNotEmpty)
-        'rollouts': rollouts.map(
-          (key, value) => MapEntry(key, value.toMap()),
-        ),
+        'rollouts': rollouts.map((key, value) => MapEntry(key, value.toMap())),
     };
   }
 }
@@ -299,9 +301,7 @@ class ReleaseChannelConfiguration {
       if (environment != null) 'environment': environment!.wireName,
       if (flagOverrides.isNotEmpty) 'flags': flagOverrides,
       if (rollouts.isNotEmpty)
-        'rollouts': rollouts.map(
-          (key, value) => MapEntry(key, value.toMap()),
-        ),
+        'rollouts': rollouts.map((key, value) => MapEntry(key, value.toMap())),
     };
   }
 }
@@ -347,10 +347,7 @@ class StagedRollout {
   }
 
   Map<String, dynamic> toMap() {
-    final map = {
-      'percentage': percentage,
-      'value': value,
-    };
+    final map = <String, dynamic>{'percentage': percentage, 'value': value};
     if (seed != null) {
       map['seed'] = seed;
     }
@@ -412,11 +409,12 @@ class ExperimentDefinition {
     this.rollout,
     this.metadata = const {},
     String? defaultVariant,
-  })  : variants = _normalizeVariants(variants),
-        environments = environments ?? ReleaseEnvironment.values.toSet(),
-        channels = channels ?? const {},
-        defaultVariant = defaultVariant ??
-            (variants.isNotEmpty ? variants.keys.first : 'control');
+  }) : variants = _normalizeVariants(variants),
+       environments = environments ?? ReleaseEnvironment.values.toSet(),
+       channels = channels ?? const {},
+       defaultVariant =
+           defaultVariant ??
+           (variants.isNotEmpty ? variants.keys.first : 'control');
 
   final String id;
   final Map<String, double> variants;
@@ -427,10 +425,7 @@ class ExperimentDefinition {
   final Map<String, dynamic> metadata;
   final String defaultVariant;
 
-  factory ExperimentDefinition.fromMap(
-    String id,
-    Map<String, dynamic> data,
-  ) {
+  factory ExperimentDefinition.fromMap(String id, Map<String, dynamic> data) {
     final rawVariants = data['variants'];
     Map<String, double> variants;
     if (rawVariants is Map<String, dynamic>) {
@@ -454,10 +449,11 @@ class ExperimentDefinition {
     final singleEnvironment = data['environment'] is String
         ? tryReleaseEnvironmentFromName(data['environment'] as String?)
         : null;
-    final normalizedEnvironments = envList ??
-        (singleEnvironment != null ? {singleEnvironment} : null);
+    final normalizedEnvironments =
+        envList ?? (singleEnvironment != null ? {singleEnvironment} : null);
 
-    final channelSet = (data['channels'] as List<dynamic>?)
+    final channelSet =
+        (data['channels'] as List<dynamic>?)
             ?.map((dynamic value) => '$value')
             .where((value) => value.isNotEmpty)
             .toSet() ??
