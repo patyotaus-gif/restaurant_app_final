@@ -1,8 +1,6 @@
-import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'models/employee_model.dart'; // <-- 1. Import Employee model
-import 'models/role_permission_model.dart';
-
+import 'package:flutter/material.dart';
+import 'package:restaurant_models/restaurant_models.dart';
 // Defines the available user roles
 enum UserRole { owner, manager, employee, intern }
 

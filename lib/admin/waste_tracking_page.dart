@@ -1,10 +1,10 @@
-import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import '../models/ingredient_model.dart';
-import '../auth_service.dart'; // We'll need this later
 import 'package:provider/provider.dart'; // And this one too
+import 'package:restaurant_models/restaurant_models.dart';
 
+import '../auth_service.dart'; // We'll need this later
 class WasteTrackingPage extends StatefulWidget {
   const WasteTrackingPage({super.key});
 

@@ -1,10 +1,9 @@
 // lib/add_purchase_order_page.dart
 
-import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'models/ingredient_model.dart';
-
+import 'package:restaurant_models/restaurant_models.dart';
 // Helper class for a line item in the PO
 class PurchaseOrderItem {
   Ingredient ingredient;

@@ -1,18 +1,19 @@
 // lib/retail_pos_page.dart
 
 import 'dart:async';
+
+import 'package:audioplayers/audioplayers.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:provider/provider.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:go_router/go_router.dart';
-import 'package:audioplayers/audioplayers.dart';
+import 'package:restaurant_models/restaurant_models.dart';
 import 'package:rxdart/rxdart.dart';
-import 'cart_provider.dart';
-import 'models/product_model.dart';
-import 'widgets/customer_header_widget.dart';
-import 'services/menu_cache_provider.dart';
 
+import 'cart_provider.dart';
+import 'services/menu_cache_provider.dart';
+import 'widgets/customer_header_widget.dart';
 class RetailPosPage extends StatefulWidget {
   const RetailPosPage({super.key});
 

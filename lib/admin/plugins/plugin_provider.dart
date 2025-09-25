@@ -1,10 +1,9 @@
 import 'package:flutter/foundation.dart';
+import 'package:restaurant_models/restaurant_models.dart';
 
-import '../../models/store_model.dart';
 import '../../services/store_service.dart';
 import 'plugin_module.dart';
 import 'plugin_registry.dart';
-
 class PluginProvider with ChangeNotifier {
   PluginProvider(this._storeService);
 

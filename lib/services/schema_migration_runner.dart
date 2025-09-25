@@ -1,6 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
-
 typedef SchemaMigrationTask =
     Future<void> Function(FirebaseFirestore firestore, String tenantId);
 

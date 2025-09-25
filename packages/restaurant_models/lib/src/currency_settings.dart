@@ -1,5 +1,4 @@
 import 'package:collection/collection.dart';
-
 class CurrencySettings {
   const CurrencySettings({
     this.baseCurrency = 'THB',

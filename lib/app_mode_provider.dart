@@ -1,9 +1,8 @@
 // lib/app_mode_provider.dart
 
 import 'package:flutter/material.dart';
+import 'package:restaurant_models/restaurant_models.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'models/app_mode.dart';
-
 class AppModeProvider with ChangeNotifier {
   AppMode _appMode = AppMode.restaurant; // Default mode
   bool _isLoading = true;

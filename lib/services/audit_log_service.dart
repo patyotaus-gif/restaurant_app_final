@@ -1,7 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-
-import '../models/audit_log_entry.dart';
-
+import 'package:restaurant_models/restaurant_models.dart';
 class AuditLogService {
   AuditLogService(this._firestore);
 

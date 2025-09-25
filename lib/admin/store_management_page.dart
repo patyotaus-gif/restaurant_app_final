@@ -1,23 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:restaurant_models/restaurant_models.dart';
 
 import '../auth_service.dart';
 import '../currency_provider.dart';
 import '../feature_flags/feature_flag_provider.dart';
 import '../feature_flags/feature_flag_scope.dart';
 import '../feature_flags/terminal_provider.dart';
-import '../models/role_permission_model.dart';
-import '../models/permission_policy.dart';
-import '../models/currency_settings.dart';
-import '../models/fx_rate.dart';
-import '../models/store_model.dart';
-import 'plugins/plugin_provider.dart';
+import '../security/permission_policy.dart';
 import '../services/store_service.dart';
 import '../stock_provider.dart';
 import '../store_provider.dart';
 import '../widgets/permission_gate.dart';
-
+import 'plugins/plugin_provider.dart';
 class StoreManagementPage extends StatefulWidget {
   const StoreManagementPage({super.key});
 

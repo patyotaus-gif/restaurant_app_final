@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
-import '../notification_provider.dart';
-import '../models/notification_model.dart';
+import 'package:provider/provider.dart';
+import 'package:restaurant_models/restaurant_models.dart';
 
+import '../notification_provider.dart';
 class NotificationCenterPage extends StatelessWidget {
   const NotificationCenterPage({super.key});
 

@@ -1,7 +1,6 @@
 import 'dart:convert';
 
-import 'release_environment.dart';
-
+import 'package:restaurant_models/restaurant_models.dart';
 class FeatureFlagConfiguration {
   const FeatureFlagConfiguration({
     required EnvironmentConfiguration global,

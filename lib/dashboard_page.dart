@@ -1,14 +1,14 @@
 // lib/dashboard_page.dart
 
-import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:fl_chart/fl_chart.dart';
-import 'package:intl/intl.dart';
-import 'package:provider/provider.dart';
 import 'dart:math';
 
-import 'currency_provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:fl_chart/fl_chart.dart';
+import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 
+import 'currency_provider.dart';
 // NOTE: This model is a local helper, not from a file, so it's okay.
 class _ProfitData {
   String name;

@@ -1,15 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:restaurant_models/restaurant_models.dart';
 
 import '../auth_service.dart';
 import '../barcode_scanner_page.dart';
-import '../models/ingredient_model.dart';
-import '../models/role_permission_model.dart';
-import '../models/store_model.dart';
 import '../services/stocktake_service.dart';
 import '../stock_provider.dart';
 import '../store_provider.dart';
-
 class StocktakePage extends StatefulWidget {
   const StocktakePage({super.key});
 

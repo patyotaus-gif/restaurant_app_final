@@ -2,10 +2,9 @@ import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
+import 'package:restaurant_models/restaurant_models.dart';
 
 import '../feature_flags/feature_flag_configuration.dart';
-import '../feature_flags/release_environment.dart';
-
 class ExperimentService extends ChangeNotifier {
   ExperimentService(this._firestore);
 

@@ -1,9 +1,8 @@
 // lib/admin/supplier_management_page.dart
 
-import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../models/supplier_model.dart';
-
+import 'package:flutter/material.dart';
+import 'package:restaurant_models/restaurant_models.dart';
 class SupplierManagementPage extends StatefulWidget {
   const SupplierManagementPage({super.key});
 

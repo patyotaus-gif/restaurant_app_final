@@ -1,11 +1,9 @@
 // lib/admin/time_report_page.dart
 
-import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import '../models/time_record_model.dart';
-import '../models/employee_model.dart';
-
+import 'package:restaurant_models/restaurant_models.dart';
 // Helper class to hold calculated data
 class EmployeeWorkSummary {
   final Employee employee;

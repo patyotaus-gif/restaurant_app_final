@@ -1,8 +1,7 @@
-import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import '../models/customer_model.dart';
-
+import 'package:restaurant_models/restaurant_models.dart';
 class CustomerProfilePage extends StatefulWidget {
   final String customerId;
 

@@ -1,15 +1,15 @@
 // lib/floor_plan_page.dart
 
-import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'order_dashboard_page.dart';
-import 'auth_service.dart';
-import 'models/reservation_model.dart';
-import 'order_type_selection_page.dart';
-import 'cart_provider.dart'; // <-- Import CartProvider
+import 'package:provider/provider.dart';
+import 'package:restaurant_models/restaurant_models.dart';
 
+import 'auth_service.dart';
+import 'cart_provider.dart'; // <-- Import CartProvider
+import 'order_dashboard_page.dart';
+import 'order_type_selection_page.dart';
 class FloorPlanPage extends StatelessWidget {
   const FloorPlanPage({super.key});
   final int tableCount = 30;

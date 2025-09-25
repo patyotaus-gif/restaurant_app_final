@@ -1,11 +1,10 @@
 // lib/stock_provider.dart
 
 import 'dart:async';
-import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'models/ingredient_model.dart';
-import 'models/product_model.dart'; // <-- 1. Import Product model
 
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart';
+import 'package:restaurant_models/restaurant_models.dart';
 class StockProvider with ChangeNotifier {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 

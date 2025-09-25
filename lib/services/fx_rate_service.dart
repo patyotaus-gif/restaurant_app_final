@@ -1,8 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
-
-import '../models/fx_rate.dart';
-
+import 'package:restaurant_models/restaurant_models.dart';
 class FxRateService {
   FxRateService(this._firestore);
 

@@ -1,13 +1,13 @@
 // lib/customer_checkout_page.dart
 
-import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
-import 'cart_provider.dart';
-import 'models/promotion_model.dart';
-import 'services/sync_queue_service.dart';
+import 'package:restaurant_models/restaurant_models.dart';
 
+import 'cart_provider.dart';
+import 'services/sync_queue_service.dart';
 class CustomerCheckoutPage extends StatefulWidget {
   final String tableNumber;
   final Map<String, CartItem> cart;

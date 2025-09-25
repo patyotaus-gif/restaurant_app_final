@@ -1,10 +1,11 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import '../notification_provider.dart';
-import '../models/notification_model.dart';
+import 'package:restaurant_models/restaurant_models.dart';
 
+import '../notification_provider.dart';
 class AlertHeadsUp extends StatefulWidget {
   const AlertHeadsUp({super.key});
   @override

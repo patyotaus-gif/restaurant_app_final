@@ -1,17 +1,15 @@
 // lib/cart_page.dart
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:restaurant_models/restaurant_models.dart';
+
+import 'auth_service.dart';
 import 'cart_provider.dart';
 import 'checkout_page.dart';
-import 'models/product_model.dart';
-import 'models/gift_card_model.dart';
-import 'auth_service.dart';
-import 'widgets/manager_approval_dialog.dart';
 import 'services/sync_queue_service.dart';
-import 'models/gift_card_service.dart';
-
+import 'widgets/manager_approval_dialog.dart';
 class CartPage extends StatefulWidget {
   const CartPage({super.key});
 

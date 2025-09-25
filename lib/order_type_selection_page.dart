@@ -3,10 +3,10 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import 'app_mode_provider.dart';
-import 'models/app_mode.dart';
-import 'auth_service.dart';
+import 'package:restaurant_models/restaurant_models.dart';
 
+import 'app_mode_provider.dart';
+import 'auth_service.dart';
 class OrderTypeSelectionPage extends StatelessWidget {
   const OrderTypeSelectionPage({super.key});
 

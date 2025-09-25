@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart'; // <-- 1. Add this import
-import '../stock_provider.dart';
-import '../models/ingredient_model.dart';
+import 'package:provider/provider.dart';
+import 'package:restaurant_models/restaurant_models.dart';
 
+import '../stock_provider.dart';
 class LowStockAlertPage extends StatelessWidget {
   const LowStockAlertPage({super.key});
 

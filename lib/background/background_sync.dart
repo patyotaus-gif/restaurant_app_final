@@ -14,7 +14,6 @@ import 'package:workmanager/workmanager.dart';
 import '../firebase_options.dart';
 import '../services/offline_queue_encryption.dart';
 import '../services/sync_queue_service.dart';
-
 const String backgroundSyncTaskName = 'pos.offline.sync.queue';
 const String _periodicUniqueName = 'pos.offline.sync.periodic';
 const String _oneOffUniqueName = 'pos.offline.sync.oneoff';

@@ -1,13 +1,12 @@
 // lib/widgets/customer_header_widget.dart
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:restaurant_models/restaurant_models.dart';
+
 import '../cart_provider.dart';
 import '../customer_lookup_page.dart';
-import '../models/punch_card_model.dart';
-import '../models/customer_model.dart'; // Make sure this is imported
-
 class CustomerHeaderWidget extends StatelessWidget {
   const CustomerHeaderWidget({super.key});
 

@@ -9,7 +9,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'offline_queue_encryption.dart';
 import 'ops_observability_service.dart';
-
 class SyncResult {
   final String operationId;
   final bool isSynced;

@@ -6,7 +6,6 @@ import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
-
 class ReceiptPage {
   final Map<String, dynamic> orderData;
 

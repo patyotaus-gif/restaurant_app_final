@@ -1,9 +1,8 @@
-import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
-import '../models/promotion_model.dart';
-
+import 'package:restaurant_models/restaurant_models.dart';
 class PromotionManagementPage extends StatefulWidget {
   const PromotionManagementPage({super.key});
 

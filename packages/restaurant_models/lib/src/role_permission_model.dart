@@ -1,5 +1,4 @@
 import 'package:collection/collection.dart';
-
 /// Defines the granular permissions used throughout the back office.
 enum Permission {
   viewInventory,

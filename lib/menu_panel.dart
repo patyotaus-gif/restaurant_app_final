@@ -2,11 +2,11 @@
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'cart_provider.dart';
-import 'stock_provider.dart';
-import 'models/product_model.dart'; // <-- 1. Use Product
-import 'services/menu_cache_provider.dart';
+import 'package:restaurant_models/restaurant_models.dart';
 
+import 'cart_provider.dart';
+import 'services/menu_cache_provider.dart';
+import 'stock_provider.dart';
 class MenuPanel extends StatefulWidget {
   const MenuPanel({super.key});
 

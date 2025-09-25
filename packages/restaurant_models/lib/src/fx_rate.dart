@@ -1,5 +1,4 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-
 class FxRate {
   FxRate({
     required this.baseCurrency,
