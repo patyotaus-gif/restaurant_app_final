@@ -4,7 +4,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:restaurant_models/restaurant_models.dart';
 import 'package:url_strategy/url_strategy.dart';
@@ -49,6 +52,7 @@ import 'firebase_options.dart';
 import 'floor_plan_page.dart';
 import 'ingredient_management_page.dart';
 import 'kitchen_display_page.dart';
+import 'locale_provider.dart';
 import 'notification_provider.dart';
 import 'notifications_repository.dart';
 import 'order_dashboard_page.dart';
@@ -344,6 +348,50 @@ final _router = GoRouter(
   ],
 );
 
+Locale _resolveLocale({
+  Locale? userPreferred,
+  List<Locale>? systemLocales,
+  required Iterable<Locale> supportedLocales,
+}) {
+  if (userPreferred != null) {
+    return _matchSupportedLocale(userPreferred, supportedLocales) ??
+        supportedLocales.first;
+  }
+
+  if (systemLocales != null) {
+    for (final locale in systemLocales) {
+      final match = _matchSupportedLocale(locale, supportedLocales);
+      if (match != null) {
+        return match;
+      }
+    }
+  }
+
+  return supportedLocales.first;
+}
+
+Locale? _matchSupportedLocale(
+  Locale target,
+  Iterable<Locale> supportedLocales,
+) {
+  for (final locale in supportedLocales) {
+    final countryMatches =
+        (locale.countryCode?.isEmpty ?? true) ||
+            locale.countryCode == target.countryCode;
+    if (locale.languageCode == target.languageCode && countryMatches) {
+      return locale;
+    }
+  }
+
+  for (final locale in supportedLocales) {
+    if (locale.languageCode == target.languageCode) {
+      return locale;
+    }
+  }
+
+  return null;
+}
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   if (kIsWeb) {
@@ -369,6 +417,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (ctx) => AppModeProvider()),
         ChangeNotifierProvider(create: (ctx) => AuthService()),
         Provider<ClientCacheService>(create: (_) => ClientCacheService()),
+        ChangeNotifierProvider(create: (ctx) => LocaleProvider()),
         Provider<StoreService>(
           create: (_) => StoreService(FirebaseFirestore.instance),
         ),
@@ -410,11 +459,17 @@ class MyApp extends StatelessWidget {
             return provider;
           },
         ),
-        ChangeNotifierProxyProvider2<StoreProvider, FxRateService, CurrencyProvider>(
+        ChangeNotifierProxyProvider3<
+          StoreProvider,
+          FxRateService,
+          LocaleProvider,
+          CurrencyProvider
+        >(
           create: (ctx) => CurrencyProvider(ctx.read<FxRateService>()),
-          update: (ctx, storeProvider, fxService, currencyProvider) {
+          update: (ctx, storeProvider, fxService, localeProvider, currencyProvider) {
             final provider = currencyProvider ?? CurrencyProvider(fxService);
             provider.applyStore(storeProvider.activeStore);
+            provider.updateLocale(localeProvider.locale);
             return provider;
           },
         ),
@@ -596,13 +651,32 @@ class MyApp extends StatelessWidget {
           },
         ),
       ],
-      child: Consumer<ThemeProvider>(
-        builder: (context, themeProvider, child) {
+      child: Consumer2<ThemeProvider, LocaleProvider>(
+        builder: (context, themeProvider, localeProvider, child) {
           return MaterialApp.router(
             routerConfig: _router,
-            title: 'Restaurant App (POS)',
             debugShowCheckedModeBanner: false,
             themeMode: themeProvider.themeMode,
+            locale: localeProvider.locale,
+            supportedLocales: AppLocalizations.supportedLocales,
+            localizationsDelegates: const [
+              AppLocalizations.delegate,
+              GlobalMaterialLocalizations.delegate,
+              GlobalCupertinoLocalizations.delegate,
+              GlobalWidgetsLocalizations.delegate,
+            ],
+            onGenerateTitle: (context) =>
+                AppLocalizations.of(context)!.appTitle,
+            localeListResolutionCallback: (locales, supportedLocales) {
+              final resolved = _resolveLocale(
+                userPreferred: localeProvider.locale,
+                systemLocales: locales,
+                supportedLocales: supportedLocales,
+              );
+              Intl.defaultLocale =
+                  Intl.canonicalizedLocale(resolved.toLanguageTag());
+              return resolved;
+            },
             builder: (context, child) {
               return OpsDebugOverlayHost(
                 child: child ?? const SizedBox.shrink(),
