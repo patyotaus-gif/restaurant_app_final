@@ -67,6 +67,7 @@ import 'services/menu_cache_provider.dart';
 import 'services/printer_drawer_service.dart';
 import 'services/schema_migration_runner.dart';
 import 'services/ops_observability_service.dart';
+import 'services/experiment_service.dart';
 import 'feature_flags/feature_flag_provider.dart';
 import 'feature_flags/feature_flag_service.dart';
 import 'feature_flags/terminal_provider.dart';
@@ -442,6 +443,35 @@ class MyApp extends StatelessWidget {
               terminalId: terminalProvider.terminalId,
             );
             return provider;
+          },
+        ),
+        ChangeNotifierProxyProvider3<
+          FeatureFlagProvider,
+          StoreProvider,
+          TerminalProvider,
+          ExperimentService
+        >(
+          create: (ctx) => ExperimentService(FirebaseFirestore.instance),
+          update: (
+            ctx,
+            featureFlags,
+            storeProvider,
+            terminalProvider,
+            experimentService,
+          ) {
+            final service = experimentService ??
+                ExperimentService(FirebaseFirestore.instance);
+            service.updateConfiguration(featureFlags.configuration);
+            service.updateEnvironment(
+              featureFlags.environment,
+              featureFlags.releaseChannel,
+            );
+            service.updateContext(
+              tenantId: storeProvider.activeStore?.tenantId,
+              storeId: storeProvider.activeStore?.id,
+              terminalId: terminalProvider.terminalId,
+            );
+            return service;
           },
         ),
         ChangeNotifierProvider(

@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../feature_flags/release_environment.dart';
 import 'currency_settings.dart';
 import 'tax_model.dart';
 
@@ -17,6 +18,8 @@ class Store {
   final TaxConfiguration? taxConfiguration;
   final bool houseAccountsEnabled;
   final CurrencySettings currencySettings;
+  final ReleaseEnvironment releaseEnvironment;
+  final String releaseChannel;
 
   const Store({
     required this.id,
@@ -32,10 +35,17 @@ class Store {
     this.taxConfiguration,
     this.houseAccountsEnabled = false,
     this.currencySettings = const CurrencySettings(),
+    this.releaseEnvironment = ReleaseEnvironment.production,
+    this.releaseChannel = kDefaultReleaseChannel,
   });
 
   factory Store.fromFirestore(DocumentSnapshot<Map<String, dynamic>> doc) {
     final data = doc.data() ?? {};
+    final releaseData = data['release'] as Map<String, dynamic>?;
+    final releaseEnvironmentName =
+        releaseData?['environment'] as String? ?? data['releaseEnvironment'] as String?;
+    final releaseChannel = releaseData?['channel'] as String? ??
+        data['releaseChannel'] as String? ?? kDefaultReleaseChannel;
     return Store(
       id: doc.id,
       name: data['name'] as String? ?? 'Unnamed Store',
@@ -66,6 +76,11 @@ class Store {
                 data['currencySettings'] as Map<String, dynamic>,
               ),
             ),
+      releaseEnvironment:
+          releaseEnvironmentFromName(releaseEnvironmentName),
+      releaseChannel: releaseChannel.isEmpty
+          ? kDefaultReleaseChannel
+          : releaseChannel,
     );
   }
 
@@ -85,6 +100,10 @@ class Store {
       'houseAccountsEnabled': houseAccountsEnabled,
       if (currencySettings != const CurrencySettings())
         'currencySettings': currencySettings.toMap(),
+      'release': {
+        'environment': releaseEnvironment.wireName,
+        'channel': releaseChannel,
+      },
     };
   }
 
@@ -106,6 +125,8 @@ class Store {
     TaxConfiguration? taxConfiguration,
     bool? houseAccountsEnabled,
     CurrencySettings? currencySettings,
+    ReleaseEnvironment? releaseEnvironment,
+    String? releaseChannel,
   }) {
     return Store(
       id: id ?? this.id,
@@ -122,6 +143,8 @@ class Store {
       houseAccountsEnabled:
           houseAccountsEnabled ?? this.houseAccountsEnabled,
       currencySettings: currencySettings ?? this.currencySettings,
+      releaseEnvironment: releaseEnvironment ?? this.releaseEnvironment,
+      releaseChannel: releaseChannel ?? this.releaseChannel,
     );
   }
 }
