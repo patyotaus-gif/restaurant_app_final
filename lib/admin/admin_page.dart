@@ -79,6 +79,13 @@ class AdminPage extends StatelessWidget {
         'modes': [AppMode.restaurant, AppMode.retail],
       },
       {
+        'title': 'Backoffice Designer',
+        'subtitle': 'Build schema-driven workflows and forms',
+        'icon': Icons.auto_awesome_mosaic_outlined,
+        'route': '/admin/schema-designer',
+        'modes': [AppMode.restaurant, AppMode.retail],
+      },
+      {
         'title': 'Punch Cards',
         'subtitle': 'Manage loyalty punch cards',
         'icon': Icons.card_giftcard,
