@@ -2,14 +2,33 @@
 import {
   onDocumentCreated,
   onDocumentUpdated,
+  onDocumentWritten,
   onDocumentWrittenWithAuthContext,
 } from "firebase-functions/v2/firestore";
-import {HttpsError, onCall} from "firebase-functions/v2/https";
+import {
+  HttpsError,
+  onCall,
+  type CallableRequest,
+} from "firebase-functions/v2/https";
 import {onSchedule} from "firebase-functions/v2/scheduler";
 import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
 import https from "node:https";
 import {Storage} from "@google-cloud/storage";
+import {
+  type AnalyticsCustomerRecord,
+  type AnalyticsOrderItem,
+  type AnalyticsOrderRecord,
+  type AnalyticsRefundRecord,
+  type AnalyticsEventType,
+  type BigQueryInsert,
+  buildEventId,
+  stringifyItems,
+} from "./analytics-models.js";
+import {
+  isBigQueryStreamingEnabled,
+  streamAnalyticsRow,
+} from "./bigquery-streaming.js";
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -19,6 +38,8 @@ const BACKUP_BUCKET = process.env.BACKUP_BUCKET;
 const ASIA_BANGKOK_OFFSET_MINUTES = 7 * 60;
 const AGGREGATE_COLLECTION_HOURLY = "analytics_hourly";
 const AGGREGATE_COLLECTION_DAILY = "analytics_daily";
+const ANALYTICS_SCHEMA_VERSION = 1;
+const PRIVACY_LOG_COLLECTION = "privacyOpsLogs";
 
 const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY;
 const SENDGRID_FROM_EMAIL =
@@ -123,6 +144,559 @@ function extractChangeSummary(
 
   return {changes};
 }
+
+function toIsoString(value: unknown): string | undefined {
+  if (!value) {
+    return undefined;
+  }
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+  if (value instanceof admin.firestore.Timestamp) {
+    return value.toDate().toISOString();
+  }
+  if (typeof value === "string") {
+    return value;
+  }
+  return undefined;
+}
+
+function toNumber(value: unknown): number {
+  const numeric = Number(value ?? 0);
+  if (Number.isNaN(numeric)) {
+    return 0;
+  }
+  return numeric;
+}
+
+function buildAnalyticsEventType(
+  before: Record<string, unknown> | undefined,
+  after: Record<string, unknown> | undefined
+): AnalyticsEventType {
+  if (!before && after) {
+    return "CREATE";
+  }
+  if (before && !after) {
+    return "DELETE";
+  }
+  return "UPDATE";
+}
+
+function extractOrderItems(orderData: Record<string, unknown>): AnalyticsOrderItem[] {
+  const rawItems = orderData.items;
+  if (!Array.isArray(rawItems)) {
+    return [];
+  }
+
+  return rawItems
+    .map((raw) => {
+      if (!raw || typeof raw !== "object") {
+        return null;
+      }
+      const entry = raw as Record<string, unknown>;
+      return {
+        sku: String(entry.sku ?? entry.id ?? ""),
+        name: String(entry.name ?? entry.title ?? ""),
+        quantity: toNumber(entry.quantity),
+        price: toNumber(entry.price ?? entry.unitPrice ?? entry.amount),
+        category: entry.category ? String(entry.category) : undefined,
+      } satisfies AnalyticsOrderItem;
+    })
+    .filter((item) => item !== null)
+    .map((item) => item as AnalyticsOrderItem);
+}
+
+function buildOrderAnalyticsRecord(
+  orderId: string,
+  orderData: Record<string, unknown>,
+  eventType: AnalyticsEventType,
+  eventTimestamp: string
+): AnalyticsOrderRecord {
+  const items = extractOrderItems(orderData);
+  const subtotal = toNumber(orderData.subtotal ?? orderData.total ?? 0);
+  const tax = toNumber(orderData.tax ?? orderData.taxAmount ?? 0);
+  const discount = toNumber(
+    orderData.discount ?? orderData.discountAmount ?? orderData.totalDiscount ?? 0
+  );
+  const tip = toNumber(orderData.tip ?? orderData.tipAmount ?? 0);
+  const total = toNumber(orderData.total ?? orderData.grandTotal ?? subtotal + tax - discount + tip);
+
+  return {
+    event_id: buildEventId("orders", orderId, eventTimestamp),
+    event_type: eventType,
+    event_timestamp: eventTimestamp,
+    order_id: orderId,
+    tenant_id: String(orderData.tenantId ?? ""),
+    store_id: orderData.storeId ? String(orderData.storeId) : undefined,
+    customer_id: orderData.customerId ? String(orderData.customerId) : undefined,
+    status: orderData.status ? String(orderData.status) : undefined,
+    payment_status: orderData.paymentStatus
+      ? String(orderData.paymentStatus)
+      : undefined,
+    payment_method: orderData.paymentMethod
+      ? String(orderData.paymentMethod)
+      : undefined,
+    subtotal,
+    tax,
+    discount,
+    tip,
+    total,
+    currency: orderData.currency ? String(orderData.currency) : undefined,
+    order_created_at: toIsoString(orderData.createdAt),
+    order_updated_at: toIsoString(orderData.updatedAt),
+    order_closed_at: toIsoString(orderData.closedAt ?? orderData.completedAt),
+    loyalty_points_awarded: orderData.loyaltyPointsAwarded
+      ? toNumber(orderData.loyaltyPointsAwarded)
+      : undefined,
+    items_json: stringifyItems(items),
+  } satisfies AnalyticsOrderRecord;
+}
+
+function buildCustomerAnalyticsRecord(
+  customerId: string,
+  customerData: Record<string, unknown>,
+  eventType: AnalyticsEventType,
+  eventTimestamp: string
+): AnalyticsCustomerRecord {
+  return {
+    event_id: buildEventId("customers", customerId, eventTimestamp),
+    event_type: eventType,
+    event_timestamp: eventTimestamp,
+    customer_id: customerId,
+    tenant_id: String(customerData.tenantId ?? ""),
+    email: customerData.email ? String(customerData.email) : undefined,
+    phone_number: customerData.phoneNumber
+      ? String(customerData.phoneNumber)
+      : undefined,
+    loyalty_tier: customerData.tier ? String(customerData.tier) : undefined,
+    points_balance: customerData.loyaltyPoints
+      ? toNumber(customerData.loyaltyPoints)
+      : undefined,
+    lifetime_value: customerData.lifetimeSpend
+      ? toNumber(customerData.lifetimeSpend)
+      : undefined,
+    created_at: toIsoString(customerData.createdAt),
+    updated_at: toIsoString(customerData.updatedAt),
+  } satisfies AnalyticsCustomerRecord;
+}
+
+function buildRefundAnalyticsRecord(
+  refundId: string,
+  refundData: Record<string, unknown>,
+  eventType: AnalyticsEventType,
+  eventTimestamp: string
+): AnalyticsRefundRecord {
+  return {
+    event_id: buildEventId("refunds", refundId, eventTimestamp),
+    event_type: eventType,
+    event_timestamp: eventTimestamp,
+    refund_id: refundId,
+    order_id: refundData.originalOrderId
+      ? String(refundData.originalOrderId)
+      : undefined,
+    tenant_id: String(refundData.tenantId ?? ""),
+    amount: toNumber(refundData.totalRefundAmount ?? refundData.amount ?? 0),
+    reason: refundData.reason ? String(refundData.reason) : undefined,
+    status: refundData.status ? String(refundData.status) : undefined,
+    processed_at: toIsoString(refundData.processedAt ?? refundData.createdAt),
+  } satisfies AnalyticsRefundRecord;
+}
+
+async function streamOrderAnalytics(
+  orderId: string,
+  orderData: Record<string, unknown>,
+  eventType: AnalyticsEventType
+) {
+  const tenantId = orderData.tenantId;
+  if (!tenantId) {
+    logger.debug("Skipping order analytics streaming for missing tenant", {orderId});
+    return;
+  }
+
+  const eventTimestamp = new Date().toISOString();
+  const payload = buildOrderAnalyticsRecord(orderId, orderData, eventType, eventTimestamp);
+  const insert: BigQueryInsert<AnalyticsOrderRecord> = {
+    metadata: {
+      source: "firestore.orders",
+      schema_version: ANALYTICS_SCHEMA_VERSION,
+    },
+    payload,
+  };
+
+  await streamAnalyticsRow("orders", insert);
+}
+
+async function streamCustomerAnalytics(
+  customerId: string,
+  customerData: Record<string, unknown>,
+  eventType: AnalyticsEventType
+) {
+  const tenantId = customerData.tenantId;
+  if (!tenantId) {
+    logger.debug("Skipping customer analytics streaming for missing tenant", {
+      customerId,
+    });
+    return;
+  }
+
+  const eventTimestamp = new Date().toISOString();
+  const payload = buildCustomerAnalyticsRecord(
+    customerId,
+    customerData,
+    eventType,
+    eventTimestamp
+  );
+  const insert: BigQueryInsert<AnalyticsCustomerRecord> = {
+    metadata: {
+      source: "firestore.customers",
+      schema_version: ANALYTICS_SCHEMA_VERSION,
+    },
+    payload,
+  };
+
+  await streamAnalyticsRow("customers", insert);
+}
+
+async function streamRefundAnalytics(
+  refundId: string,
+  refundData: Record<string, unknown>,
+  eventType: AnalyticsEventType
+) {
+  const tenantId = refundData.tenantId;
+  if (!tenantId) {
+    logger.debug("Skipping refund analytics streaming for missing tenant", {refundId});
+    return;
+  }
+
+  const eventTimestamp = new Date().toISOString();
+  const payload = buildRefundAnalyticsRecord(
+    refundId,
+    refundData,
+    eventType,
+    eventTimestamp
+  );
+  const insert: BigQueryInsert<AnalyticsRefundRecord> = {
+    metadata: {
+      source: "firestore.refunds",
+      schema_version: ANALYTICS_SCHEMA_VERSION,
+    },
+    payload,
+  };
+
+  await streamAnalyticsRow("refunds", insert);
+}
+
+type CallableAuthContext = CallableRequest<unknown>["auth"];
+
+function isAdminAuth(auth: CallableAuthContext | undefined): boolean {
+  if (!auth?.token) {
+    return false;
+  }
+  const token = auth.token as Record<string, unknown>;
+  if (token.admin === true) {
+    return true;
+  }
+  const role = token.role as string | undefined;
+  if (role && role.toLowerCase() === "admin") {
+    return true;
+  }
+  const roles = token.roles as unknown;
+  if (Array.isArray(roles) && roles.map(String).some((r) => r.toLowerCase() === "admin")) {
+    return true;
+  }
+  return false;
+}
+
+function resolveCustomerIdFromRequest(
+  request: CallableRequest<Record<string, unknown>>
+): { customerId: string; isAdmin: boolean; actorId: string } {
+  const auth = request.auth;
+  if (!auth) {
+    throw new HttpsError("unauthenticated", "Authentication is required for this operation.");
+  }
+
+  const isAdmin = isAdminAuth(auth);
+  const token = (auth.token ?? {}) as Record<string, unknown>;
+  const requestedCustomerId =
+    (request.data?.customerId as string | undefined)?.trim() ||
+    (token.customerId as string | undefined) ||
+    auth.uid;
+
+  if (!requestedCustomerId) {
+    throw new HttpsError(
+      "invalid-argument",
+      "A customerId must be provided or linked to the authenticated user."
+    );
+  }
+
+  if (!isAdmin) {
+    const allowed = new Set<string>();
+    if (auth.uid) {
+      allowed.add(auth.uid);
+    }
+    if (typeof token.customerId === "string") {
+      allowed.add(String(token.customerId));
+    }
+    if (!allowed.has(requestedCustomerId)) {
+      throw new HttpsError("permission-denied", "You are not allowed to manage this customer data.");
+    }
+  }
+
+  return {
+    customerId: requestedCustomerId,
+    isAdmin,
+    actorId: auth.uid ?? "unknown",
+  };
+}
+
+function normalizeDocument(
+  data: admin.firestore.DocumentData | undefined
+): Record<string, unknown> | null {
+  if (!data) {
+    return null;
+  }
+  const normalized = normalizeValue(data);
+  return (normalized && typeof normalized === "object"
+    ? (normalized as Record<string, unknown>)
+    : null);
+}
+
+async function collectCustomerDataset(customerId: string) {
+  const [customerDoc, ordersSnap, refundsSnap] = await Promise.all([
+    db.collection("customers").doc(customerId).get(),
+    db.collection("orders").where("customerId", "==", customerId).get(),
+    db.collection("refunds").where("customerId", "==", customerId).get(),
+  ]);
+
+  const customer = normalizeDocument(customerDoc.data() ?? undefined);
+  const orders = ordersSnap.docs.map((doc) => ({
+    id: doc.id,
+    data: normalizeDocument(doc.data() ?? undefined),
+  }));
+  const refunds = refundsSnap.docs.map((doc) => ({
+    id: doc.id,
+    data: normalizeDocument(doc.data() ?? undefined),
+  }));
+
+  return {
+    customerId,
+    generatedAt: new Date().toISOString(),
+    customer,
+    orders,
+    refunds,
+  };
+}
+
+async function anonymizeCollection(
+  collection: string,
+  customerId: string,
+  updates: Record<string, unknown>
+): Promise<number> {
+  const snapshot = await db.collection(collection).where("customerId", "==", customerId).get();
+  let processed = 0;
+  for (const doc of snapshot.docs) {
+    try {
+      await doc.ref.update(updates);
+      processed += 1;
+    } catch (error) {
+      logger.error("Failed to anonymize document", {
+        collection,
+        docId: doc.id,
+        error,
+      });
+    }
+  }
+  return processed;
+}
+
+async function logPrivacyAction(
+  action: string,
+  actorId: string,
+  customerId: string,
+  payload: Record<string, unknown>
+) {
+  try {
+    await db.collection(PRIVACY_LOG_COLLECTION).add({
+      action,
+      actorId,
+      customerId,
+      payload,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+  } catch (error) {
+    logger.error("Failed to persist privacy action log", {
+      action,
+      actorId,
+      customerId,
+      error,
+    });
+  }
+}
+
+async function performCustomerDeletion(customerId: string) {
+  const anonymizedAt = new Date().toISOString();
+  const baseAnonymisationUpdates: Record<string, unknown> = {
+    customerId: null,
+    customer: null,
+    customerName: "Deleted Customer",
+    customerEmail: null,
+    customerPhone: null,
+    customerNotes: null,
+    customerAddress: null,
+    privacyDeletedAt: anonymizedAt,
+  };
+
+  const [ordersUpdated, refundsUpdated] = await Promise.all([
+    anonymizeCollection("orders", customerId, baseAnonymisationUpdates),
+    anonymizeCollection("refunds", customerId, {
+      ...baseAnonymisationUpdates,
+      refundRecipient: null,
+      recipientEmail: null,
+    }),
+  ]);
+
+  const customerRef = db.collection("customers").doc(customerId);
+  const customerDoc = await customerRef.get();
+  let customerDeleted = false;
+  if (customerDoc.exists) {
+    await customerRef.delete();
+    customerDeleted = true;
+  }
+
+  return {
+    customerDeleted,
+    ordersUpdated,
+    refundsUpdated,
+    anonymizedAt,
+  };
+}
+
+async function backfillCollectionToBigQuery(kind: "orders" | "customers" | "refunds") {
+  if (!isBigQueryStreamingEnabled()) {
+    logger.info("BigQuery streaming disabled. Skipping backfill.", {kind});
+    return 0;
+  }
+
+  const snapshot = await db.collection(kind).get();
+  let processed = 0;
+  for (const doc of snapshot.docs) {
+    const data = doc.data() as Record<string, unknown>;
+    try {
+      if (kind === "orders") {
+        await streamOrderAnalytics(doc.id, data, "UPDATE");
+      } else if (kind === "customers") {
+        await streamCustomerAnalytics(doc.id, data, "UPDATE");
+      } else {
+        await streamRefundAnalytics(doc.id, data, "UPDATE");
+      }
+      processed += 1;
+    } catch (error) {
+      logger.error("Failed to backfill document to BigQuery", {
+        kind,
+        docId: doc.id,
+        error,
+      });
+    }
+  }
+
+  return processed;
+}
+
+export const streamOrdersToBigQuery = onDocumentWritten("orders/{orderId}",
+  async (event) => {
+    if (!isBigQueryStreamingEnabled()) {
+      return;
+    }
+
+    const change = event.data;
+    if (!change) {
+      return;
+    }
+
+    const before = change.before?.data() as Record<string, unknown> | undefined;
+    const after = change.after?.data() as Record<string, unknown> | undefined;
+    const eventType = buildAnalyticsEventType(before, after);
+    const source = eventType === "DELETE" ? before : after;
+
+    if (!source) {
+      return;
+    }
+
+    try {
+      await streamOrderAnalytics(event.params.orderId, source, eventType);
+    } catch (error) {
+      logger.error("Order BigQuery streaming failed", {
+        orderId: event.params.orderId,
+        eventType,
+        error,
+      });
+      throw error;
+    }
+  });
+
+export const streamCustomersToBigQuery = onDocumentWritten("customers/{customerId}",
+  async (event) => {
+    if (!isBigQueryStreamingEnabled()) {
+      return;
+    }
+
+    const change = event.data;
+    if (!change) {
+      return;
+    }
+
+    const before = change.before?.data() as Record<string, unknown> | undefined;
+    const after = change.after?.data() as Record<string, unknown> | undefined;
+    const eventType = buildAnalyticsEventType(before, after);
+    const source = eventType === "DELETE" ? before : after;
+
+    if (!source) {
+      return;
+    }
+
+    try {
+      await streamCustomerAnalytics(event.params.customerId, source, eventType);
+    } catch (error) {
+      logger.error("Customer BigQuery streaming failed", {
+        customerId: event.params.customerId,
+        eventType,
+        error,
+      });
+      throw error;
+    }
+  });
+
+export const streamRefundsToBigQuery = onDocumentWritten("refunds/{refundId}",
+  async (event) => {
+    if (!isBigQueryStreamingEnabled()) {
+      return;
+    }
+
+    const change = event.data;
+    if (!change) {
+      return;
+    }
+
+    const before = change.before?.data() as Record<string, unknown> | undefined;
+    const after = change.after?.data() as Record<string, unknown> | undefined;
+    const eventType = buildAnalyticsEventType(before, after);
+    const source = eventType === "DELETE" ? before : after;
+
+    if (!source) {
+      return;
+    }
+
+    try {
+      await streamRefundAnalytics(event.params.refundId, source, eventType);
+    } catch (error) {
+      logger.error("Refund BigQuery streaming failed", {
+        refundId: event.params.refundId,
+        eventType,
+        error,
+      });
+      throw error;
+    }
+  });
 
 type AggregationMetrics = {
   orderCount: number;
@@ -1067,4 +1641,106 @@ export const sendReceiptEmail = onCall(async (request) => {
 
   logger.log(`Receipt email sent to ${email} for order ${orderIdentifier}.`);
   return {success: true};
+});
+
+export const exportMyData = onCall(async (request) => {
+  const {customerId, isAdmin, actorId} = resolveCustomerIdFromRequest(
+    request as CallableRequest<Record<string, unknown>>
+  );
+
+  const dataset = await collectCustomerDataset(customerId);
+  await logPrivacyAction("EXPORT", actorId, customerId, {
+    isAdmin,
+    orderCount: dataset.orders.length,
+    refundCount: dataset.refunds.length,
+    hasProfile: Boolean(dataset.customer),
+  });
+
+  return dataset;
+});
+
+export const deleteMyData = onCall(async (request) => {
+  const {customerId, isAdmin, actorId} = resolveCustomerIdFromRequest(
+    request as CallableRequest<Record<string, unknown>>
+  );
+
+  const result = await performCustomerDeletion(customerId);
+  await logPrivacyAction("DELETE", actorId, customerId, {
+    isAdmin,
+    ...result,
+  });
+
+  return {
+    success: true,
+    customerId,
+    ...result,
+  };
+});
+
+export const adminToolkit = onCall(async (request) => {
+  const auth = request.auth;
+  if (!auth || !isAdminAuth(auth)) {
+    throw new HttpsError(
+      "permission-denied",
+      "Admin privileges are required to use the admin toolkit."
+    );
+  }
+
+  const action = (request.data?.action as string | undefined)?.trim();
+  if (!action) {
+    throw new HttpsError("invalid-argument", "An admin action must be specified.");
+  }
+
+  switch (action) {
+    case "exportCustomerData": {
+      const customerId = (request.data?.customerId as string | undefined)?.trim();
+      if (!customerId) {
+        throw new HttpsError(
+          "invalid-argument",
+          "customerId is required for exportCustomerData action."
+        );
+      }
+      const dataset = await collectCustomerDataset(customerId);
+      await logPrivacyAction("ADMIN_EXPORT", auth.uid ?? "unknown", customerId, {
+        orderCount: dataset.orders.length,
+        refundCount: dataset.refunds.length,
+      });
+      return dataset;
+    }
+    case "deleteCustomerData": {
+      const customerId = (request.data?.customerId as string | undefined)?.trim();
+      if (!customerId) {
+        throw new HttpsError(
+          "invalid-argument",
+          "customerId is required for deleteCustomerData action."
+        );
+      }
+      const result = await performCustomerDeletion(customerId);
+      await logPrivacyAction("ADMIN_DELETE", auth.uid ?? "unknown", customerId, result);
+      return {
+        success: true,
+        customerId,
+        ...result,
+      };
+    }
+    case "backfillAnalytics": {
+      const collection =
+        ((request.data?.collection as string | undefined)?.trim() as
+          | "orders"
+          | "customers"
+          | "refunds"
+          | undefined) ?? "orders";
+      const processed = await backfillCollectionToBigQuery(collection);
+      return {
+        success: true,
+        collection,
+        processed,
+      };
+    }
+    default:
+      throw new HttpsError(
+        "invalid-argument",
+        `Unsupported admin toolkit action: ${action}`
+      );
+  }
 });
