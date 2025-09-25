@@ -1,10 +1,13 @@
 // lib/pin_login_page.dart
 
 import 'package:flutter/material.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import 'auth_service.dart';
+import 'widgets/language_picker_button.dart';
+
 class PinLoginPage extends StatefulWidget {
   const PinLoginPage({super.key});
 
@@ -32,7 +35,7 @@ class _PinLoginPageState extends State<PinLoginPage> {
     }
   }
 
-  void _submitPin() async {
+  Future<void> _submitPin() async {
     if (_pin.length != 4) return;
 
     setState(() {
@@ -44,35 +47,43 @@ class _PinLoginPageState extends State<PinLoginPage> {
 
     if (success) {
       if (mounted) context.go('/order-type-selection');
-    } else {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          // <-- FIXED: showSnackBar
-          const SnackBar(
-            // <-- FIXED: SnackBar
-            content: Text('Invalid PIN. Please try again.'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-      setState(() {
-        _pin = '';
-        _isLoading = false;
-      });
+      return;
     }
-  } // <-- FIXED: Added missing '}' here
+
+    if (!mounted) {
+      return;
+    }
+
+    final l10n = AppLocalizations.of(context)!;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(l10n.pinLoginInvalidPin),
+        backgroundColor: Colors.red,
+      ),
+    );
+    setState(() {
+      _pin = '';
+      _isLoading = false;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Enter PIN')),
+      appBar: AppBar(
+        title: Text(l10n.pinLoginTitle),
+        actions: const [LanguagePickerButton()],
+      ),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Text(
-              'Please Enter Your 4-Digit PIN',
-              style: TextStyle(fontSize: 18),
+            Text(
+              l10n.pinLoginInstructions,
+              style: const TextStyle(fontSize: 18),
+              textAlign: TextAlign.center,
             ),
             const SizedBox(height: 20),
             Row(
@@ -125,12 +136,10 @@ class _PinLoginPageState extends State<PinLoginPage> {
               width: 300,
               height: 50,
               child: ElevatedButton(
-                onPressed: (_pin.length == 4 && !_isLoading)
-                    ? _submitPin
-                    : null,
+                onPressed: (_pin.length == 4 && !_isLoading) ? _submitPin : null,
                 child: _isLoading
                     ? const CircularProgressIndicator()
-                    : const Text('Login'),
+                    : Text(l10n.pinLoginLoginButton),
               ),
             ),
           ],

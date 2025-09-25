@@ -2,9 +2,14 @@
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:provider/provider.dart';
 import 'package:restaurant_models/restaurant_models.dart';
 
 import 'add_purchase_order_page.dart'; // <-- 1. Add this import
+import 'currency_provider.dart';
+import 'locale_provider.dart';
+import 'localization/localization_extensions.dart';
 class IngredientManagementPage extends StatefulWidget {
   const IngredientManagementPage({super.key});
 
@@ -30,6 +35,7 @@ class _IngredientManagementPageState extends State<IngredientManagementPage> {
 
   void _showIngredientDialog({Ingredient? ingredient}) {
     final isNew = ingredient == null;
+    final l10n = AppLocalizations.of(context)!;
     final nameController = TextEditingController(text: ingredient?.name);
     final unitController = TextEditingController(text: ingredient?.unit);
     final stockController = TextEditingController(
@@ -47,7 +53,11 @@ class _IngredientManagementPageState extends State<IngredientManagementPage> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: Text(isNew ? 'เพิ่มวัตถุดิบใหม่' : 'แก้ไขวัตถุดิบ'),
+          title: Text(
+            isNew
+                ? l10n.ingredientDialogCreateTitle
+                : l10n.ingredientDialogEditTitle,
+          ),
           content: Form(
             key: formKey,
             child: SingleChildScrollView(
@@ -56,52 +66,60 @@ class _IngredientManagementPageState extends State<IngredientManagementPage> {
                 children: [
                   TextFormField(
                     controller: nameController,
-                    decoration: const InputDecoration(
-                      labelText: 'ชื่อวัตถุดิบ',
+                    decoration: InputDecoration(
+                      labelText: l10n.ingredientFieldNameLabel,
                     ),
                     validator: (value) =>
-                        (value?.isEmpty ?? true) ? 'กรุณากรอกชื่อ' : null,
+                        (value?.isEmpty ?? true)
+                            ? l10n.ingredientFieldNameValidation
+                            : null,
                   ),
                   TextFormField(
                     controller: unitController,
-                    decoration: const InputDecoration(
-                      labelText: 'หน่วยนับ (เช่น kg, g, ชิ้น)',
+                    decoration: InputDecoration(
+                      labelText: l10n.ingredientFieldUnitLabel,
                     ),
                     validator: (value) =>
-                        (value?.isEmpty ?? true) ? 'กรุณากรอกหน่วยนับ' : null,
+                        (value?.isEmpty ?? true)
+                            ? l10n.ingredientFieldUnitValidation
+                            : null,
                   ),
                   TextFormField(
                     controller: stockController,
-                    decoration: const InputDecoration(
-                      labelText: 'จำนวนในสต็อก',
+                    decoration: InputDecoration(
+                      labelText: l10n.ingredientFieldStockLabel,
                     ),
                     keyboardType: const TextInputType.numberWithOptions(
                       decimal: true,
                     ),
                     validator: (value) =>
-                        (value?.isEmpty ?? true) ? 'กรุณากรอกจำนวน' : null,
+                        (value?.isEmpty ?? true)
+                            ? l10n.ingredientFieldStockValidation
+                            : null,
                   ),
                   TextFormField(
                     controller: costController,
-                    decoration: const InputDecoration(
-                      labelText: 'ต้นทุนเฉลี่ยต่อหน่วย (Avg Cost)',
+                    decoration: InputDecoration(
+                      labelText: l10n.ingredientFieldCostLabel,
                     ),
                     keyboardType: const TextInputType.numberWithOptions(
                       decimal: true,
                     ),
                     validator: (value) =>
-                        (value?.isEmpty ?? true) ? 'กรุณากรอกต้นทุน' : null,
+                        (value?.isEmpty ?? true)
+                            ? l10n.ingredientFieldCostValidation
+                            : null,
                   ),
                   TextFormField(
                     controller: thresholdController,
-                    decoration: const InputDecoration(
-                      labelText: 'จุดแจ้งเตือนสต็อกต่ำ',
+                    decoration: InputDecoration(
+                      labelText: l10n.ingredientFieldThresholdLabel,
                     ),
                     keyboardType: const TextInputType.numberWithOptions(
                       decimal: true,
                     ),
                     validator: (value) => (value?.isEmpty ?? true)
-                        ? 'กรุณากรอกจุดแจ้งเตือน'
+                        ? l10n.ingredientFieldThresholdValidation
                         : null,
                   ),
                 ],
@@ -111,7 +129,7 @@ class _IngredientManagementPageState extends State<IngredientManagementPage> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('ยกเลิก'),
+              child: Text(l10n.commonCancel),
             ),
             ElevatedButton(
               onPressed: () {
@@ -136,7 +154,7 @@ class _IngredientManagementPageState extends State<IngredientManagementPage> {
                   Navigator.of(context).pop();
                 }
               },
-              child: const Text('บันทึก'),
+              child: Text(l10n.commonSave),
             ),
           ],
         );
@@ -145,16 +163,17 @@ class _IngredientManagementPageState extends State<IngredientManagementPage> {
   }
 
   void _deleteIngredient(String docId) {
+    final l10n = AppLocalizations.of(context)!;
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text('ยืนยันการลบ'),
-          content: const Text('คุณต้องการลบรายการนี้ใช่หรือไม่?'),
+          title: Text(l10n.ingredientDeleteTitle),
+          content: Text(l10n.ingredientDeleteMessage),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('ยกเลิก'),
+              child: Text(l10n.commonCancel),
             ),
             ElevatedButton(
               onPressed: () {
@@ -162,7 +181,7 @@ class _IngredientManagementPageState extends State<IngredientManagementPage> {
                 Navigator.of(context).pop();
               },
               style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-              child: const Text('ลบ'),
+              child: Text(l10n.commonDelete),
             ),
           ],
         );
@@ -172,14 +191,18 @@ class _IngredientManagementPageState extends State<IngredientManagementPage> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final currencyProvider = context.watch<CurrencyProvider>();
+    final localeProvider = context.watch<LocaleProvider>();
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('จัดการสต็อกวัตถุดิบ'),
+        title: Text(l10n.ingredientPageTitle),
         // --- 2. Add this actions section ---
         actions: [
           IconButton(
             icon: const Icon(Icons.playlist_add_check_circle_outlined),
-            tooltip: 'Add Purchase Order',
+            tooltip: l10n.ingredientAddPurchaseOrderTooltip,
             onPressed: () {
               Navigator.of(context).push(
                 MaterialPageRoute(
@@ -198,10 +221,14 @@ class _IngredientManagementPageState extends State<IngredientManagementPage> {
             return const Center(child: CircularProgressIndicator());
           }
           if (snapshot.hasError) {
-            return Center(child: Text('เกิดข้อผิดพลาด: ${snapshot.error}'));
+            return Center(
+              child: Text(
+                l10n.ingredientListError('${snapshot.error}'),
+              ),
+            );
           }
           if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return const Center(child: Text('ยังไม่มีวัตถุดิบในระบบ'));
+            return Center(child: Text(l10n.ingredientListEmpty));
           }
 
           final ingredients = snapshot.data!.docs;
@@ -213,15 +240,23 @@ class _IngredientManagementPageState extends State<IngredientManagementPage> {
               final ingredient = ingredientDoc.data();
               final isLowStock =
                   ingredient.stockQuantity <= ingredient.lowStockThreshold;
+              final quantityDigits =
+                  ingredient.stockQuantity % 1 == 0 ? 0 : 2;
+              final quantityDisplay = localeProvider.formatNumber(
+                ingredient.stockQuantity,
+                decimalDigits: quantityDigits,
+              );
+              final unitLabel = l10n.localizedUnitLabel(ingredient.unit);
+              final avgCostDisplay = currencyProvider.format(ingredient.cost);
+              final subtitleText =
+                  l10n.ingredientSummary(quantityDisplay, unitLabel, avgCostDisplay);
 
               return Card(
                 color: isLowStock ? Colors.red.withAlpha(25) : null,
                 margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 child: ListTile(
                   title: Text(ingredient.name),
-                  subtitle: Text(
-                    'คงเหลือ: ${ingredient.stockQuantity} ${ingredient.unit} (ต้นทุนเฉลี่ย: ${ingredient.cost.toStringAsFixed(2)})',
-                  ),
+                  subtitle: Text(subtitleText),
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -244,7 +279,7 @@ class _IngredientManagementPageState extends State<IngredientManagementPage> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showIngredientDialog(),
-        tooltip: 'เพิ่มวัตถุดิบใหม่',
+        tooltip: l10n.ingredientFabTooltip,
         child: const Icon(Icons.add),
       ),
     );

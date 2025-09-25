@@ -1,0 +1,69 @@
+{
+  "@@locale": "th",
+  "appTitle": "ระบบ POS ร้านอาหาร",
+  "languagePickerLabel": "ภาษา",
+  "languagePickerSystem": "ตามค่าระบบ",
+  "languageEnglish": "อังกฤษ",
+  "languageThai": "ไทย",
+  "pinLoginTitle": "กรอกรหัส PIN",
+  "pinLoginInstructions": "กรุณากรอกรหัส PIN 4 หลัก",
+  "pinLoginInvalidPin": "รหัส PIN ไม่ถูกต้อง กรุณาลองอีกครั้ง",
+  "pinLoginLoginButton": "เข้าสู่ระบบ",
+  "checkoutCopyLink": "คัดลอกลิงก์",
+  "checkoutCopyLinkSuccess": "คัดลอกลิงก์เรียบร้อยแล้ว",
+  "checkoutAppliedPaymentsTitle": "รายการชำระเงินที่ใช้",
+  "checkoutPaymentUnknownMethod": "ไม่ทราบ",
+  "checkoutPaymentReference": "อ้างอิง: {reference}",
+  "@checkoutPaymentReference": {
+    "placeholders": {
+      "reference": {}
+    }
+  },
+  "ingredientDialogCreateTitle": "เพิ่มวัตถุดิบ",
+  "ingredientDialogEditTitle": "แก้ไขวัตถุดิบ",
+  "ingredientFieldNameLabel": "ชื่อวัตถุดิบ",
+  "ingredientFieldNameValidation": "กรุณากรอกชื่อ",
+  "ingredientFieldUnitLabel": "หน่วยนับ (เช่น กก., กรัม, ชิ้น)",
+  "ingredientFieldUnitValidation": "กรุณากรอกหน่วยนับ",
+  "ingredientFieldStockLabel": "จำนวนคงเหลือ",
+  "ingredientFieldStockValidation": "กรุณากรอกจำนวน",
+  "ingredientFieldCostLabel": "ต้นทุนเฉลี่ยต่อหน่วย",
+  "ingredientFieldCostValidation": "กรุณากรอกต้นทุน",
+  "ingredientFieldThresholdLabel": "จุดเตือนสต็อกต่ำ",
+  "ingredientFieldThresholdValidation": "กรุณากรอกจุดเตือน",
+  "commonCancel": "ยกเลิก",
+  "commonSave": "บันทึก",
+  "commonDelete": "ลบ",
+  "ingredientDeleteTitle": "ยืนยันการลบ",
+  "ingredientDeleteMessage": "คุณต้องการลบรายการนี้หรือไม่",
+  "ingredientPageTitle": "จัดการสต็อกวัตถุดิบ",
+  "ingredientAddPurchaseOrderTooltip": "สร้างใบสั่งซื้อ",
+  "ingredientListError": "เกิดข้อผิดพลาด: {message}",
+  "@ingredientListError": {
+    "placeholders": {
+      "message": {}
+    }
+  },
+  "ingredientListEmpty": "ยังไม่มีวัตถุดิบในระบบ",
+  "ingredientSummary": "{quantity} {unit} (ต้นทุนเฉลี่ย: {avgCost})",
+  "@ingredientSummary": {
+    "placeholders": {
+      "quantity": {},
+      "unit": {},
+      "avgCost": {}
+    }
+  },
+  "ingredientFabTooltip": "เพิ่มวัตถุดิบ",
+  "unitKilogram": "กก.",
+  "unitGram": "กรัม",
+  "unitLiter": "ลิตร",
+  "unitMilliliter": "มิลลิลิตร",
+  "unitPiece": "ชิ้น",
+  "valueWithUnit": "{value} {unit}",
+  "@valueWithUnit": {
+    "placeholders": {
+      "value": {},
+      "unit": {}
+    }
+  }
+}

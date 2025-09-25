@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
@@ -28,8 +29,35 @@ class CurrencyProvider with ChangeNotifier {
   Map<String, double> get quotedRates =>
       Map.unmodifiable(_rates.map((key, value) => MapEntry(key.toUpperCase(), value)));
 
-  NumberFormat get currencyFormatter =>
-      NumberFormat.simpleCurrency(name: displayCurrency);
+  String? _localeName;
+
+  NumberFormat get currencyFormatter => NumberFormat.simpleCurrency(
+        name: displayCurrency,
+        locale: _effectiveLocaleName,
+      );
+
+  void updateLocale(Locale? locale) {
+    final nextLocale =
+        locale != null ? Intl.canonicalizedLocale(locale.toLanguageTag()) : null;
+    if (_localeName == nextLocale) {
+      return;
+    }
+    _localeName = nextLocale;
+    notifyListeners();
+  }
+
+  NumberFormat currencyFormatterFor(String currency) {
+    return NumberFormat.simpleCurrency(
+      name: currency.toUpperCase(),
+      locale: _effectiveLocaleName,
+    );
+  }
+
+  String format(double amount, {String? currency}) {
+    final formatter =
+        currency != null ? currencyFormatterFor(currency) : currencyFormatter;
+    return formatter.format(amount);
+  }
 
   Future<void> applyStore(Store? store) async {
     final newStoreId = store?.id;
@@ -105,8 +133,8 @@ class CurrencyProvider with ChangeNotifier {
       fromCurrency: baseCurrency,
       toCurrency: targetCurrency ?? displayCurrency,
     );
-    final formatter = NumberFormat.simpleCurrency(
-      name: (targetCurrency ?? displayCurrency).toUpperCase(),
+    final formatter = currencyFormatterFor(
+      (targetCurrency ?? displayCurrency).toUpperCase(),
     );
     return formatter.format(converted);
   }
@@ -148,4 +176,7 @@ class CurrencyProvider with ChangeNotifier {
     _subscription?.cancel();
     super.dispose();
   }
+
+  String get _effectiveLocaleName =>
+      _localeName ?? Intl.getCurrentLocale();
 }

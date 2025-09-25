@@ -6,13 +6,14 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:restaurant_models/restaurant_models.dart';
 
 import 'currency_provider.dart';
+import 'locale_provider.dart';
 import 'services/house_account_service.dart';
 import 'services/payment_gateway_service.dart';
 import 'services/print_spooler_service.dart';
@@ -381,6 +382,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
   }
 
   Widget _buildDigitalReceiptCard() {
+    final l10n = AppLocalizations.of(context)!;
     final labelStyle =
         Theme.of(
           context,
@@ -532,11 +534,13 @@ class _CheckoutPageState extends State<CheckoutPage> {
                     );
                     if (!mounted) return;
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('คัดลอกลิงก์เรียบร้อยแล้ว')),
+                      SnackBar(
+                        content: Text(l10n.checkoutCopyLinkSuccess),
+                      ),
                     );
                   },
                   icon: const Icon(Icons.copy_all_outlined),
-                  label: const Text('คัดลอกลิงก์'),
+                  label: Text(l10n.checkoutCopyLink),
                 ),
               ),
             ],
@@ -551,6 +555,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
       return const SizedBox.shrink();
     }
 
+    final l10n = AppLocalizations.of(context)!;
     final currencyProvider = context.watch<CurrencyProvider>();
 
     return Card(
@@ -560,30 +565,32 @@ class _CheckoutPageState extends State<CheckoutPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Applied Payments',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            Text(
+              l10n.checkoutAppliedPaymentsTitle,
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
             ),
             const SizedBox(height: 8),
             ...widget.payments.map((payment) {
-              final method = payment['method']?.toString() ?? 'Unknown';
+              final method = payment['method']?.toString();
+              final methodDisplay =
+                  (method == null || method.isEmpty)
+                      ? l10n.checkoutPaymentUnknownMethod
+                      : method;
               final amount = (payment['amount'] as num?)?.toDouble() ?? 0.0;
               final baseAmount =
                   (payment['baseAmount'] as num?)?.toDouble();
               final currencyCode =
                   (payment['currency'] as String?)?.toUpperCase();
-              final formatter = currencyCode != null
-                  ? NumberFormat.simpleCurrency(name: currencyCode)
-                  : currencyProvider.currencyFormatter;
-              final amountDisplay = formatter.format(amount);
+              final amountDisplay =
+                  currencyProvider.format(amount, currency: currencyCode);
               String? baseAmountDisplay;
               if (baseAmount != null &&
                   (currencyCode == null ||
                       currencyCode != currencyProvider.baseCurrency)) {
-                final baseFormatter = NumberFormat.simpleCurrency(
-                  name: currencyProvider.baseCurrency,
+                baseAmountDisplay = currencyProvider.format(
+                  baseAmount,
+                  currency: currencyProvider.baseCurrency,
                 );
-                baseAmountDisplay = baseFormatter.format(baseAmount);
               }
               final reference = payment['reference']?.toString();
               return Padding(
@@ -598,7 +605,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            method,
+                            methodDisplay,
                             style: const TextStyle(fontWeight: FontWeight.w600),
                           ),
                           Text(
@@ -619,7 +626,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
                             ),
                           if (reference != null && reference.isNotEmpty)
                             Text(
-                              'Ref: $reference',
+                              l10n.checkoutPaymentReference(reference),
                               style: const TextStyle(
                                 fontSize: 12,
                                 color: Colors.black54,
@@ -1268,6 +1275,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
   Widget _buildPaymentGatewayCard() {
     final paymentService = context.watch<PaymentGatewayService>();
     final currencyProvider = context.watch<CurrencyProvider>();
+    final localeProvider = context.watch<LocaleProvider>();
     final labelStyle =
         Theme.of(
           context,
@@ -1278,7 +1286,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
     final tenderCurrency = currencyProvider.displayCurrency;
     final tenderRate = currencyProvider.quotedRates[tenderCurrency] ?? 1.0;
     final lastSynced = currencyProvider.lastSynced;
-    final rateFormatter = NumberFormat('###,##0.0000');
+    final rateFormatter = localeProvider.decimalFormatter(decimalDigits: 4);
 
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 12),

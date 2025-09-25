@@ -1,0 +1,69 @@
+{
+  "@@locale": "en",
+  "appTitle": "Restaurant POS",
+  "languagePickerLabel": "Language",
+  "languagePickerSystem": "System default",
+  "languageEnglish": "English",
+  "languageThai": "Thai",
+  "pinLoginTitle": "Enter PIN",
+  "pinLoginInstructions": "Please enter your 4-digit PIN",
+  "pinLoginInvalidPin": "Invalid PIN. Please try again.",
+  "pinLoginLoginButton": "Login",
+  "checkoutCopyLink": "Copy link",
+  "checkoutCopyLinkSuccess": "Link copied to clipboard",
+  "checkoutAppliedPaymentsTitle": "Applied Payments",
+  "checkoutPaymentUnknownMethod": "Unknown",
+  "checkoutPaymentReference": "Ref: {reference}",
+  "@checkoutPaymentReference": {
+    "placeholders": {
+      "reference": {}
+    }
+  },
+  "ingredientDialogCreateTitle": "Add ingredient",
+  "ingredientDialogEditTitle": "Edit ingredient",
+  "ingredientFieldNameLabel": "Ingredient name",
+  "ingredientFieldNameValidation": "Please enter a name",
+  "ingredientFieldUnitLabel": "Unit (e.g. kg, g, pcs)",
+  "ingredientFieldUnitValidation": "Please enter a unit",
+  "ingredientFieldStockLabel": "Stock quantity",
+  "ingredientFieldStockValidation": "Please enter a quantity",
+  "ingredientFieldCostLabel": "Average cost per unit",
+  "ingredientFieldCostValidation": "Please enter a cost",
+  "ingredientFieldThresholdLabel": "Low stock threshold",
+  "ingredientFieldThresholdValidation": "Please enter a threshold",
+  "commonCancel": "Cancel",
+  "commonSave": "Save",
+  "commonDelete": "Delete",
+  "ingredientDeleteTitle": "Delete ingredient",
+  "ingredientDeleteMessage": "Are you sure you want to delete this item?",
+  "ingredientPageTitle": "Ingredient inventory",
+  "ingredientAddPurchaseOrderTooltip": "Add purchase order",
+  "ingredientListError": "Error: {message}",
+  "@ingredientListError": {
+    "placeholders": {
+      "message": {}
+    }
+  },
+  "ingredientListEmpty": "No ingredients found",
+  "ingredientSummary": "{quantity} {unit} (Avg. cost: {avgCost})",
+  "@ingredientSummary": {
+    "placeholders": {
+      "quantity": {},
+      "unit": {},
+      "avgCost": {}
+    }
+  },
+  "ingredientFabTooltip": "Add ingredient",
+  "unitKilogram": "kg",
+  "unitGram": "g",
+  "unitLiter": "L",
+  "unitMilliliter": "mL",
+  "unitPiece": "pc",
+  "valueWithUnit": "{value} {unit}",
+  "@valueWithUnit": {
+    "placeholders": {
+      "value": {},
+      "unit": {}
+    }
+  }
+}
