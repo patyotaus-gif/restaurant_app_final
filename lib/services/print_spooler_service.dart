@@ -69,13 +69,14 @@ class PrintSpoolerHealth {
     this.latestAlert,
   });
 
-  const PrintSpoolerHealth.healthy()
-      : isHealthy = true,
-        pendingJobs = 0,
-        retryingJobs = 0,
-        failedJobs = 0,
-        lastUpdated = const DateTime.fromMillisecondsSinceEpoch(0),
-        latestAlert = null;
+  factory PrintSpoolerHealth.healthy() => PrintSpoolerHealth(
+        isHealthy: true,
+        pendingJobs: 0,
+        retryingJobs: 0,
+        failedJobs: 0,
+        lastUpdated: DateTime.fromMillisecondsSinceEpoch(0),
+        latestAlert: null,
+      );
 
   final bool isHealthy;
   final int pendingJobs;
@@ -132,7 +133,7 @@ class PrintSpoolerService extends ChangeNotifier {
   final List<_PrintJob> _failedJobs = <_PrintJob>[];
   final List<PrintSpoolerAlert> _alerts = <PrintSpoolerAlert>[];
   _PrintJob? _activeJob;
-  PrintSpoolerHealth _health = const PrintSpoolerHealth.healthy();
+  PrintSpoolerHealth _health = PrintSpoolerHealth.healthy();
   Timer? _healthTimer;
   Timer? _scheduledTimer;
   bool _isProcessing = false;
