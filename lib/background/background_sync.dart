@@ -1,0 +1,238 @@
+import 'dart:async';
+import 'dart:convert';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter/widgets.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:workmanager/workmanager.dart';
+
+import '../firebase_options.dart';
+import '../services/offline_queue_encryption.dart';
+import '../services/sync_queue_service.dart';
+
+const String backgroundSyncTaskName = 'pos.offline.sync.queue';
+const String _periodicUniqueName = 'pos.offline.sync.periodic';
+const String _oneOffUniqueName = 'pos.offline.sync.oneoff';
+
+bool get _supportsBackgroundSync {
+  if (kIsWeb) {
+    return false;
+  }
+  switch (defaultTargetPlatform) {
+    case TargetPlatform.android:
+    case TargetPlatform.iOS:
+      return true;
+    default:
+      return false;
+  }
+}
+
+@pragma('vm:entry-point')
+void backgroundSyncDispatcher() {
+  Workmanager().executeTask((task, inputData) async {
+    if (task != backgroundSyncTaskName) {
+      return Future.value(true);
+    }
+    try {
+      WidgetsFlutterBinding.ensureInitialized();
+      DartPluginRegistrant.ensureInitialized();
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
+      FirebaseFirestore.instance.settings = const Settings(
+        persistenceEnabled: true,
+        cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
+      );
+      final executor = _BackgroundSyncExecutor(
+        firestore: FirebaseFirestore.instance,
+      );
+      final success = await executor.run();
+      return success;
+    } catch (error, stackTrace) {
+      debugPrint('Background sync failed: $error');
+      debugPrint(stackTrace.toString());
+      return false;
+    }
+  });
+}
+
+class BackgroundSyncManager {
+  BackgroundSyncManager._();
+
+  static final BackgroundSyncManager instance = BackgroundSyncManager._();
+
+  bool _initialised = false;
+  Completer<void>? _initialising;
+
+  Future<void> ensureInitialized() async {
+    if (!_supportsBackgroundSync) {
+      return;
+    }
+    if (_initialised) {
+      return;
+    }
+    if (_initialising != null) {
+      await _initialising!.future;
+      return;
+    }
+    _initialising = Completer<void>();
+    try {
+      await Workmanager().initialize(
+        backgroundSyncDispatcher,
+        isInDebugMode: kDebugMode,
+      );
+      _initialised = true;
+      _initialising!.complete();
+    } catch (error, stackTrace) {
+      debugPrint('Failed to initialise Workmanager: $error');
+      debugPrint(stackTrace.toString());
+      _initialising!.completeError(error, stackTrace);
+      rethrow;
+    } finally {
+      _initialising = null;
+    }
+  }
+
+  Future<void> registerPeriodicSync() async {
+    if (!_supportsBackgroundSync) {
+      return;
+    }
+    await ensureInitialized();
+    await Workmanager().registerPeriodicTask(
+      _periodicUniqueName,
+      backgroundSyncTaskName,
+      frequency: const Duration(minutes: 15),
+      existingWorkPolicy: ExistingWorkPolicy.keep,
+      constraints: const Constraints(
+        networkType: NetworkType.connected,
+      ),
+      backoffPolicy: BackoffPolicy.exponential,
+      backoffPolicyDelay: const Duration(minutes: 5),
+    );
+  }
+
+  Future<void> scheduleImmediateSync({Duration? delay}) async {
+    if (!_supportsBackgroundSync) {
+      return;
+    }
+    await ensureInitialized();
+    await Workmanager().registerOneOffTask(
+      _oneOffUniqueName,
+      backgroundSyncTaskName,
+      initialDelay: delay ?? Duration.zero,
+      constraints: const Constraints(
+        networkType: NetworkType.connected,
+      ),
+      existingWorkPolicy: ExistingWorkPolicy.replace,
+      backoffPolicy: BackoffPolicy.exponential,
+      backoffPolicyDelay: const Duration(minutes: 2),
+    );
+  }
+}
+
+class _BackgroundSyncExecutor {
+  _BackgroundSyncExecutor({
+    required FirebaseFirestore firestore,
+    OfflineQueueEncryption? encryption,
+  })  : _firestore = firestore,
+        _encryption = encryption ?? OfflineQueueEncryption();
+
+  final FirebaseFirestore _firestore;
+  final OfflineQueueEncryption _encryption;
+
+  Future<bool> run() async {
+    final prefs = await SharedPreferences.getInstance();
+    final stored = prefs.getStringList(SyncQueueService.storageKey) ?? <String>[];
+    if (stored.isEmpty) {
+      return true;
+    }
+    final operations = <QueuedOperation>[];
+    bool mutated = false;
+    for (final raw in stored) {
+      try {
+        final decoded = await _encryption.decryptPayload(raw);
+        operations.add(QueuedOperation.fromJson(decoded));
+      } catch (error) {
+        try {
+          final legacy = SharedPreferencesJsonDecoder.tryDecode(raw);
+          if (legacy != null) {
+            operations.add(QueuedOperation.fromJson(legacy));
+            mutated = true;
+            continue;
+          }
+        } catch (_) {
+          // Ignore legacy decode failure.
+        }
+        debugPrint('Dropping corrupted queued operation: $error');
+        mutated = true;
+      }
+    }
+    if (operations.isEmpty) {
+      if (mutated) {
+        await _persistQueue(prefs, const <QueuedOperation>[]);
+      }
+      return true;
+    }
+    final remaining = <QueuedOperation>[];
+    var index = 0;
+    while (index < operations.length) {
+      final operation = operations[index];
+      try {
+        await _executeOperation(operation);
+        index++;
+      } catch (error, stackTrace) {
+        debugPrint(
+          'Background sync failed for ${operation.id}: $error\n$stackTrace',
+        );
+        remaining.addAll(operations.sublist(index));
+        break;
+      }
+    }
+    if (remaining.isEmpty && index == operations.length) {
+      await _persistQueue(prefs, const <QueuedOperation>[]);
+      return true;
+    }
+    await _persistQueue(prefs, remaining);
+    return false;
+  }
+
+  Future<void> _executeOperation(QueuedOperation operation) async {
+    switch (operation.type) {
+      case 'add':
+        final data = operation.toFirestoreData();
+        await _firestore.collection(operation.collectionPath).add(data);
+        return;
+      default:
+        throw UnsupportedError('Unsupported operation: ${operation.type}');
+    }
+  }
+
+  Future<void> _persistQueue(
+    SharedPreferences prefs,
+    List<QueuedOperation> queue,
+  ) async {
+    final encoded = <String>[];
+    for (final op in queue) {
+      final encrypted = await _encryption.encryptPayload(op.toJson());
+      encoded.add(encrypted);
+    }
+    await prefs.setStringList(SyncQueueService.storageKey, encoded);
+  }
+}
+
+class SharedPreferencesJsonDecoder {
+  static Map<String, dynamic>? tryDecode(String raw) {
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is Map<String, dynamic>) {
+        return decoded;
+      }
+    } catch (_) {
+      // Ignore
+    }
+    return null;
+  }
+}

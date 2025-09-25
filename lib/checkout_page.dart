@@ -14,13 +14,13 @@ import 'package:intl/intl.dart';
 import 'currency_provider.dart';
 import 'models/receipt_models.dart';
 import 'services/payment_gateway_service.dart';
-import 'services/printer_drawer_service.dart';
 import 'services/printing_service.dart';
 import 'services/receipt_service.dart';
 import 'services/house_account_service.dart';
 import 'stock_provider.dart';
 import 'store_provider.dart';
 import 'models/house_account_model.dart';
+import 'services/print_spooler_service.dart';
 
 class CheckoutPage extends StatefulWidget {
   final String orderId;
@@ -1465,21 +1465,15 @@ class _CheckoutPageState extends State<CheckoutPage> {
         throw Exception('Store information not available');
       }
 
-      final printerService = context.read<PrinterDrawerService>();
-      await printerService.printReceipt(
+      final spooler = context.read<PrintSpoolerService>();
+      await spooler.enqueueReceipt(
         host: printerIp,
         port: printerPort ?? 9100,
         orderData: orderData,
         storeDetails: StoreReceiptDetails.fromStore(store),
         taxDetails: _buildTaxInvoiceDetails(),
+        openDrawer: _openDrawerAfterPrint,
       );
-
-      if (_openDrawerAfterPrint) {
-        await printerService.openCashDrawer(
-          host: printerIp,
-          port: printerPort ?? 9100,
-        );
-      }
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
