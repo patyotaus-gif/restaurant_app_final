@@ -140,45 +140,66 @@ class _BackofficeSchemaPageState extends State<BackofficeSchemaPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Column(
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final titleSection = Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _activeSchema.title,
+                      style: theme.textTheme.headlineSmall,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      _activeSchema.description,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                );
+                if (_schemas.length <= 1) {
+                  return titleSection;
+                }
+                final dropdown = DropdownButtonFormField<String>(
+                  value: _activeSchema.id,
+                  isExpanded: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Blueprint',
+                  ),
+                  onChanged: _handleSchemaChanged,
+                  items: [
+                    for (final schema in _schemas)
+                      DropdownMenuItem<String>(
+                        value: schema.id,
+                        child: Text(schema.title),
+                      ),
+                  ],
+                );
+                if (constraints.maxWidth < 520) {
+                  return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        _activeSchema.title,
-                        style: theme.textTheme.headlineSmall,
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        _activeSchema.description,
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
+                      titleSection,
+                      const SizedBox(height: 16),
+                      dropdown,
                     ],
-                  ),
-                ),
-                if (_schemas.length > 1)
-                  SizedBox(
-                    width: 220,
-                    child: DropdownButtonFormField<String>(
-                      value: _activeSchema.id,
-                      decoration: const InputDecoration(
-                        labelText: 'Blueprint',
+                  );
+                }
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(child: titleSection),
+                    const SizedBox(width: 16),
+                    Flexible(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 260),
+                        child: dropdown,
                       ),
-                      onChanged: _handleSchemaChanged,
-                      items: [
-                        for (final schema in _schemas)
-                          DropdownMenuItem<String>(
-                            value: schema.id,
-                            child: Text(schema.title),
-                          ),
-                      ],
                     ),
-                  ),
-              ],
+                  ],
+                );
+              },
             ),
             const Divider(height: 32),
             AnimatedSwitcher(
