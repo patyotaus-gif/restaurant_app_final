@@ -249,6 +249,7 @@ class _DynamicFormState extends State<DynamicForm>
         value: field.options.any((option) => option.value == current)
             ? current
             : null,
+        isExpanded: true,
         decoration: InputDecoration(
           labelText: field.label,
           hintText: field.hint,
