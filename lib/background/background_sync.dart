@@ -2,6 +2,7 @@
 
 import 'dart:async';
 import 'dart:convert';
+import 'dart:isolate';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -14,6 +15,7 @@ import 'package:workmanager/workmanager.dart';
 import '../firebase_options.dart';
 import '../services/offline_queue_encryption.dart';
 import '../services/sync_queue_service.dart';
+
 const String backgroundSyncTaskName = 'pos.offline.sync.queue';
 const String _periodicUniqueName = 'pos.offline.sync.periodic';
 const String _oneOffUniqueName = 'pos.offline.sync.oneoff';
@@ -111,9 +113,7 @@ class BackgroundSyncManager {
       backgroundSyncTaskName,
       frequency: const Duration(minutes: 15),
       existingWorkPolicy: ExistingWorkPolicy.keep,
-      constraints: Constraints(
-        networkType: NetworkType.connected,
-      ),
+      constraints: Constraints(networkType: NetworkType.connected),
       backoffPolicy: BackoffPolicy.exponential,
       backoffPolicyDelay: const Duration(minutes: 5),
     );
@@ -128,9 +128,7 @@ class BackgroundSyncManager {
       _oneOffUniqueName,
       backgroundSyncTaskName,
       initialDelay: delay ?? Duration.zero,
-      constraints: Constraints(
-        networkType: NetworkType.connected,
-      ),
+      constraints: Constraints(networkType: NetworkType.connected),
       existingWorkPolicy: ExistingWorkPolicy.replace,
       backoffPolicy: BackoffPolicy.exponential,
       backoffPolicyDelay: const Duration(minutes: 2),
@@ -142,15 +140,16 @@ class _BackgroundSyncExecutor {
   _BackgroundSyncExecutor({
     required FirebaseFirestore firestore,
     OfflineQueueEncryption? encryption,
-  })  : _firestore = firestore,
-        _encryption = encryption ?? OfflineQueueEncryption();
+  }) : _firestore = firestore,
+       _encryption = encryption ?? OfflineQueueEncryption();
 
   final FirebaseFirestore _firestore;
   final OfflineQueueEncryption _encryption;
 
   Future<bool> run() async {
     final prefs = await SharedPreferences.getInstance();
-    final stored = prefs.getStringList(SyncQueueService.storageKey) ?? <String>[];
+    final stored =
+        prefs.getStringList(SyncQueueService.storageKey) ?? <String>[];
     if (stored.isEmpty) {
       return true;
     }
