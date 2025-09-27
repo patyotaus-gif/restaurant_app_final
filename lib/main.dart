@@ -400,7 +400,7 @@ Future<void> main() async {
   }
   PluginRegistry.registerDefaults();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  FirebaseFirestore.instance.settings = const Settings(
+  FirebaseFirestore.instance.settings = Settings(
     persistenceEnabled: true,
     cacheSizeBytes: Settings.cacheSizeUnlimited,
   );
