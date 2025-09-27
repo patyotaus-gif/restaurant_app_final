@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'dart:ui';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
@@ -49,7 +51,7 @@ void backgroundSyncDispatcher() {
       );
       FirebaseFirestore.instance.settings = Settings(
         persistenceEnabled: true,
-        cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
+        cacheSizeBytes: Settings.cacheSizeUnlimited,
       );
       final executor = _BackgroundSyncExecutor(
         firestore: FirebaseFirestore.instance,
