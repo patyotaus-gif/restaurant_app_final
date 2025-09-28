@@ -1,7 +1,10 @@
 // lib/main.dart
 
+import 'dart:ui';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/src/widgets/binding.dart' show DartPluginRegistrant;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -22,7 +25,7 @@ import 'admin/create_purchase_order_page.dart';
 import 'admin/customer_profile_page.dart';
 import 'admin/employee_management_page.dart';
 import 'admin/low_stock_alert_page.dart';
-import 'admin/modifier_management_page.dart'; // <-- ADDED THIS IMPORT
+import 'admin/modifier_management_page.dart';
 import 'admin/plugins/plugin_provider.dart';
 import 'admin/plugins/plugin_registry.dart';
 import 'admin/promotion_management_page.dart';
@@ -83,6 +86,7 @@ import 'takeaway_orders_page.dart';
 import 'theme_provider.dart';
 import 'widgets/ops_debug_overlay.dart';
 import 'widgets/route_permission_guard.dart';
+
 final _router = GoRouter(
   routes: [
     GoRoute(path: '/', builder: (context, state) => const SplashScreen()),
@@ -378,7 +382,7 @@ Locale? _matchSupportedLocale(
   for (final locale in supportedLocales) {
     final countryMatches =
         (locale.countryCode?.isEmpty ?? true) ||
-            locale.countryCode == target.countryCode;
+        locale.countryCode == target.countryCode;
     if (locale.languageCode == target.languageCode && countryMatches) {
       return locale;
     }
@@ -395,15 +399,21 @@ Locale? _matchSupportedLocale(
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  ensureBackgroundPlugins = () {
+    DartPluginRegistrant.ensureInitialized();
+  };
   if (kIsWeb) {
     setPathUrlStrategy();
   }
   PluginRegistry.registerDefaults();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  FirebaseFirestore.instance.settings = Settings(
-    persistenceEnabled: true,
-    cacheSizeBytes: Settings.cacheSizeUnlimited,
-  );
+
+  // Note: the 'settings' setter was removed from newer cloud_firestore versions.
+  // Persistence and cache configuration should be handled using the current API.
+  // By default, persistence is enabled on mobile platforms; if you need to
+  // configure persistence for web or tweak cache size, use the platform-specific
+  // APIs provided by the version of cloud_firestore you depend on.
+
   await BackgroundSyncManager.instance.registerPeriodicSync();
   runApp(const MyApp());
 }
@@ -467,12 +477,20 @@ class MyApp extends StatelessWidget {
           CurrencyProvider
         >(
           create: (ctx) => CurrencyProvider(ctx.read<FxRateService>()),
-          update: (ctx, storeProvider, fxService, localeProvider, currencyProvider) {
-            final provider = currencyProvider ?? CurrencyProvider(fxService);
-            provider.applyStore(storeProvider.activeStore);
-            provider.updateLocale(localeProvider.locale);
-            return provider;
-          },
+          update:
+              (
+                ctx,
+                storeProvider,
+                fxService,
+                localeProvider,
+                currencyProvider,
+              ) {
+                final provider =
+                    currencyProvider ?? CurrencyProvider(fxService);
+                provider.applyStore(storeProvider.activeStore);
+                provider.updateLocale(localeProvider.locale);
+                return provider;
+              },
         ),
         ChangeNotifierProvider(create: (ctx) => ThemeProvider()),
         ChangeNotifierProxyProvider<StoreProvider, StockProvider>(
@@ -517,27 +535,29 @@ class MyApp extends StatelessWidget {
           ExperimentService
         >(
           create: (ctx) => ExperimentService(FirebaseFirestore.instance),
-          update: (
-            ctx,
-            featureFlags,
-            storeProvider,
-            terminalProvider,
-            experimentService,
-          ) {
-            final service = experimentService ??
-                ExperimentService(FirebaseFirestore.instance);
-            service.updateConfiguration(featureFlags.configuration);
-            service.updateEnvironment(
-              featureFlags.environment,
-              featureFlags.releaseChannel,
-            );
-            service.updateContext(
-              tenantId: storeProvider.activeStore?.tenantId,
-              storeId: storeProvider.activeStore?.id,
-              terminalId: terminalProvider.terminalId,
-            );
-            return service;
-          },
+          update:
+              (
+                ctx,
+                featureFlags,
+                storeProvider,
+                terminalProvider,
+                experimentService,
+              ) {
+                final service =
+                    experimentService ??
+                    ExperimentService(FirebaseFirestore.instance);
+                service.updateConfiguration(featureFlags.configuration);
+                service.updateEnvironment(
+                  featureFlags.environment,
+                  featureFlags.releaseChannel,
+                );
+                service.updateContext(
+                  tenantId: storeProvider.activeStore?.tenantId,
+                  storeId: storeProvider.activeStore?.id,
+                  terminalId: terminalProvider.terminalId,
+                );
+                return service;
+              },
         ),
         ChangeNotifierProvider(
           create: (_) => OpsObservabilityService(FirebaseFirestore.instance),
@@ -552,10 +572,8 @@ class MyApp extends StatelessWidget {
                 previous ?? SyncQueueService(FirebaseFirestore.instance);
             service.attachObservability(observability);
             service.attachBackgroundSyncScheduler(
-              ({Duration? delay}) =>
-                  BackgroundSyncManager.instance.scheduleImmediateSync(
-                delay: delay,
-              ),
+              ({Duration? delay}) => BackgroundSyncManager.instance
+                  .scheduleImmediateSync(delay: delay),
             );
             return service;
           },
@@ -585,27 +603,29 @@ class MyApp extends StatelessWidget {
             notificationsRepository: ctx.read<NotificationsRepository>(),
             observability: ctx.read<OpsObservabilityService>(),
           ),
-          update: (
-            ctx,
-            storeProvider,
-            notificationsRepository,
-            observability,
-            previousService,
-          ) {
-            final service = previousService ??
-                PrintSpoolerService(
-                  printerService: ctx.read<PrinterDrawerService>(),
-                  notificationsRepository: notificationsRepository,
-                  observability: observability,
+          update:
+              (
+                ctx,
+                storeProvider,
+                notificationsRepository,
+                observability,
+                previousService,
+              ) {
+                final service =
+                    previousService ??
+                    PrintSpoolerService(
+                      printerService: ctx.read<PrinterDrawerService>(),
+                      notificationsRepository: notificationsRepository,
+                      observability: observability,
+                    );
+                service.updateNotificationsRepository(notificationsRepository);
+                service.attachObservability(observability);
+                service.updateContext(
+                  tenantId: storeProvider.activeStore?.tenantId,
+                  storeId: storeProvider.activeStore?.id,
                 );
-            service.updateNotificationsRepository(notificationsRepository);
-            service.attachObservability(observability);
-            service.updateContext(
-              tenantId: storeProvider.activeStore?.tenantId,
-              storeId: storeProvider.activeStore?.id,
-            );
-            return service;
-          },
+                return service;
+              },
         ),
         ChangeNotifierProxyProvider2<
           StockProvider,
@@ -674,8 +694,9 @@ class MyApp extends StatelessWidget {
                 systemLocales: locales,
                 supportedLocales: supportedLocales,
               );
-              Intl.defaultLocale =
-                  Intl.canonicalizedLocale(resolved.toLanguageTag());
+              Intl.defaultLocale = Intl.canonicalizedLocale(
+                resolved.toLanguageTag(),
+              );
               return resolved;
             },
             builder: (context, child) {
