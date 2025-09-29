@@ -11,7 +11,7 @@ import {
   type CallableRequest,
 } from "firebase-functions/v2/https";
 import {onSchedule} from "firebase-functions/v2/scheduler";
-import {taskQueue} from "firebase-functions/v2/tasks";
+import * as tasks from "firebase-functions/v2/tasks";
 import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
 import https from "node:https";
@@ -103,7 +103,7 @@ type MasterDataBackfillTaskPayload = {
   batchSize?: number;
 };
 
-const masterDataBackfillQueue = taskQueue<MasterDataBackfillTaskPayload>({
+const masterDataBackfillQueue = (tasks as any).taskQueue({
   rateLimits: {
     maxConcurrentDispatches: 1,
   },
@@ -111,7 +111,7 @@ const masterDataBackfillQueue = taskQueue<MasterDataBackfillTaskPayload>({
     maxAttempts: 5,
   },
   id: "masterDataBackfill",
-});
+}) as any;
 
 const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY;
 const SENDGRID_FROM_EMAIL =
