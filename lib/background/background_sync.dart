@@ -112,8 +112,10 @@ class BackgroundSyncManager {
       frequency: const Duration(minutes: 15),
       existingWorkPolicy: ExistingWorkPolicy.keep,
       constraints: Constraints(networkType: NetworkType.connected),
-      backoffPolicy: BackoffPolicy.exponential,
-      backoffPolicyDelay: const Duration(minutes: 5),
+      backoffPolicy: const BackoffPolicyConfig(
+        policy: BackoffPolicy.exponential,
+        delay: Duration(minutes: 5),
+      ),
     );
   }
 
@@ -128,8 +130,10 @@ class BackgroundSyncManager {
       initialDelay: delay ?? Duration.zero,
       constraints: Constraints(networkType: NetworkType.connected),
       existingWorkPolicy: ExistingWorkPolicy.replace,
-      backoffPolicy: BackoffPolicy.exponential,
-      backoffPolicyDelay: const Duration(minutes: 2),
+      backoffPolicy: const BackoffPolicyConfig(
+        policy: BackoffPolicy.exponential,
+        delay: Duration(minutes: 2),
+      ),
     );
   }
 }
