@@ -12,6 +12,12 @@ service cloud.firestore {
         request.auth.token.tenantId == tenantId;
     }
 
+    function orderTenantMatches(orderId) {
+      return orderId is string && orderId != '' &&
+        exists(/databases/$(database)/documents/orders/$(orderId)) &&
+        tenantMatches(get(/databases/$(database)/documents/orders/$(orderId)).data.tenantId);
+    }
+
     match /auditLogs/{logId} {
       allow read: if tenantMatches(resource.data.tenantId);
       allow write: if false;
@@ -19,6 +25,18 @@ service cloud.firestore {
 
     match /featureFlags/{tenantId} {
       allow read, write: if tenantMatches(tenantId);
+    }
+
+    match /opsLogs/{logId} {
+      allow create: if request.auth != null;
+      allow read, update, delete: if false;
+    }
+
+    match /refunds/{refundId} {
+      allow read: if hasTenant() && orderTenantMatches(resource.data.originalOrderId);
+      allow create: if hasTenant() &&
+        orderTenantMatches(request.resource.data.originalOrderId);
+      allow update, delete: if false;
     }
 
     match /{document=**} {

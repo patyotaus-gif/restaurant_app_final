@@ -1,15 +1,18 @@
 // lib/main.dart
 
+import 'dart:async';
 import 'dart:ui';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_remote_config/firebase_remote_config.dart';
 import 'package:flutter/src/widgets/binding.dart' show DartPluginRegistrant;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
 import 'package:restaurant_models/restaurant_models.dart';
 import 'package:url_strategy/url_strategy.dart';
@@ -66,6 +69,7 @@ import 'product_management_page.dart';
 import 'retail_pos_page.dart';
 import 'role_selection_page.dart';
 import 'security/permission_policy.dart';
+import 'services/app_availability_service.dart';
 import 'services/audit_log_service.dart';
 import 'services/client_cache_service.dart';
 import 'services/experiment_service.dart';
@@ -84,6 +88,7 @@ import 'stock_provider.dart';
 import 'store_provider.dart';
 import 'takeaway_orders_page.dart';
 import 'theme_provider.dart';
+import 'widgets/app_blocked_screen.dart';
 import 'widgets/ops_debug_overlay.dart';
 import 'widgets/route_permission_guard.dart';
 
@@ -414,17 +419,81 @@ Future<void> main() async {
   // configure persistence for web or tweak cache size, use the platform-specific
   // APIs provided by the version of cloud_firestore you depend on.
 
+  final observability = OpsObservabilityService(FirebaseFirestore.instance);
+  FlutterError.onError = (details) {
+    FlutterError.presentError(details);
+    unawaited(
+      observability.log(
+        'Unhandled Flutter framework error',
+        level: OpsLogLevel.error,
+        error: details.exception,
+        stackTrace: details.stack,
+        context: const {'phase': 'framework'},
+      ),
+    );
+  };
+
+  PlatformDispatcher.instance.onError = (error, stackTrace) {
+    unawaited(
+      observability.log(
+        'Uncaught platform dispatcher error',
+        level: OpsLogLevel.error,
+        error: error,
+        stackTrace: stackTrace,
+        context: const {'phase': 'platformDispatcher'},
+      ),
+    );
+    return false;
+  };
+
+  final packageInfo = await PackageInfo.fromPlatform();
+  final availability = AppAvailabilityService(
+    FirebaseRemoteConfig.instance,
+    observability,
+    packageInfo.buildNumber,
+  );
+  await availability.initialize();
+
   await BackgroundSyncManager.instance.registerPeriodicSync();
-  runApp(const MyApp());
+  runZonedGuarded(
+    () {
+      runApp(
+        MyApp(
+          observability: observability,
+          availability: availability,
+        ),
+      );
+    },
+    (error, stackTrace) {
+      unawaited(
+        observability.log(
+          'Uncaught zone error',
+          level: OpsLogLevel.error,
+          error: error,
+          stackTrace: stackTrace,
+          context: const {'phase': 'runZonedGuarded'},
+        ),
+      );
+    },
+  );
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  const MyApp({
+    required this.observability,
+    required this.availability,
+    super.key,
+  });
+
+  final OpsObservabilityService observability;
+  final AppAvailabilityService availability;
 
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
+        ChangeNotifierProvider.value(value: availability),
+        ChangeNotifierProvider.value(value: observability),
         ChangeNotifierProvider(create: (ctx) => AppModeProvider()),
         ChangeNotifierProvider(create: (ctx) => AuthService()),
         Provider<ClientCacheService>(create: (_) => ClientCacheService()),
@@ -558,9 +627,6 @@ class MyApp extends StatelessWidget {
                 );
                 return service;
               },
-        ),
-        ChangeNotifierProvider(
-          create: (_) => OpsObservabilityService(FirebaseFirestore.instance),
         ),
         ChangeNotifierProxyProvider<OpsObservabilityService, SyncQueueService>(
           create: (ctx) => SyncQueueService(
@@ -700,9 +766,24 @@ class MyApp extends StatelessWidget {
               return resolved;
             },
             builder: (context, child) {
-              return OpsDebugOverlayHost(
-                child: child ?? const SizedBox.shrink(),
-              );
+              final availabilityService =
+                  context.watch<AppAvailabilityService>();
+              switch (availabilityService.status) {
+                case AppAvailabilityStatus.blocked:
+                  return AppBlockedScreen(
+                    message: availabilityService.message,
+                  );
+                case AppAvailabilityStatus.checking:
+                  return const Scaffold(
+                    body: Center(
+                      child: CircularProgressIndicator(),
+                    ),
+                  );
+                case AppAvailabilityStatus.available:
+                  return OpsDebugOverlayHost(
+                    child: child ?? const SizedBox.shrink(),
+                  );
+              }
             },
             theme: ThemeData(
               brightness: Brightness.light,
