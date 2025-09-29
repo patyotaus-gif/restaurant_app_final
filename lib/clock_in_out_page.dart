@@ -4,6 +4,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:restaurant_models/restaurant_models.dart';
+
+import 'widgets/app_snack_bar.dart';
 class ClockInOutPage extends StatefulWidget {
   const ClockInOutPage({super.key});
 
@@ -66,9 +68,7 @@ class _ClockInOutPageState extends State<ClockInOutPage> {
                         .doc(latestRecord.id)
                         .update({'clockOutTime': Timestamp.now()});
 
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('${employee.name} clocked out.')),
-                    );
+                    AppSnackBar.showSuccess('${employee.name} clocked out.');
                   } else {
                     await _firestore.collection('time_records').add({
                       'employeeId': employee.id,
@@ -77,24 +77,15 @@ class _ClockInOutPageState extends State<ClockInOutPage> {
                       'clockOutTime': null,
                     });
 
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('${employee.name} clocked in.')),
-                    );
+                    AppSnackBar.showSuccess('${employee.name} clocked in.');
                   }
 
                   setState(() {});
                 } catch (e) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Error: $e'),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
+                  AppSnackBar.showError('Error: $e');
                 }
               } else {
-                ScaffoldMessenger.of(
-                  context,
-                ).showSnackBar(const SnackBar(content: Text('Invalid PIN!')));
+                AppSnackBar.showError('Invalid PIN!');
               }
             },
             child: const Text('Confirm'),

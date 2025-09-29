@@ -8,6 +8,7 @@ import 'cart_provider.dart';
 import 'localization/app_localizations.dart';
 import 'services/menu_cache_provider.dart';
 import 'stock_provider.dart';
+import 'widgets/app_snack_bar.dart';
 class MenuPanel extends StatefulWidget {
   const MenuPanel({super.key});
 
@@ -130,13 +131,7 @@ class _MenuPanelState extends State<MenuPanel> {
                             ? () {
                                 final success = cart.addItem(product);
                                 if (!success) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text('สินค้าในสต็อกไม่เพียงพอ!'),
-                                      backgroundColor: Colors.red,
-                                      duration: Duration(seconds: 2),
-                                    ),
-                                  );
+                                  AppSnackBar.showError('สินค้าในสต็อกไม่เพียงพอ!');
                                 }
                               }
                             : null,

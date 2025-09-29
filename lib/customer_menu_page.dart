@@ -8,6 +8,7 @@ import 'package:restaurant_models/restaurant_models.dart';
 import 'cart_provider.dart';
 import 'customer_checkout_page.dart';
 import 'services/menu_cache_provider.dart';
+import 'widgets/app_snack_bar.dart';
 class CustomerMenuPage extends StatefulWidget {
   final String tableNumber;
 
@@ -72,12 +73,7 @@ class _CustomerMenuPageState extends State<CustomerMenuPage> {
         _tempCart[product.id] = CartItem(product: product);
       }
     });
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('${product.name} added to cart.'),
-        duration: const Duration(seconds: 1),
-      ),
-    );
+    AppSnackBar.showSuccess('${product.name} added to cart.');
   }
 
   void _incrementCartItem(String productId) {
@@ -112,9 +108,7 @@ class _CustomerMenuPageState extends State<CustomerMenuPage> {
 
     if (promoQuery.docs.isEmpty) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Invalid or inactive code.")),
-        );
+        AppSnackBar.showError('Invalid or inactive code.');
       }
       return;
     }
@@ -135,9 +129,7 @@ class _CustomerMenuPageState extends State<CustomerMenuPage> {
 
     if (validationMessage != null) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(validationMessage)));
+        AppSnackBar.showError(validationMessage);
       }
       return;
     }
