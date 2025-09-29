@@ -1,0 +1,16 @@
+name: workmanager_patched
+version: 0.5.2+1
+description: "Patched local copy of the workmanager plugin vendored for migration."
+homepage: https://github.com/fluttercommunity/flutter_workmanager
+environment:
+  sdk: ">=2.17.0 <3.0.0"
+  flutter: ">=3.3.0"
+dependencies:
+  flutter:
+    sdk: flutter
+flutter:
+  plugin:
+    platforms:
+      android:
+        package: dev.fluttercommunity.workmanager
+        pluginClass: WorkmanagerPlugin
