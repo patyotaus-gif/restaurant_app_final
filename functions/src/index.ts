@@ -12,7 +12,7 @@ import {
   type CallableRequest,
 } from "firebase-functions/v2/https";
 import {onSchedule} from "firebase-functions/v2/scheduler";
-import {taskQueue} from "firebase-functions/v2/tasks";
+import {taskQueue} from "firebase-functions/v2";
 import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
 import https from "node:https";
@@ -170,7 +170,7 @@ function normalizeBackfillBatchSize(value?: number): number {
 
 export const enforceMasterDataConstraints = beforeDocumentWritten(
   "{collectionId}/{docId}",
-  (event) => {
+  (event: any) => {
     const {collectionId} = event.params;
     if (!isMasterDataCollection(collectionId)) {
       return;
@@ -248,7 +248,7 @@ export const startMasterDataBackfill = onCall(async (request) => {
 });
 
 export const processMasterDataBackfill = masterDataBackfillQueue.onDispatch(
-  async (payload) => {
+  async (payload: MasterDataBackfillTaskPayload) => {
     const {collection, startAfter} = payload;
     const batchSize = normalizeBackfillBatchSize(payload.batchSize);
 
