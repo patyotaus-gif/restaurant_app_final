@@ -410,7 +410,7 @@ Locale? _matchSupportedLocale(
 
 Future<void> main() async {
   OpsObservabilityService? observability;
-  await runZonedGuarded<Future<void>>(
+  return runZonedGuarded(
     () async {
       WidgetsFlutterBinding.ensureInitialized();
       ensureBackgroundPlugins = () {
@@ -472,12 +472,7 @@ Future<void> main() async {
       await availability.initialize();
 
       await BackgroundSyncManager.instance.registerPeriodicSync();
-      runApp(
-        MyApp(
-          observability: observability!,
-          availability: availability,
-        ),
-      );
+      runApp(MyApp(observability: observability!, availability: availability));
     },
     (error, stackTrace) {
       final logger = observability;
@@ -491,6 +486,8 @@ Future<void> main() async {
             context: const {'phase': 'runZonedGuarded'},
           ),
         );
+      } else {
+        Zone.current.handleUncaughtError(error, stackTrace);
       }
     },
   );
@@ -772,64 +769,63 @@ class MyApp extends StatelessWidget {
       child: Consumer3<ThemeProvider, LocaleProvider, AccessibilityProvider>(
         builder:
             (context, themeProvider, localeProvider, accessibility, child) {
-          return MaterialApp.router(
-            routerConfig: _router,
-            debugShowCheckedModeBanner: false,
-            themeMode: themeProvider.themeMode,
-            locale: localeProvider.locale,
-            supportedLocales: AppLocalizations.supportedLocales,
-            localizationsDelegates: const [
-              AppLocalizations.delegate,
-              GlobalMaterialLocalizations.delegate,
-              GlobalCupertinoLocalizations.delegate,
-              GlobalWidgetsLocalizations.delegate,
-            ],
-            onGenerateTitle: (context) =>
-                AppLocalizations.of(context)!.appTitle,
-            localeListResolutionCallback: (locales, supportedLocales) {
-              final resolved = _resolveLocale(
-                userPreferred: localeProvider.locale,
-                systemLocales: locales,
-                supportedLocales: supportedLocales,
+              return MaterialApp.router(
+                routerConfig: _router,
+                debugShowCheckedModeBanner: false,
+                themeMode: themeProvider.themeMode,
+                locale: localeProvider.locale,
+                supportedLocales: AppLocalizations.supportedLocales,
+                localizationsDelegates: const [
+                  AppLocalizations.delegate,
+                  GlobalMaterialLocalizations.delegate,
+                  GlobalCupertinoLocalizations.delegate,
+                  GlobalWidgetsLocalizations.delegate,
+                ],
+                onGenerateTitle: (context) =>
+                    AppLocalizations.of(context)!.appTitle,
+                localeListResolutionCallback: (locales, supportedLocales) {
+                  final resolved = _resolveLocale(
+                    userPreferred: localeProvider.locale,
+                    systemLocales: locales,
+                    supportedLocales: supportedLocales,
+                  );
+                  Intl.defaultLocale = Intl.canonicalizedLocale(
+                    resolved.toLanguageTag(),
+                  );
+                  return resolved;
+                },
+                builder: (context, child) {
+                  final availabilityService = context
+                      .watch<AppAvailabilityService>();
+                  switch (availabilityService.status) {
+                    case AppAvailabilityStatus.blocked:
+                      return AppBlockedScreen(
+                        message: availabilityService.message,
+                      );
+                    case AppAvailabilityStatus.checking:
+                      return const Scaffold(
+                        body: Center(child: CircularProgressIndicator()),
+                      );
+                    case AppAvailabilityStatus.available:
+                      final mediaQuery = MediaQuery.of(context);
+                      final scaledChild = MediaQuery(
+                        data: mediaQuery.copyWith(
+                          textScaleFactor: accessibility.textScaleFactor,
+                          boldText:
+                              accessibility.highContrast || mediaQuery.boldText,
+                        ),
+                        child: child ?? const SizedBox.shrink(),
+                      );
+                      return AccessibilityOverlayHost(
+                        child: OpsDebugOverlayHost(child: scaledChild),
+                      );
+                  }
+                },
+                theme: AppTheme.light(accessibility),
+                darkTheme: AppTheme.dark(accessibility),
+                scaffoldMessengerKey: AppSnackBar.messengerKey,
               );
-              Intl.defaultLocale = Intl.canonicalizedLocale(
-                resolved.toLanguageTag(),
-              );
-              return resolved;
             },
-            builder: (context, child) {
-              final availabilityService =
-                  context.watch<AppAvailabilityService>();
-              switch (availabilityService.status) {
-                case AppAvailabilityStatus.blocked:
-                  return AppBlockedScreen(
-                    message: availabilityService.message,
-                  );
-                case AppAvailabilityStatus.checking:
-                  return const Scaffold(
-                    body: Center(
-                      child: CircularProgressIndicator(),
-                    ),
-                  );
-                case AppAvailabilityStatus.available:
-                  final mediaQuery = MediaQuery.of(context);
-                  final scaledChild = MediaQuery(
-                    data: mediaQuery.copyWith(
-                      textScaleFactor: accessibility.textScaleFactor,
-                      boldText: accessibility.highContrast || mediaQuery.boldText,
-                    ),
-                    child: child ?? const SizedBox.shrink(),
-                  );
-                  return AccessibilityOverlayHost(
-                    child: OpsDebugOverlayHost(child: scaledChild),
-                  );
-              }
-            },
-            theme: AppTheme.light(accessibility),
-            darkTheme: AppTheme.dark(accessibility),
-            scaffoldMessengerKey: AppSnackBar.messengerKey,
-          );
-        },
       ),
     );
   }
