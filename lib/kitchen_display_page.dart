@@ -6,6 +6,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:restaurant_models/restaurant_models.dart';
+
+import 'services/query_edge_filter.dart';
 class KitchenDisplayPage extends StatefulWidget {
   const KitchenDisplayPage({super.key, this.initialStationId});
 
@@ -16,13 +18,26 @@ class KitchenDisplayPage extends StatefulWidget {
 }
 
 class _KitchenDisplayPageState extends State<KitchenDisplayPage> {
+  static const Duration _activeWindow = Duration(hours: 3);
+  static const int _kdsDisplayLimit = 60;
+
   String? _selectedStationId;
   List<KitchenStation> _stations = const [];
+  DateTime _edgeAnchor = DateTime.now();
+  Timer? _edgeRefreshTimer;
 
   @override
   void initState() {
     super.initState();
     _selectedStationId = widget.initialStationId;
+    _edgeRefreshTimer =
+        Timer.periodic(const Duration(minutes: 5), (_) => _refreshEdge());
+  }
+
+  @override
+  void dispose() {
+    _edgeRefreshTimer?.cancel();
+    super.dispose();
   }
 
   KitchenStation? get _activeStation {
@@ -41,6 +56,25 @@ class _KitchenDisplayPageState extends State<KitchenDisplayPage> {
     setState(() {
       _selectedStationId = stationId?.isEmpty ?? false ? null : stationId;
     });
+  }
+
+  void _refreshEdge() {
+    setState(() {
+      _edgeAnchor = DateTime.now();
+    });
+  }
+
+  Query<Map<String, dynamic>> _activeOrdersQuery() {
+    final DateTime lowerBound = _edgeAnchor.subtract(_activeWindow);
+    return FirebaseFirestore.instance
+        .collection('orders')
+        .where('status', isEqualTo: 'preparing')
+        .edgeFilter(
+          field: 'timestamp',
+          startAt: lowerBound,
+        )
+        .orderBy('timestamp', descending: false)
+        .limit(_kdsDisplayLimit);
   }
 
   @override
@@ -62,12 +96,8 @@ class _KitchenDisplayPageState extends State<KitchenDisplayPage> {
             onChanged: _onStationChanged,
           ),
           Expanded(
-            child: StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection('orders')
-                  .where('status', isEqualTo: 'preparing')
-                  .orderBy('timestamp', descending: false)
-                  .snapshots(),
+            child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+              stream: _activeOrdersQuery().snapshots(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
@@ -89,7 +119,7 @@ class _KitchenDisplayPageState extends State<KitchenDisplayPage> {
                   if (station == null) {
                     return true;
                   }
-                  final data = doc.data() as Map<String, dynamic>? ?? {};
+                  final data = doc.data();
                   final items = (data['items'] ?? []) as List<dynamic>;
                   return items.any(
                     (item) =>

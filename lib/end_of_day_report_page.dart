@@ -1,6 +1,7 @@
 // lib/end_of_day_report_page.dart
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -32,37 +33,12 @@ class _EndOfDayReportPageState extends State<EndOfDayReportPage> {
       DateTime(now.year, now.month, now.day, 23, 59, 59),
     );
 
-    final querySnapshot = await FirebaseFirestore.instance
+    final ordersSnapshot = await FirebaseFirestore.instance
         .collection('orders')
         .where('status', isEqualTo: 'completed')
         .where('timestamp', isGreaterThanOrEqualTo: startOfToday)
         .where('timestamp', isLessThanOrEqualTo: endOfToday)
         .get();
-
-    double totalRevenue = 0;
-    int dineInCount = 0;
-    int takeawayCount = 0;
-    Map<String, int> itemSummary = {};
-
-    for (var doc in querySnapshot.docs) {
-      final data = doc.data();
-      totalRevenue += (data['total'] as num).toDouble();
-      if (data['orderType'] == 'Dine-in') {
-        dineInCount++;
-      } else {
-        takeawayCount++;
-      }
-      final items = data['items'] as List<dynamic>;
-      for (var item in items) {
-        final name = item['name'] as String;
-        final quantity = item['quantity'] as int;
-        itemSummary.update(
-          name,
-          (value) => value + quantity,
-          ifAbsent: () => quantity,
-        );
-      }
-    }
 
     final refundsSnapshot = await FirebaseFirestore.instance
         .collection('refunds')
@@ -70,34 +46,43 @@ class _EndOfDayReportPageState extends State<EndOfDayReportPage> {
         .where('refundTimestamp', isLessThanOrEqualTo: endOfToday)
         .get();
 
-    double totalRefundAmount = 0;
-    for (var doc in refundsSnapshot.docs) {
-      totalRefundAmount += (doc.data()['totalRefundAmount'] as num).toDouble();
-    }
-
     final expensesSnapshot = await FirebaseFirestore.instance
         .collection('expenses')
         .where('transactionDate', isGreaterThanOrEqualTo: startOfToday)
         .where('transactionDate', isLessThanOrEqualTo: endOfToday)
         .get();
 
-    double totalExpenses = 0;
-    for (var doc in expensesSnapshot.docs) {
-      totalExpenses += (doc.data()['amount'] as num).toDouble();
-    }
-
-    final netProfit = totalRevenue - totalRefundAmount - totalExpenses;
-
-    return {
-      'totalRevenue': totalRevenue,
-      'totalRefundAmount': totalRefundAmount,
-      'totalExpenses': totalExpenses,
-      'netProfit': netProfit,
-      'totalOrders': querySnapshot.docs.length,
-      'dineInCount': dineInCount,
-      'takeawayCount': takeawayCount,
-      'itemSummary': itemSummary,
+    final Map<String, dynamic> payload = {
+      'orders': ordersSnapshot.docs
+          .map((doc) {
+            final data = doc.data();
+            final rawItems =
+                (data['items'] as List<dynamic>? ?? <dynamic>[]).whereType<Map<String, dynamic>>();
+            return {
+              'orderType': data['orderType']?.toString() ?? '',
+              'total': (data['total'] as num?)?.toDouble() ?? 0.0,
+              'items': rawItems
+                  .map(
+                    (item) => {
+                      'name': item['name']?.toString() ?? 'Item',
+                      'quantity': (item['quantity'] as num?)?.toDouble() ?? 0.0,
+                    },
+                  )
+                  .toList(),
+            };
+          })
+          .toList(),
+      'refunds': refundsSnapshot.docs
+          .map((doc) => (doc.data()['totalRefundAmount'] as num?)?.toDouble() ?? 0.0)
+          .toList(),
+      'expenses': expensesSnapshot.docs
+          .map((doc) => (doc.data()['amount'] as num?)?.toDouble() ?? 0.0)
+          .toList(),
     };
+
+    final summary = await compute(_aggregateEndOfDayReport, payload);
+    summary['totalOrders'] = ordersSnapshot.docs.length;
+    return summary;
   }
   // ---------------------------------------------
 
@@ -648,4 +633,67 @@ class _EndOfDayReportPageState extends State<EndOfDayReportPage> {
       );
     }
   }
+}
+
+Map<String, dynamic> _aggregateEndOfDayReport(
+    Map<String, dynamic> payload) {
+  final List<dynamic> ordersRaw = payload['orders'] as List<dynamic>? ?? [];
+  final List<dynamic> refundsRaw = payload['refunds'] as List<dynamic>? ?? [];
+  final List<dynamic> expensesRaw = payload['expenses'] as List<dynamic>? ?? [];
+
+  double totalRevenue = 0;
+  int dineInCount = 0;
+  int takeawayCount = 0;
+  final Map<String, int> itemSummary = <String, int>{};
+
+  for (final dynamic entry in ordersRaw) {
+    if (entry is! Map<String, dynamic>) {
+      continue;
+    }
+    final String orderType = (entry['orderType'] as String? ?? '').toLowerCase();
+    final double total = (entry['total'] as num?)?.toDouble() ?? 0.0;
+    totalRevenue += total;
+
+    if (orderType == 'dine-in' || orderType == 'dine in') {
+      dineInCount += 1;
+    } else {
+      takeawayCount += 1;
+    }
+
+    final List<dynamic> items = entry['items'] as List<dynamic>? ?? [];
+    for (final dynamic rawItem in items) {
+      if (rawItem is! Map<String, dynamic>) {
+        continue;
+      }
+      final String name = rawItem['name']?.toString() ?? 'Item';
+      final int quantity = ((rawItem['quantity'] as num?)?.round()) ?? 0;
+      itemSummary.update(
+        name,
+        (value) => value + quantity,
+        ifAbsent: () => quantity,
+      );
+    }
+  }
+
+  final double totalRefundAmount = refundsRaw.fold<double>(
+    0,
+    (previousValue, element) =>
+        previousValue + (element is num ? element.toDouble() : 0.0),
+  );
+  final double totalExpenses = expensesRaw.fold<double>(
+    0,
+    (previousValue, element) =>
+        previousValue + (element is num ? element.toDouble() : 0.0),
+  );
+  final double netProfit = totalRevenue - totalRefundAmount - totalExpenses;
+
+  return {
+    'totalRevenue': totalRevenue,
+    'totalRefundAmount': totalRefundAmount,
+    'totalExpenses': totalExpenses,
+    'netProfit': netProfit,
+    'dineInCount': dineInCount,
+    'takeawayCount': takeawayCount,
+    'itemSummary': itemSummary,
+  };
 }

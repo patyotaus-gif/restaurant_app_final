@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 import '../services/analytics_service.dart';
+import '../services/query_edge_filter.dart';
 class AnalyticsPage extends StatefulWidget {
   const AnalyticsPage({super.key});
 
@@ -216,12 +217,17 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
 class _ExportJobsList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    final query = FirebaseFirestore.instance
+        .collection('analytics_exports')
+        .edgeFilter(
+          field: 'requestedAt',
+          lookback: const Duration(days: 30),
+        )
+        .orderBy('requestedAt', descending: true)
+        .limit(10);
+
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: FirebaseFirestore.instance
-          .collection('analytics_exports')
-          .orderBy('requestedAt', descending: true)
-          .limit(10)
-          .snapshots(),
+      stream: query.snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Padding(
