@@ -409,77 +409,89 @@ Locale? _matchSupportedLocale(
 }
 
 Future<void> main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  ensureBackgroundPlugins = () {
-    DartPluginRegistrant.ensureInitialized();
-  };
-  if (kIsWeb) {
-    setPathUrlStrategy();
-  }
-  PluginRegistry.registerDefaults();
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  OpsObservabilityService? observability;
+  await runZonedGuarded<Future<void>>(
+    () async {
+      WidgetsFlutterBinding.ensureInitialized();
+      ensureBackgroundPlugins = () {
+        DartPluginRegistrant.ensureInitialized();
+      };
+      if (kIsWeb) {
+        setPathUrlStrategy();
+      }
+      PluginRegistry.registerDefaults();
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
 
-  // Note: the 'settings' setter was removed from newer cloud_firestore versions.
-  // Persistence and cache configuration should be handled using the current API.
-  // By default, persistence is enabled on mobile platforms; if you need to
-  // configure persistence for web or tweak cache size, use the platform-specific
-  // APIs provided by the version of cloud_firestore you depend on.
+      // Note: the 'settings' setter was removed from newer cloud_firestore versions.
+      // Persistence and cache configuration should be handled using the current API.
+      // By default, persistence is enabled on mobile platforms; if you need to
+      // configure persistence for web or tweak cache size, use the platform-specific
+      // APIs provided by the version of cloud_firestore you depend on.
 
-  final observability = OpsObservabilityService(FirebaseFirestore.instance);
-  FlutterError.onError = (details) {
-    FlutterError.presentError(details);
-    unawaited(
-      observability.log(
-        'Unhandled Flutter framework error',
-        level: OpsLogLevel.error,
-        error: details.exception,
-        stackTrace: details.stack,
-        context: const {'phase': 'framework'},
-      ),
-    );
-  };
+      observability = OpsObservabilityService(FirebaseFirestore.instance);
+      FlutterError.onError = (details) {
+        FlutterError.presentError(details);
+        final logger = observability;
+        if (logger != null) {
+          unawaited(
+            logger.log(
+              'Unhandled Flutter framework error',
+              level: OpsLogLevel.error,
+              error: details.exception,
+              stackTrace: details.stack,
+              context: const {'phase': 'framework'},
+            ),
+          );
+        }
+      };
 
-  PlatformDispatcher.instance.onError = (error, stackTrace) {
-    unawaited(
-      observability.log(
-        'Uncaught platform dispatcher error',
-        level: OpsLogLevel.error,
-        error: error,
-        stackTrace: stackTrace,
-        context: const {'phase': 'platformDispatcher'},
-      ),
-    );
-    return false;
-  };
+      PlatformDispatcher.instance.onError = (error, stackTrace) {
+        final logger = observability;
+        if (logger != null) {
+          unawaited(
+            logger.log(
+              'Uncaught platform dispatcher error',
+              level: OpsLogLevel.error,
+              error: error,
+              stackTrace: stackTrace,
+              context: const {'phase': 'platformDispatcher'},
+            ),
+          );
+        }
+        return false;
+      };
 
-  final packageInfo = await PackageInfo.fromPlatform();
-  final availability = AppAvailabilityService(
-    FirebaseRemoteConfig.instance,
-    observability,
-    packageInfo.buildNumber,
-  );
-  await availability.initialize();
+      final packageInfo = await PackageInfo.fromPlatform();
+      final availability = AppAvailabilityService(
+        FirebaseRemoteConfig.instance,
+        observability!,
+        packageInfo.buildNumber,
+      );
+      await availability.initialize();
 
-  await BackgroundSyncManager.instance.registerPeriodicSync();
-  runZonedGuarded(
-    () {
+      await BackgroundSyncManager.instance.registerPeriodicSync();
       runApp(
         MyApp(
-          observability: observability,
+          observability: observability!,
           availability: availability,
         ),
       );
     },
     (error, stackTrace) {
-      unawaited(
-        observability.log(
-          'Uncaught zone error',
-          level: OpsLogLevel.error,
-          error: error,
-          stackTrace: stackTrace,
-          context: const {'phase': 'runZonedGuarded'},
-        ),
-      );
+      final logger = observability;
+      if (logger != null) {
+        unawaited(
+          logger.log(
+            'Uncaught zone error',
+            level: OpsLogLevel.error,
+            error: error,
+            stackTrace: stackTrace,
+            context: const {'phase': 'runZonedGuarded'},
+          ),
+        );
+      }
     },
   );
 }
