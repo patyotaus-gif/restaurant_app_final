@@ -1,6 +1,5 @@
 /* eslint-disable require-jsdoc, max-len */
 import {
-  beforeDocumentWritten,
   onDocumentCreated,
   onDocumentUpdated,
   onDocumentWritten,
@@ -12,7 +11,7 @@ import {
   type CallableRequest,
 } from "firebase-functions/v2/https";
 import {onSchedule} from "firebase-functions/v2/scheduler";
-import {taskQueue} from "firebase-functions/v2";
+import {taskQueue} from "firebase-functions/v2/tasks";
 import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
 import https from "node:https";
@@ -168,15 +167,20 @@ function normalizeBackfillBatchSize(value?: number): number {
   return Math.min(coerced, MAX_BACKFILL_BATCH_SIZE);
 }
 
-export const enforceMasterDataConstraints = beforeDocumentWritten(
+export const enforceMasterDataConstraints = onDocumentWritten(
   "{collectionId}/{docId}",
-  (event: any) => {
+  async (event: any) => {
     const {collectionId} = event.params;
     if (!isMasterDataCollection(collectionId)) {
       return;
     }
 
-    const afterData = event.data?.after?.data();
+    const afterSnapshot = event.data?.after;
+    if (!afterSnapshot?.exists) {
+      return;
+    }
+
+    const afterData = afterSnapshot.data();
     if (!afterData) {
       return;
     }
@@ -187,6 +191,14 @@ export const enforceMasterDataConstraints = beforeDocumentWritten(
     );
 
     if (errors.length > 0) {
+      const beforeSnapshot = event.data?.before;
+
+      if (beforeSnapshot?.exists) {
+        await afterSnapshot.ref.set(beforeSnapshot.data() ?? {}, {merge: false});
+      } else {
+        await afterSnapshot.ref.delete();
+      }
+
       throw new HttpsError(
         "failed-precondition",
         `Master data constraint violation: ${errors.join("; ")}`
