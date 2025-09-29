@@ -24,28 +24,38 @@ class _AccessibilityOverlayHostState extends State<AccessibilityOverlayHost> {
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        widget.child,
-        Align(
-          alignment: Alignment.bottomLeft,
-          child: SafeArea(
-            minimum: ResponsiveTokens.edgeInsetsSmall,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
+    return Overlay(
+      initialEntries: [
+        OverlayEntry(
+          builder: (context) {
+            return Stack(
               children: [
-                if (_panelVisible)
-                  _AccessibilityPanel(onClose: _togglePanel),
-                FloatingActionButton.small(
-                  heroTag: '_a11y_toggle',
-                  onPressed: _togglePanel,
-                  tooltip: 'Accessibility',
-                  child: Icon(_panelVisible ? Icons.visibility_off : Icons.visibility),
+                widget.child,
+                Align(
+                  alignment: Alignment.bottomLeft,
+                  child: SafeArea(
+                    minimum: ResponsiveTokens.edgeInsetsSmall,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (_panelVisible)
+                          _AccessibilityPanel(onClose: _togglePanel),
+                        FloatingActionButton.small(
+                          heroTag: '_a11y_toggle',
+                          onPressed: _togglePanel,
+                          tooltip: 'Accessibility',
+                          child: Icon(
+                            _panelVisible ? Icons.visibility_off : Icons.visibility,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               ],
-            ),
-          ),
+            );
+          },
         ),
       ],
     );
