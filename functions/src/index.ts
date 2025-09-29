@@ -41,6 +41,50 @@ const AGGREGATE_COLLECTION_DAILY = "analytics_daily";
 const ANALYTICS_SCHEMA_VERSION = 1;
 const PRIVACY_LOG_COLLECTION = "privacyOpsLogs";
 
+type TtlFilter = {
+  field: string;
+  op: FirebaseFirestore.WhereFilterOp;
+  value: unknown;
+};
+
+type TtlRule = {
+  collection: string;
+  field: string;
+  ttlHours: number;
+  fallbackField?: string;
+  filters?: TtlFilter[];
+  batchSize?: number;
+};
+
+const DEFAULT_TTL_BATCH_SIZE = 200;
+
+const TTL_RULES: TtlRule[] = [
+  {
+    collection: "opsLogs",
+    field: "timestamp",
+    ttlHours: 24 * 14,
+  },
+  {
+    collection: "notifications",
+    field: "createdAt",
+    ttlHours: 24 * 30,
+  },
+  {
+    collection: PRIVACY_LOG_COLLECTION,
+    field: "createdAt",
+    ttlHours: 24 * 90,
+  },
+  {
+    collection: "analytics_exports",
+    field: "completedAt",
+    fallbackField: "requestedAt",
+    ttlHours: 24 * 14,
+    filters: [
+      {field: "status", op: "in", value: ["completed", "failed"]},
+    ],
+  },
+];
+
 const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY;
 const SENDGRID_FROM_EMAIL =
   process.env.SENDGRID_FROM_EMAIL ?? "no-reply@restaurant.local";
@@ -602,6 +646,55 @@ async function backfillCollectionToBigQuery(kind: "orders" | "customers" | "refu
   return processed;
 }
 
+async function deleteExpiredDocumentsForField(
+  rule: TtlRule,
+  field: string,
+  cutoff: admin.firestore.Timestamp,
+): Promise<number> {
+  let totalDeleted = 0;
+  while (true) {
+    let query: FirebaseFirestore.Query = db.collection(rule.collection);
+    if (rule.filters) {
+      for (const filter of rule.filters) {
+        query = query.where(filter.field, filter.op, filter.value);
+      }
+    }
+    query = query
+      .where(field, "<", cutoff)
+      .orderBy(field, "asc")
+      .limit(rule.batchSize ?? DEFAULT_TTL_BATCH_SIZE);
+
+    const snapshot = await query.get();
+    if (snapshot.empty) {
+      break;
+    }
+
+    const batch = db.batch();
+    snapshot.docs.forEach((doc) => batch.delete(doc.ref));
+    await batch.commit();
+    totalDeleted += snapshot.size;
+
+    if (snapshot.size < (rule.batchSize ?? DEFAULT_TTL_BATCH_SIZE)) {
+      break;
+    }
+  }
+  return totalDeleted;
+}
+
+async function cleanupExpiredDocuments(rule: TtlRule): Promise<number> {
+  const cutoffDate = new Date(Date.now() - rule.ttlHours * 60 * 60 * 1000);
+  const cutoff = admin.firestore.Timestamp.fromDate(cutoffDate);
+  let deleted = await deleteExpiredDocumentsForField(rule, rule.field, cutoff);
+  if (rule.fallbackField) {
+    deleted += await deleteExpiredDocumentsForField(
+      rule,
+      rule.fallbackField,
+      cutoff,
+    );
+  }
+  return deleted;
+}
+
 export const streamOrdersToBigQuery = onDocumentWritten("orders/{orderId}",
   async (event) => {
     if (!isBigQueryStreamingEnabled()) {
@@ -697,6 +790,34 @@ export const streamRefundsToBigQuery = onDocumentWritten("refunds/{refundId}",
       throw error;
     }
   });
+
+export const cleanupOperationalCollections = onSchedule(
+  {
+    schedule: "30 2 * * *",
+    timeZone: "Asia/Bangkok",
+  },
+  async () => {
+    const results: Array<{collection: string; deleted: number}> = [];
+    for (const rule of TTL_RULES) {
+      try {
+        const deleted = await cleanupExpiredDocuments(rule);
+        if (deleted > 0) {
+          results.push({collection: rule.collection, deleted});
+        }
+      } catch (error) {
+        logger.error("Failed to cleanup collection", {
+          collection: rule.collection,
+          error,
+        });
+      }
+    }
+    if (results.length > 0) {
+      logger.info("TTL cleanup results", {results});
+    } else {
+      logger.debug("TTL cleanup completed with no deletions");
+    }
+  },
+);
 
 type AggregationMetrics = {
   orderCount: number;

@@ -1,5 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:restaurant_models/restaurant_models.dart';
+
+import 'services/query_edge_filter.dart';
 class NotificationsRepository {
   final FirebaseFirestore db;
   NotificationsRepository(this.db);
@@ -7,12 +9,16 @@ class NotificationsRepository {
   Stream<List<AppNotification>> watch({
     required String tenantId,
     int limit = 100,
+    Duration lookback = const Duration(days: 14),
   }) {
-    return db
+    Query<Map<String, dynamic>> query = db
         .collection('notifications')
         .where('tenantId', isEqualTo: tenantId)
+        .edgeFilter(field: 'createdAt', lookback: lookback)
         .orderBy('createdAt', descending: true)
-        .limit(limit)
+        .limit(limit);
+
+    return query
         .snapshots()
         .map((s) => s.docs.map(AppNotification.fromDoc).toList());
   }
