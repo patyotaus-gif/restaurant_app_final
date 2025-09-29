@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart'; // <-- Import intl for date formatting
 import 'package:restaurant_models/restaurant_models.dart';
+
+import 'widgets/app_snack_bar.dart';
 class CustomerLookupPage extends StatefulWidget {
   const CustomerLookupPage({super.key});
 
@@ -94,9 +96,7 @@ class _CustomerLookupPageState extends State<CustomerLookupPage> {
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed to create customer: $e')),
-          );
+          AppSnackBar.showError('Failed to create customer: $e');
         }
       } finally {
         if (mounted) {
