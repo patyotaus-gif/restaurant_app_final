@@ -10,7 +10,8 @@
     "deploy": "firebase deploy --only functions",
     "logs": "firebase functions:log",
     "test": "vitest",
-    "test:emulator": "npm run build && firebase emulators:exec --project demo-test --only firestore,functions \"vitest run\""
+    "test:emulator": "npm run build && firebase emulators:exec --project demo-test --only firestore,functions \"vitest run\"",
+    "seed:emulator": "node scripts/seed-emulator.mjs"
   },
   "engines": {
     "node": "22"

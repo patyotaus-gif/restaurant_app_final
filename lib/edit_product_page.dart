@@ -11,6 +11,8 @@ import 'package:restaurant_models/restaurant_models.dart';
 
 import 'admin/modifier_management_page.dart';
 import 'barcode_scanner_page.dart';
+
+import 'services/firestore_converters.dart';
 class EditProductPage extends StatefulWidget {
   final Product? product;
 
@@ -204,14 +206,16 @@ class _EditProductPageState extends State<EditProductPage> {
             .where((station) => station.isNotEmpty)
             .toList(),
         prepTimeMinutes: double.tryParse(_prepTimeController.text) ?? 0.0,
-      ).toFirestore();
+      );
 
       try {
-        final collection = FirebaseFirestore.instance.collection('menu_items');
+        final collection = FirebaseFirestore.instance.menuItemsRef;
         if (widget.product == null) {
           await collection.add(productData);
         } else {
-          await collection.doc(widget.product!.id).update(productData);
+          await collection
+              .doc(widget.product!.id)
+              .set(productData, SetOptions(merge: true));
         }
         if (mounted) {
           context.pop();

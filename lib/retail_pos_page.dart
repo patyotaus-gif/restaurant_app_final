@@ -12,6 +12,7 @@ import 'package:restaurant_models/restaurant_models.dart';
 import 'package:rxdart/rxdart.dart';
 
 import 'cart_provider.dart';
+import 'services/firestore_converters.dart';
 import 'services/menu_cache_provider.dart';
 import 'widgets/customer_header_widget.dart';
 class RetailPosPage extends StatefulWidget {
@@ -61,12 +62,12 @@ class _RetailPosPageState extends State<RetailPosPage> {
 
       if (product == null) {
         final productQuery = await FirebaseFirestore.instance
-            .collection('menu_items')
+            .menuItemsRef
             .where('barcode', isEqualTo: code)
             .limit(1)
             .get();
         if (productQuery.docs.isNotEmpty) {
-          product = Product.fromFirestore(productQuery.docs.first);
+          product = productQuery.docs.first.data();
         }
       }
 

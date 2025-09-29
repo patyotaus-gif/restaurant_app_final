@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:restaurant_models/restaurant_models.dart';
 
 import 'client_cache_service.dart';
+import 'firestore_converters.dart';
 class MenuCacheProvider with ChangeNotifier {
   MenuCacheProvider(this._firestore, this._cacheService) {
     _initialize();
@@ -13,7 +14,7 @@ class MenuCacheProvider with ChangeNotifier {
   final FirebaseFirestore _firestore;
   final ClientCacheService _cacheService;
 
-  StreamSubscription<QuerySnapshot>? _subscription;
+  StreamSubscription<QuerySnapshot<Product>>? _subscription;
   List<Product> _menuItems = [];
   Map<String, Product> _productsById = {};
   Map<String, Product> _productsByBarcode = {};
@@ -61,12 +62,12 @@ class MenuCacheProvider with ChangeNotifier {
   void _subscribeToMenuItems() {
     _subscription?.cancel();
     _subscription = _firestore
-        .collection('menu_items')
+        .menuItemsRef
         .snapshots()
         .listen(
           (snapshot) {
             final items = snapshot.docs
-                .map((doc) => Product.fromFirestore(doc))
+                .map((doc) => doc.data())
                 .toList(growable: false);
             _applyMenuItems(items, fresh: true);
             unawaited(_cacheService.cacheMenuItems(items));

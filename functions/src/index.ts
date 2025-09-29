@@ -29,6 +29,7 @@ import {
   isBigQueryStreamingEnabled,
   streamAnalyticsRow,
 } from "./bigquery-streaming.js";
+export {ingestBuildMetric} from "./build-metrics.js";
 
 admin.initializeApp();
 const db = admin.firestore();

@@ -1,0 +1,102 @@
+{
+  "collections": [
+    {
+      "name": "stores",
+      "documents": [
+        {
+          "id": "demo-store",
+          "data": {
+            "name": "Demo Bistro",
+            "address": "123 Market Street",
+            "tenantId": "demo-tenant",
+            "timezone": "Asia/Bangkok",
+            "isActive": true,
+            "currencySettings": {
+              "code": "THB",
+              "symbol": "฿",
+              "decimalDigits": 2
+            },
+            "release": {
+              "environment": "staging",
+              "channel": "internal"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "menu_items",
+      "documents": [
+        {
+          "id": "pad-thai",
+          "data": {
+            "name": "Pad Thai",
+            "category": "mains",
+            "price": 120,
+            "productType": "food",
+            "trackStock": true,
+            "barcode": "000000000001",
+            "modifierGroupIds": ["spice-level"],
+            "kitchenStations": ["wok"],
+            "prepTimeMinutes": 10
+          }
+        },
+        {
+          "id": "iced-tea",
+          "data": {
+            "name": "Thai Iced Tea",
+            "category": "drinks",
+            "price": 65,
+            "productType": "general",
+            "trackStock": true,
+            "barcode": "000000000002",
+            "kitchenStations": ["bar"],
+            "prepTimeMinutes": 3
+          }
+        }
+      ]
+    },
+    {
+      "name": "modifierGroups",
+      "documents": [
+        {
+          "id": "spice-level",
+          "data": {
+            "groupName": "Spice Level",
+            "selectionType": "SINGLE",
+            "options": [
+              {"optionName": "Mild", "priceChange": 0},
+              {"optionName": "Medium", "priceChange": 0},
+              {"optionName": "Hot", "priceChange": 0}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "ingredients",
+      "documents": [
+        {
+          "id": "rice-noodle",
+          "data": {
+            "name": "Rice Noodles",
+            "unit": "kg",
+            "currentStock": 50,
+            "targetStock": 100,
+            "costPerUnit": 40
+          }
+        },
+        {
+          "id": "tea-leaves",
+          "data": {
+            "name": "Tea Leaves",
+            "unit": "kg",
+            "currentStock": 10,
+            "targetStock": 20,
+            "costPerUnit": 150
+          }
+        }
+      ]
+    }
+  ]
+}
