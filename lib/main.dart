@@ -4,6 +4,7 @@ import 'dart:async';
 import 'dart:ui';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_remote_config/firebase_remote_config.dart';
 import 'package:flutter/src/widgets/binding.dart' show DartPluginRegistrant;
@@ -76,6 +77,7 @@ import 'services/experiment_service.dart';
 import 'services/fx_rate_service.dart';
 import 'services/menu_cache_provider.dart';
 import 'services/ops_observability_service.dart';
+import 'services/performance_metrics_service.dart';
 import 'services/payment_gateway_service.dart';
 import 'services/print_spooler_service.dart';
 import 'services/printer_drawer_service.dart';
@@ -498,6 +500,18 @@ class MyApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider.value(value: availability),
         ChangeNotifierProvider.value(value: observability),
+        Provider<PerformanceMetricsService>(
+          create: (_) {
+            final functions = FirebaseFunctions.instanceFor(
+              app: Firebase.app(),
+              region: 'asia-southeast1',
+            );
+            final service = PerformanceMetricsService(functions);
+            unawaited(service.start());
+            return service;
+          },
+          dispose: (_, service) => service.dispose(),
+        ),
         ChangeNotifierProvider(create: (ctx) => AppModeProvider()),
         ChangeNotifierProvider(create: (ctx) => AuthService()),
         Provider<ClientCacheService>(create: (_) => ClientCacheService()),

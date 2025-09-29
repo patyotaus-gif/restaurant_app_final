@@ -1,12 +1,15 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:restaurant_models/restaurant_models.dart';
+
+import 'firestore_converters.dart';
+
 class StoreService {
   StoreService(this._firestore);
 
   final FirebaseFirestore _firestore;
 
   Stream<List<Store>> watchStores({List<String>? storeIds}) {
-    Query<Map<String, dynamic>> query = _firestore.collection('stores');
+    Query<Store> query = _firestore.storesRef;
     if (storeIds != null && storeIds.isNotEmpty) {
       query = query.where(FieldPath.documentId, whereIn: storeIds);
     }
@@ -14,19 +17,17 @@ class StoreService {
 
     return query.snapshots().map(
       (snapshot) => snapshot.docs
-          .map((doc) => Store.fromFirestore(doc))
+          .map((doc) => doc.data())
           .toList(growable: false),
     );
   }
 
   Future<void> saveStore(Store store) async {
-    final collection = _firestore.collection('stores');
+    final collection = _firestore.storesRef;
     if (store.id.isEmpty) {
-      await collection.add(store.toFirestore());
+      await collection.add(store);
     } else {
-      await collection
-          .doc(store.id)
-          .set(store.toFirestore(), SetOptions(merge: true));
+      await collection.doc(store.id).set(store, SetOptions(merge: true));
     }
   }
 

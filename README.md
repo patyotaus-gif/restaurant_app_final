@@ -75,3 +75,42 @@ npm run test:emulator
 ```
 
 Without the emulator the integration suite is skipped during `npm test`.
+
+## QA Emulator Fixtures
+
+Spin up the Firebase emulator suite and populate it with curated demo data in a
+single command:
+
+```bash
+npm --prefix functions run seed:emulator
+```
+
+By default the script targets `localhost:8080` with the `demo-test` project ID.
+Override `FIRESTORE_EMULATOR_HOST`, `PROJECT_ID` or set `RESET=true` to wipe the
+existing collections before seeding.
+
+## Typed Firestore accessors
+
+The app now exposes strongly-typed Firestore collections via
+`lib/services/firestore_converters.dart`. Providers such as the menu cache,
+retail POS and store service consume these converters to remove manual JSON
+mapping and catch schema drift at compile time.
+
+## Build & performance telemetry
+
+Frame build/raster metrics are sampled at runtime and streamed to BigQuery via
+the callable Cloud Function `ingestBuildMetric`. Configure the destination table
+with the `BUILD_METRICS_DATASET` and `BUILD_METRICS_TABLE` environment variables
+when deploying Cloud Functions.
+
+## Git hooks
+
+Install the project hooks to automatically format, analyze and run targeted
+tests on staged Dart files before every commit:
+
+```bash
+./tool/install_git_hooks.sh
+```
+
+The hook formats staged Dart files, runs `dart analyze` for the impacted
+packages, and executes the relevant `flutter test`/`dart test` targets.

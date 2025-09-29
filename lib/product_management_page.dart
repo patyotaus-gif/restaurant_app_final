@@ -3,6 +3,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:restaurant_models/restaurant_models.dart';
+
+import 'services/firestore_converters.dart';
 class ProductManagementPage extends StatelessWidget {
   const ProductManagementPage({super.key});
 
@@ -13,11 +15,9 @@ class ProductManagementPage extends StatelessWidget {
         title: const Text('Product Management'), // New title
         backgroundColor: Colors.indigo,
       ),
-      body: StreamBuilder<QuerySnapshot>(
-        // NOTE: We are still using the 'menu_items' collection for now.
-        // In a real project, you might migrate this to a 'products' collection.
+      body: StreamBuilder<QuerySnapshot<Product>>(
         stream: FirebaseFirestore.instance
-            .collection('menu_items')
+            .menuItemsRef
             .orderBy('name')
             .snapshots(),
         builder: (context, snapshot) {
@@ -30,9 +30,7 @@ class ProductManagementPage extends StatelessWidget {
 
           return ListView(
             children: snapshot.data!.docs.map((doc) {
-              final product = Product.fromFirestore(
-                doc,
-              ); // Create a Product object
+              final product = doc.data();
               return ListTile(
                 title: Text(product.name),
                 subtitle: Text('${product.price} Baht'),
