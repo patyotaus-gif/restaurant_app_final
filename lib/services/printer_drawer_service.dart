@@ -30,7 +30,7 @@ class PrinterDrawerService {
     final payload = <String, dynamic>{
       'order': _sanitizeOrderData(orderData),
       'store': storeDetails.toMap(),
-      'paperSize': paperSize.name,
+      'paperSize': _paperSizeToStorageKey(paperSize),
       if (taxDetails != null && taxDetails.hasData) 'tax': taxDetails.toMap(),
     };
 
@@ -101,8 +101,8 @@ Map<String, dynamic> _sanitizeOrderData(Map<String, dynamic> raw) {
   writeDouble('total', 'total');
   writeDouble('paidTotal', 'paidTotal');
 
-  final Map<String, dynamic>? vat =
-      raw['vat'] as Map<String, dynamic>? ?? <String, dynamic>{};
+  final Map<String, dynamic> vat =
+      (raw['vat'] as Map<String, dynamic>?) ?? <String, dynamic>{};
   if (vat.isNotEmpty) {
     final double? amount = (vat['amount'] as num?)?.toDouble();
     if (amount != null) {
@@ -139,12 +139,8 @@ Future<List<int>> _renderReceiptBytes(Map<String, dynamic> payload) async {
   final Map<String, dynamic>? tax = payload['tax'] != null
       ? Map<String, dynamic>.from(payload['tax'] as Map<String, dynamic>)
       : null;
-  final String paperSizeName =
-      payload['paperSize'] as String? ?? PaperSize.mm80.name;
-  final PaperSize paperSize = PaperSize.values.firstWhere(
-    (value) => value.name == paperSizeName,
-    orElse: () => PaperSize.mm80,
-  );
+  final String? paperSizeName = payload['paperSize'] as String?;
+  final PaperSize paperSize = _paperSizeFromStorageKey(paperSizeName);
 
   final CapabilityProfile profile = await CapabilityProfile.load();
   final generator = Generator(paperSize, profile);
@@ -334,4 +330,23 @@ Future<List<int>> _renderReceiptBytes(Map<String, dynamic> payload) async {
   bytes.addAll(generator.cut());
 
   return bytes;
+}
+
+const List<PaperSize> _knownPaperSizes = <PaperSize>[PaperSize.mm58, PaperSize.mm80];
+
+String _paperSizeToStorageKey(PaperSize size) {
+  return describeEnum(size);
+}
+
+PaperSize _paperSizeFromStorageKey(String? key) {
+  if (key == null) {
+    return PaperSize.mm80;
+  }
+  for (final PaperSize size in _knownPaperSizes) {
+    final String enumName = describeEnum(size);
+    if (key == enumName || key == size.toString()) {
+      return size;
+    }
+  }
+  return PaperSize.mm80;
 }
