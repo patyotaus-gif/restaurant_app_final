@@ -15,6 +15,7 @@
 #include <firebase_storage/firebase_storage_plugin_c_api.h>
 #include <flutter_thermal_printer/flutter_thermal_printer_plugin_c_api.h>
 #include <printing/printing_plugin.h>
+#include <universal_ble/universal_ble_plugin_c_api.h>
 
 void RegisterPlugins(flutter::PluginRegistry* registry) {
   AudioplayersWindowsPluginRegisterWithRegistrar(
@@ -35,4 +36,6 @@ void RegisterPlugins(flutter::PluginRegistry* registry) {
       registry->GetRegistrarForPlugin("FlutterThermalPrinterPluginCApi"));
   PrintingPluginRegisterWithRegistrar(
       registry->GetRegistrarForPlugin("PrintingPlugin"));
+  UniversalBlePluginCApiRegisterWithRegistrar(
+      registry->GetRegistrarForPlugin("UniversalBlePluginCApi"));
 }
