@@ -1,4 +1,4 @@
-name: workmanager_patched
+name: workmanager
 version: 0.5.2+1
 description: "Patched local copy of the workmanager plugin vendored for migration."
 homepage: https://github.com/fluttercommunity/flutter_workmanager

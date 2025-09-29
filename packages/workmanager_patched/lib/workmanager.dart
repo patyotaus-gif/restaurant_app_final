@@ -2,11 +2,13 @@ library workmanager;
 
 import 'dart:async';
 import 'dart:convert';
+import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
-const MethodChannel _foregroundChannel = MethodChannel('plugins.flutter.io/workmanager');
+const MethodChannel _foregroundChannel =
+    MethodChannel('plugins.flutter.io/workmanager');
 const MethodChannel _backgroundChannel =
     MethodChannel('plugins.flutter.io/workmanager_background');
 
@@ -24,13 +26,15 @@ Future<dynamic> _backgroundChannelHandler(MethodCall call) async {
   if (call.method != 'performTask') {
     throw PlatformException(
       code: 'unimplemented',
-      message: 'Method \'${call.method}\' is not supported on the background channel.',
+      message:
+          'Method \'${call.method}\' is not supported on the background channel.',
     );
   }
   if (_taskHandler == null) {
     return false;
   }
-  final arguments = Map<String, dynamic>.from(call.arguments as Map<dynamic, dynamic>);
+  final arguments =
+      Map<String, dynamic>.from(call.arguments as Map<dynamic, dynamic>);
   final task = arguments['taskName'] as String?;
   final rawInput = arguments['inputData'];
   Map<String, dynamic>? input;
@@ -69,13 +73,15 @@ class Workmanager {
     Function callbackDispatcher, {
     bool isInDebugMode = false,
   }) async {
-    final callbackHandle = PluginUtilities.getCallbackHandle(callbackDispatcher);
+    final callbackHandle =
+        PluginUtilities.getCallbackHandle(callbackDispatcher);
     if (callbackHandle == null) {
       throw ArgumentError(
         'Failed to obtain a callback handle for the provided dispatcher.',
       );
     }
-    final result = await _foregroundChannel.invokeMethod<bool>('initialize', <String, dynamic>{
+    final result = await _foregroundChannel
+        .invokeMethod<bool>('initialize', <String, dynamic>{
       'dispatcherHandle': callbackHandle.toRawHandle(),
       'isInDebugMode': isInDebugMode,
     });
@@ -98,7 +104,8 @@ class Workmanager {
     BackoffPolicyConfig? backoffPolicy,
     List<String>? tags,
   }) async {
-    final result = await _foregroundChannel.invokeMethod<bool>('registerOneOffTask', <String, dynamic>{
+    final result = await _foregroundChannel
+        .invokeMethod<bool>('registerOneOffTask', <String, dynamic>{
       'uniqueName': uniqueName,
       'taskName': taskName,
       'inputData': inputData,
@@ -123,7 +130,8 @@ class Workmanager {
     BackoffPolicyConfig? backoffPolicy,
     List<String>? tags,
   }) async {
-    final result = await _foregroundChannel.invokeMethod<bool>('registerPeriodicTask', <String, dynamic>{
+    final result = await _foregroundChannel
+        .invokeMethod<bool>('registerPeriodicTask', <String, dynamic>{
       'uniqueName': uniqueName,
       'taskName': taskName,
       'frequencyMillis': frequency.inMilliseconds,
@@ -138,7 +146,8 @@ class Workmanager {
   }
 
   /// Cancels all enqueued work.
-  Future<void> cancelAll() => _foregroundChannel.invokeMethod<void>('cancelAll');
+  Future<void> cancelAll() =>
+      _foregroundChannel.invokeMethod<void>('cancelAll');
 
   /// Cancels work identified by [uniqueName].
   Future<void> cancelByUniqueName(String uniqueName) =>
@@ -204,9 +213,12 @@ class Constraints {
 
   Map<String, dynamic> toJson() => <String, dynamic>{
         if (requiresCharging != null) 'requiresCharging': requiresCharging,
-        if (requiresDeviceIdle != null) 'requiresDeviceIdle': requiresDeviceIdle,
-        if (requiresBatteryNotLow != null) 'requiresBatteryNotLow': requiresBatteryNotLow,
-        if (requiresStorageNotLow != null) 'requiresStorageNotLow': requiresStorageNotLow,
+        if (requiresDeviceIdle != null)
+          'requiresDeviceIdle': requiresDeviceIdle,
+        if (requiresBatteryNotLow != null)
+          'requiresBatteryNotLow': requiresBatteryNotLow,
+        if (requiresStorageNotLow != null)
+          'requiresStorageNotLow': requiresStorageNotLow,
         if (networkType != null) 'networkType': describeEnum(networkType!),
       };
 }
