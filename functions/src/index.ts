@@ -1,5 +1,6 @@
 /* eslint-disable require-jsdoc, max-len */
 import {
+  beforeDocumentWritten,
   onDocumentCreated,
   onDocumentUpdated,
   onDocumentWritten,
@@ -11,6 +12,7 @@ import {
   type CallableRequest,
 } from "firebase-functions/v2/https";
 import {onSchedule} from "firebase-functions/v2/scheduler";
+import {taskQueue} from "firebase-functions/v2/tasks";
 import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
 import https from "node:https";
@@ -29,6 +31,14 @@ import {
   isBigQueryStreamingEnabled,
   streamAnalyticsRow,
 } from "./bigquery-streaming.js";
+import {
+  DEFAULT_BACKFILL_BATCH_SIZE,
+  MASTER_DATA_COLLECTIONS,
+  buildBackfillUpdates,
+  isMasterDataCollection,
+  validateMasterDataConstraints,
+  type MasterDataCollection,
+} from "./master-data.js";
 export {ingestBuildMetric} from "./build-metrics.js";
 
 admin.initializeApp();
@@ -86,6 +96,24 @@ const TTL_RULES: TtlRule[] = [
   },
 ];
 
+const MAX_BACKFILL_BATCH_SIZE = 500;
+
+type MasterDataBackfillTaskPayload = {
+  collection: MasterDataCollection;
+  startAfter?: string;
+  batchSize?: number;
+};
+
+const masterDataBackfillQueue = taskQueue<MasterDataBackfillTaskPayload>({
+  rateLimits: {
+    maxConcurrentDispatches: 1,
+  },
+  retryConfig: {
+    maxAttempts: 5,
+  },
+  id: "masterDataBackfill",
+});
+
 const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY;
 const SENDGRID_FROM_EMAIL =
   process.env.SENDGRID_FROM_EMAIL ?? "no-reply@restaurant.local";
@@ -128,6 +156,164 @@ async function createNotification(
     logger.error("Failed to create notification:", error);
   }
 }
+
+function normalizeBackfillBatchSize(value?: number): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return DEFAULT_BACKFILL_BATCH_SIZE;
+  }
+  const coerced = Math.trunc(value);
+  if (!Number.isFinite(coerced) || coerced <= 0) {
+    return DEFAULT_BACKFILL_BATCH_SIZE;
+  }
+  return Math.min(coerced, MAX_BACKFILL_BATCH_SIZE);
+}
+
+export const enforceMasterDataConstraints = beforeDocumentWritten(
+  "{collectionId}/{docId}",
+  (event) => {
+    const {collectionId} = event.params;
+    if (!isMasterDataCollection(collectionId)) {
+      return;
+    }
+
+    const afterData = event.data?.after?.data();
+    if (!afterData) {
+      return;
+    }
+
+    const errors = validateMasterDataConstraints(
+      collectionId,
+      afterData as Record<string, unknown>
+    );
+
+    if (errors.length > 0) {
+      throw new HttpsError(
+        "failed-precondition",
+        `Master data constraint violation: ${errors.join("; ")}`
+      );
+    }
+  }
+);
+
+export const startMasterDataBackfill = onCall(async (request) => {
+  const data = request.data as {
+    collection?: string | string[];
+    batchSize?: number;
+  };
+
+  const requestedCollections = data.collection;
+  const collections =
+    requestedCollections == null
+      ? MASTER_DATA_COLLECTIONS
+      : Array.isArray(requestedCollections)
+        ? requestedCollections
+        : [requestedCollections];
+
+  if (collections.length === 0) {
+    throw new HttpsError(
+      "invalid-argument",
+      "At least one master data collection must be provided."
+    );
+  }
+
+  const invalidCollections = collections.filter(
+    (collectionId) => !isMasterDataCollection(collectionId)
+  );
+  if (invalidCollections.length > 0) {
+    throw new HttpsError(
+      "invalid-argument",
+      `Unsupported master data collection(s): ${invalidCollections.join(", ")}`
+    );
+  }
+
+  const batchSize = normalizeBackfillBatchSize(data.batchSize);
+
+  for (const collectionId of collections as MasterDataCollection[]) {
+    await masterDataBackfillQueue.enqueue({
+      collection: collectionId,
+      batchSize,
+    });
+  }
+
+  logger.log(
+    "Queued master data backfill",
+    collections,
+    {batchSize}
+  );
+
+  return {
+    enqueuedCollections: collections,
+    batchSize,
+  };
+});
+
+export const processMasterDataBackfill = masterDataBackfillQueue.onDispatch(
+  async (payload) => {
+    const {collection, startAfter} = payload;
+    const batchSize = normalizeBackfillBatchSize(payload.batchSize);
+
+    if (!isMasterDataCollection(collection)) {
+      logger.error(
+        "Received backfill task for unsupported collection",
+        payload
+      );
+      return;
+    }
+
+    let query = db
+      .collection(collection)
+      .orderBy(admin.firestore.FieldPath.documentId())
+      .limit(batchSize);
+
+    if (typeof startAfter === "string" && startAfter.length > 0) {
+      query = query.startAfter(startAfter);
+    }
+
+    const snapshot = await query.get();
+
+    if (snapshot.empty) {
+      logger.log(`Master data backfill completed for ${collection}.`);
+      return;
+    }
+
+    for (const doc of snapshot.docs) {
+      const originalData = doc.data() as Record<string, unknown>;
+      const updates = buildBackfillUpdates(collection, originalData);
+      const merged = {...originalData, ...updates};
+      const errors = validateMasterDataConstraints(collection, merged);
+
+      if (errors.length > 0) {
+        logger.error(
+          `Skipping ${collection}/${doc.id} due to constraint violations`,
+          {errors}
+        );
+        continue;
+      }
+
+      if (Object.keys(updates).length === 0) {
+        continue;
+      }
+
+      await doc.ref.update(updates);
+      logger.debug(`Backfilled ${collection}/${doc.id}`, updates);
+    }
+
+    if (snapshot.size === batchSize) {
+      const nextStartAfter = snapshot.docs[snapshot.docs.length - 1]?.id;
+      if (nextStartAfter) {
+        await masterDataBackfillQueue.enqueue({
+          collection,
+          startAfter: nextStartAfter,
+          batchSize,
+        });
+      }
+    } else {
+      logger.log(
+        `Master data backfill processed final batch for ${collection} (${snapshot.size} documents).`
+      );
+    }
+  }
+);
 
 function normalizeValue(value: unknown): unknown {
   if (value === null || value === undefined) {
