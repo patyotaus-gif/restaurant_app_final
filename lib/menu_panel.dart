@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:restaurant_models/restaurant_models.dart';
 
 import 'cart_provider.dart';
+import 'localization/app_localizations.dart';
 import 'services/menu_cache_provider.dart';
 import 'stock_provider.dart';
 class MenuPanel extends StatefulWidget {
@@ -15,29 +16,34 @@ class MenuPanel extends StatefulWidget {
 }
 
 class _MenuPanelState extends State<MenuPanel> {
-  final Map<String, String> _categories = {
-    'soft_drinks': 'SOFT DRINKS',
-    'beers': 'BEERS',
-    'hot_drinks': 'Hot Drinks',
-    'munchies': 'Munchies',
-    'the_fish': 'The Fish',
-    'noodle_dishes': 'Noodle Dishes',
-    'rice_dishes': 'Rice Dishes',
-    'noodle_soups': 'Noodle Soups',
-    'the_salad': 'The Salad',
-    'dessert': 'Dessert',
-  };
+  static const List<String> _categoryKeys = [
+    'soft_drinks',
+    'beers',
+    'hot_drinks',
+    'munchies',
+    'the_fish',
+    'noodle_dishes',
+    'rice_dishes',
+    'noodle_soups',
+    'the_salad',
+    'dessert',
+  ];
 
   late String _selectedCategory;
 
   @override
   void initState() {
     super.initState();
-    _selectedCategory = _categories.keys.first;
+    _selectedCategory = _categoryKeys.first;
   }
 
   @override
   Widget build(BuildContext context) {
+    final localizations = AppLocalizations.of(context);
+    if (localizations == null) {
+      return const SizedBox.shrink();
+    }
+
     return Column(
       children: [
         Padding(
@@ -45,20 +51,21 @@ class _MenuPanelState extends State<MenuPanel> {
           child: Wrap(
             spacing: 8.0,
             runSpacing: 4.0,
-            children: _categories.entries.map((entry) {
+            children: _categoryKeys.map((categoryKey) {
+              final label = _categoryLabel(localizations, categoryKey);
               return ChoiceChip(
-                label: Text(entry.value),
+                label: Text(label),
                 labelStyle: const TextStyle(fontSize: 12),
                 padding: const EdgeInsets.symmetric(
                   horizontal: 8.0,
                   vertical: 4.0,
                 ),
                 materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                selected: _selectedCategory == entry.key,
+                selected: _selectedCategory == categoryKey,
                 onSelected: (selected) {
                   if (selected) {
                     setState(() {
-                      _selectedCategory = entry.key;
+                      _selectedCategory = categoryKey;
                     });
                   }
                 },
@@ -78,7 +85,9 @@ class _MenuPanelState extends State<MenuPanel> {
               if (items.isEmpty) {
                 return Center(
                   child: Text(
-                    'No items in the "${_categories[_selectedCategory]}" category.',
+                    localizations.menuCategoryEmpty(
+                      _categoryLabel(localizations, _selectedCategory),
+                    ),
                   ),
                 );
               }
@@ -185,5 +194,35 @@ class _MenuPanelState extends State<MenuPanel> {
         ),
       ],
     );
+  }
+
+  String _categoryLabel(
+    AppLocalizations localizations,
+    String categoryKey,
+  ) {
+    switch (categoryKey) {
+      case 'soft_drinks':
+        return localizations.menuCategorySoftDrinks;
+      case 'beers':
+        return localizations.menuCategoryBeers;
+      case 'hot_drinks':
+        return localizations.menuCategoryHotDrinks;
+      case 'munchies':
+        return localizations.menuCategoryMunchies;
+      case 'the_fish':
+        return localizations.menuCategoryTheFish;
+      case 'noodle_dishes':
+        return localizations.menuCategoryNoodleDishes;
+      case 'rice_dishes':
+        return localizations.menuCategoryRiceDishes;
+      case 'noodle_soups':
+        return localizations.menuCategoryNoodleSoups;
+      case 'the_salad':
+        return localizations.menuCategoryTheSalad;
+      case 'dessert':
+        return localizations.menuCategoryDessert;
+      default:
+        return categoryKey;
+    }
   }
 }

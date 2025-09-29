@@ -63,6 +63,17 @@ class AppLocalizations {
       'unitMilliliter': 'mL',
       'unitPiece': 'pc',
       'valueWithUnit': '{value} {unit}',
+      'menuCategorySoftDrinks': 'SOFT DRINKS',
+      'menuCategoryBeers': 'BEERS',
+      'menuCategoryHotDrinks': 'Hot Drinks',
+      'menuCategoryMunchies': 'Munchies',
+      'menuCategoryTheFish': 'The Fish',
+      'menuCategoryNoodleDishes': 'Noodle Dishes',
+      'menuCategoryRiceDishes': 'Rice Dishes',
+      'menuCategoryNoodleSoups': 'Noodle Soups',
+      'menuCategoryTheSalad': 'The Salad',
+      'menuCategoryDessert': 'Dessert',
+      'menuCategoryEmpty': 'No items in the "{category}" category.',
     },
     'th': {
       'appTitle': 'ระบบ POS ร้านอาหาร',
@@ -108,6 +119,17 @@ class AppLocalizations {
       'unitMilliliter': 'มิลลิลิตร',
       'unitPiece': 'ชิ้น',
       'valueWithUnit': '{value} {unit}',
+      'menuCategorySoftDrinks': 'เครื่องดื่มเย็น',
+      'menuCategoryBeers': 'เบียร์',
+      'menuCategoryHotDrinks': 'เครื่องดื่มร้อน',
+      'menuCategoryMunchies': 'ของทานเล่น',
+      'menuCategoryTheFish': 'เมนูปลา',
+      'menuCategoryNoodleDishes': 'เมนูก๋วยเตี๋ยว',
+      'menuCategoryRiceDishes': 'เมนูข้าว',
+      'menuCategoryNoodleSoups': 'ก๋วยเตี๋ยวน้ำ',
+      'menuCategoryTheSalad': 'เมนูสลัด',
+      'menuCategoryDessert': 'ของหวาน',
+      'menuCategoryEmpty': 'ยังไม่มีรายการในหมวด "{category}"',
     },
   };
 
@@ -194,6 +216,20 @@ class AppLocalizations {
   String get unitPiece => _resolve('unitPiece');
   String valueWithUnit(String value, String unit) =>
       _format('valueWithUnit', {'value': value, 'unit': unit});
+  String get menuCategorySoftDrinks => _resolve('menuCategorySoftDrinks');
+  String get menuCategoryBeers => _resolve('menuCategoryBeers');
+  String get menuCategoryHotDrinks => _resolve('menuCategoryHotDrinks');
+  String get menuCategoryMunchies => _resolve('menuCategoryMunchies');
+  String get menuCategoryTheFish => _resolve('menuCategoryTheFish');
+  String get menuCategoryNoodleDishes =>
+      _resolve('menuCategoryNoodleDishes');
+  String get menuCategoryRiceDishes => _resolve('menuCategoryRiceDishes');
+  String get menuCategoryNoodleSoups =>
+      _resolve('menuCategoryNoodleSoups');
+  String get menuCategoryTheSalad => _resolve('menuCategoryTheSalad');
+  String get menuCategoryDessert => _resolve('menuCategoryDessert');
+  String menuCategoryEmpty(String category) =>
+      _format('menuCategoryEmpty', {'category': category});
 }
 
 class _AppLocalizationsDelegate
