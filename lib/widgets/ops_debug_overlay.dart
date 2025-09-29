@@ -1,8 +1,11 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../services/ops_observability_service.dart';
 import '../services/sync_queue_service.dart';
+import 'responsive/responsive_tokens.dart';
 class OpsDebugOverlayHost extends StatelessWidget {
   const OpsDebugOverlayHost({required this.child, super.key});
 
@@ -58,19 +61,23 @@ class _OpsDebugOverlay extends StatelessWidget {
           return IgnorePointer(ignoring: false, child: handle);
         }
 
+        final tokens = ResponsiveTokens.of(context);
+
         return Stack(
           children: [
             handle,
             Align(
               alignment: Alignment.bottomRight,
               child: SafeArea(
-                minimum: const EdgeInsets.all(12),
-                child: SizedBox(
-                  width: 360,
-                  height: 320,
+                minimum: ResponsiveTokens.edgeInsetsSmall,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxWidth: tokens.overlayWidth,
+                    maxHeight: math.max(240, MediaQuery.sizeOf(context).height * 0.45),
+                  ),
                   child: Material(
                     elevation: 12,
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(tokens.radiusMedium),
                     clipBehavior: Clip.antiAlias,
                     color: theme.colorScheme.surface,
                     child: Column(

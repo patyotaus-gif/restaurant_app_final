@@ -89,8 +89,12 @@ import 'store_provider.dart';
 import 'takeaway_orders_page.dart';
 import 'theme_provider.dart';
 import 'widgets/app_blocked_screen.dart';
+import 'widgets/app_snack_bar.dart';
 import 'widgets/ops_debug_overlay.dart';
 import 'widgets/route_permission_guard.dart';
+import 'accessibility_provider.dart';
+import 'theme/app_theme.dart';
+import 'widgets/accessibility_overlay.dart';
 
 final _router = GoRouter(
   routes: [
@@ -561,6 +565,7 @@ class MyApp extends StatelessWidget {
                 return provider;
               },
         ),
+        ChangeNotifierProvider(create: (ctx) => AccessibilityProvider()),
         ChangeNotifierProvider(create: (ctx) => ThemeProvider()),
         ChangeNotifierProxyProvider<StoreProvider, StockProvider>(
           create: (ctx) => StockProvider(),
@@ -738,8 +743,9 @@ class MyApp extends StatelessWidget {
           },
         ),
       ],
-      child: Consumer2<ThemeProvider, LocaleProvider>(
-        builder: (context, themeProvider, localeProvider, child) {
+      child: Consumer3<ThemeProvider, LocaleProvider, AccessibilityProvider>(
+        builder:
+            (context, themeProvider, localeProvider, accessibility, child) {
           return MaterialApp.router(
             routerConfig: _router,
             debugShowCheckedModeBanner: false,
@@ -780,24 +786,22 @@ class MyApp extends StatelessWidget {
                     ),
                   );
                 case AppAvailabilityStatus.available:
-                  return OpsDebugOverlayHost(
+                  final mediaQuery = MediaQuery.of(context);
+                  final scaledChild = MediaQuery(
+                    data: mediaQuery.copyWith(
+                      textScaleFactor: accessibility.textScaleFactor,
+                      boldText: accessibility.highContrast || mediaQuery.boldText,
+                    ),
                     child: child ?? const SizedBox.shrink(),
+                  );
+                  return AccessibilityOverlayHost(
+                    child: OpsDebugOverlayHost(child: scaledChild),
                   );
               }
             },
-            theme: ThemeData(
-              brightness: Brightness.light,
-              colorScheme: ColorScheme.fromSeed(seedColor: Colors.indigo),
-              useMaterial3: true,
-            ),
-            darkTheme: ThemeData(
-              brightness: Brightness.dark,
-              colorScheme: ColorScheme.fromSeed(
-                seedColor: Colors.indigo,
-                brightness: Brightness.dark,
-              ),
-              useMaterial3: true,
-            ),
+            theme: AppTheme.light(accessibility),
+            darkTheme: AppTheme.dark(accessibility),
+            scaffoldMessengerKey: AppSnackBar.messengerKey,
           );
         },
       ),

@@ -4,6 +4,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:restaurant_models/restaurant_models.dart';
+
+import 'widgets/app_snack_bar.dart';
 // Helper class for a line item in the PO
 class PurchaseOrderItem {
   Ingredient ingredient;
@@ -85,12 +87,7 @@ class _AddPurchaseOrderPageState extends State<AddPurchaseOrderPage> {
   // Notice context is now passed into this function
   Future<void> _savePurchaseOrder(BuildContext scaffoldContext) async {
     if (_supplierController.text.isEmpty || _poItems.isEmpty) {
-      ScaffoldMessenger.of(scaffoldContext).showSnackBar(
-        const SnackBar(
-          content: Text('Please fill in supplier and add at least one item.'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      AppSnackBar.showError('Please fill in supplier and add at least one item.');
       return;
     }
 
@@ -105,14 +102,7 @@ class _AddPurchaseOrderPageState extends State<AddPurchaseOrderPage> {
       final quantity = double.tryParse(item.quantityController.text) ?? 0;
       final cost = double.tryParse(item.costController.text) ?? 0;
       if (quantity <= 0 || cost <= 0) {
-        ScaffoldMessenger.of(scaffoldContext).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Please enter valid quantity and cost for all items.',
-            ),
-            backgroundColor: Colors.red,
-          ),
-        );
+        AppSnackBar.showError('Please enter valid quantity and cost for all items.');
         setState(() {
           _isLoading = false;
         });
@@ -137,22 +127,12 @@ class _AddPurchaseOrderPageState extends State<AddPurchaseOrderPage> {
       });
 
       if (mounted) {
-        ScaffoldMessenger.of(scaffoldContext).showSnackBar(
-          const SnackBar(
-            content: Text('Purchase Order saved successfully!'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        AppSnackBar.showSuccess('Purchase Order saved successfully!');
         Navigator.of(context).pop();
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(scaffoldContext).showSnackBar(
-          SnackBar(
-            content: Text('Failed to save PO: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        AppSnackBar.showError('Failed to save PO: $e');
       }
     } finally {
       if (mounted) {
