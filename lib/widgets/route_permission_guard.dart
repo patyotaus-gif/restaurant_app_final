@@ -6,7 +6,7 @@ import '../auth_service.dart';
 import '../security/permission_policy.dart';
 import '../store_provider.dart';
 import '../unauthorized_page.dart';
-class RoutePermissionGuard extends StatelessWidget {
+class RoutePermissionGuard extends StatefulWidget {
   const RoutePermissionGuard({
     super.key,
     required this.state,
@@ -23,36 +23,60 @@ class RoutePermissionGuard extends StatelessWidget {
   final WidgetBuilder? unauthorizedBuilder;
 
   @override
+  State<RoutePermissionGuard> createState() => _RoutePermissionGuardState();
+}
+
+class _RoutePermissionGuardState extends State<RoutePermissionGuard> {
+  bool _redirectScheduled = false;
+
+  void _scheduleLoginRedirect(BuildContext context) {
+    if (_redirectScheduled) {
+      return;
+    }
+    _redirectScheduled = true;
+    Future.microtask(() {
+      if (!mounted) {
+        return;
+      }
+      context.go('/login');
+    });
+  }
+
+  void _resetRedirectFlagIfNeeded(bool isLoggedIn) {
+    if (isLoggedIn) {
+      _redirectScheduled = false;
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Consumer2<AuthService, StoreProvider>(
       builder: (context, authService, storeProvider, child) {
+        _resetRedirectFlagIfNeeded(authService.isLoggedIn);
+
         final permissionContext = PermissionContext(
           authService: authService,
           storeProvider: storeProvider,
-          routerState: state,
+          routerState: widget.state,
         );
 
         if (!authService.isLoggedIn) {
-          if (redirectToLogin) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (context.mounted) {
-                context.go('/login');
-              }
-            });
+          if (widget.redirectToLogin) {
+            _scheduleLoginRedirect(context);
           }
           return const SizedBox.shrink();
         }
 
-        if (!policy.evaluate(permissionContext)) {
-          if (unauthorizedBuilder != null) {
-            return unauthorizedBuilder!(context);
+        if (!widget.policy.evaluate(permissionContext)) {
+          if (widget.unauthorizedBuilder != null) {
+            return widget.unauthorizedBuilder!(context);
           }
           return UnauthorizedPage(
-            attemptedRoute: state.uri.toString(),
+            attemptedRoute: widget.state.uri.toString(),
           );
         }
 
-        return builder(context, state);
+        return widget.builder(context, widget.state);
       },
     );
   }
