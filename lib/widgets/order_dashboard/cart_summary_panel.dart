@@ -2,6 +2,7 @@
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:restaurant_models/restaurant_models.dart';
@@ -23,6 +24,9 @@ class _CartSummaryPanelState extends State<CartSummaryPanel> {
       TextEditingController();
   final TextEditingController _tipAmountController = TextEditingController();
 
+  late final CartProvider _cart;
+  VoidCallback? _cartListener;
+
   String _formatNumber(double value) {
     var text = value.toStringAsFixed(2);
     if (!text.contains('.')) return text;
@@ -39,10 +43,13 @@ class _CartSummaryPanelState extends State<CartSummaryPanel> {
   void initState() {
     super.initState();
     final cart = Provider.of<CartProvider>(context, listen: false);
-    _serviceChargePercentController.text = _formatNumber(
-      cart.serviceChargeRate * 100,
-    );
-    _tipAmountController.text = cart.tipAmount.toStringAsFixed(2);
+    _cart = cart;
+    _syncControllers();
+    _cartListener = () {
+      if (!mounted) return;
+      _syncControllers();
+    };
+    cart.addListener(_cartListener!);
   }
 
   @override
@@ -50,7 +57,29 @@ class _CartSummaryPanelState extends State<CartSummaryPanel> {
     _promoCodeController.dispose();
     _serviceChargePercentController.dispose();
     _tipAmountController.dispose();
+    final listener = _cartListener;
+    if (listener != null) {
+      _cart.removeListener(listener);
+    }
     super.dispose();
+  }
+
+  void _syncControllers() {
+    final percentText = _formatNumber(_cart.serviceChargeRate * 100);
+    if (_serviceChargePercentController.text != percentText) {
+      _serviceChargePercentController.value = TextEditingValue(
+        text: percentText,
+        selection: TextSelection.collapsed(offset: percentText.length),
+      );
+    }
+
+    final tipText = _cart.tipAmount.toStringAsFixed(2);
+    if (_tipAmountController.text != tipText) {
+      _tipAmountController.value = TextEditingValue(
+        text: tipText,
+        selection: TextSelection.collapsed(offset: tipText.length),
+      );
+    }
   }
 
   Widget _buildSyncStatus(SyncQueueService syncQueue) {
@@ -111,11 +140,6 @@ class _CartSummaryPanelState extends State<CartSummaryPanel> {
       return const SizedBox.shrink();
     }
 
-    final percentText = _formatNumber(cart.serviceChargeRate * 100);
-    if (_serviceChargePercentController.text != percentText) {
-      _serviceChargePercentController.text = percentText;
-    }
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -170,11 +194,6 @@ class _CartSummaryPanelState extends State<CartSummaryPanel> {
   Widget _buildTipSection(CartProvider cart) {
     if (cart.orderType != OrderType.dineIn) {
       return const SizedBox.shrink();
-    }
-
-    final tipText = cart.tipAmount.toStringAsFixed(2);
-    if (_tipAmountController.text != tipText) {
-      _tipAmountController.text = tipText;
     }
 
     return Padding(
