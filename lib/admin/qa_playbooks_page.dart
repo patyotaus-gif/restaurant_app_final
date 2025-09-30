@@ -466,7 +466,7 @@ class QaPlaybook {
   }
 }
 
-const List<QaPlaybook> _playbooks = [
+final List<QaPlaybook> _playbooks = [
   QaPlaybook(
     title: 'Payments: Card Reader Offline',
     summary: 'Investigate when the payment terminal cannot reach the gateway.',
