@@ -58,6 +58,7 @@ class _RoutePermissionGuardState extends State<RoutePermissionGuard> {
           authService: authService,
           storeProvider: storeProvider,
           routerState: widget.state,
+          extras: widget.state.extra,
         );
 
         if (!authService.isLoggedIn) {
