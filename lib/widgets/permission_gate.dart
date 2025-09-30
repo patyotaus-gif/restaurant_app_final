@@ -10,11 +10,13 @@ class PermissionGate extends StatelessWidget {
     required this.policy,
     required this.builder,
     this.fallback,
+    this.extra,
   });
 
   final PermissionPolicy policy;
   final WidgetBuilder builder;
   final WidgetBuilder? fallback;
+  final Object? extra;
 
   @override
   Widget build(BuildContext context) {
@@ -23,6 +25,7 @@ class PermissionGate extends StatelessWidget {
         final permissionContext = PermissionContext(
           authService: authService,
           storeProvider: storeProvider,
+          extras: extra,
         );
         if (policy.evaluate(permissionContext)) {
           return builder(context);
