@@ -30,10 +30,12 @@ import 'admin/customer_profile_page.dart';
 import 'admin/employee_management_page.dart';
 import 'admin/low_stock_alert_page.dart';
 import 'admin/modifier_management_page.dart';
+import 'admin/observability_page.dart';
 import 'admin/plugins/plugin_provider.dart';
 import 'admin/plugins/plugin_registry.dart';
 import 'admin/promotion_management_page.dart';
 import 'admin/punch_card_management_page.dart';
+import 'admin/qa_playbooks_page.dart';
 import 'admin/purchase_order_list_page.dart';
 import 'admin/reservation_management_page.dart';
 import 'admin/stocktake_page.dart';
@@ -198,6 +200,25 @@ final _router = GoRouter(
             state: state,
             policy: PermissionPolicy.require(Permission.manageStores),
             builder: (context, state) => const PunchCardManagementPage(),
+          ),
+        ),
+        GoRoute(
+          path: 'qa-playbooks',
+          builder: (context, state) => RoutePermissionGuard(
+            state: state,
+            policy: PermissionPolicy.require(Permission.manageStores),
+            builder: (context, state) => const QaPlaybooksPage(),
+          ),
+        ),
+        GoRoute(
+          path: 'observability',
+          builder: (context, state) => RoutePermissionGuard(
+            state: state,
+            policy: PermissionPolicy.anyOf({
+              Permission.manageStores,
+              Permission.viewAuditLogs,
+            }),
+            builder: (context, state) => const ObservabilityPage(),
           ),
         ),
         GoRoute(

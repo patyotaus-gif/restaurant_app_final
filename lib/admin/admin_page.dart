@@ -92,6 +92,20 @@ class AdminPage extends StatelessWidget {
         'route': '/admin/punch-cards',
         'modes': [AppMode.restaurant, AppMode.retail],
       },
+      {
+        'title': 'QA Playbooks',
+        'subtitle': 'Runbooks for on-call and QA sign-off',
+        'icon': Icons.fact_check_outlined,
+        'route': '/admin/qa-playbooks',
+        'modes': [AppMode.restaurant, AppMode.retail],
+      },
+      {
+        'title': 'Ops Observability',
+        'subtitle': 'Inspect logs & platform health signals',
+        'icon': Icons.monitor_heart_outlined,
+        'route': '/admin/observability',
+        'modes': [AppMode.restaurant, AppMode.retail],
+      },
       // --- ADDED THIS NEW MENU ITEM ---
       {
         'title': 'Manage Modifiers',
