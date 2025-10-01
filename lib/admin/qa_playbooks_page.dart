@@ -29,7 +29,7 @@ class _QaPlaybooksPageState extends State<QaPlaybooksPage> {
 
   Iterable<String> get _allTags {
     final tags = {
-      for (final playbook in _playbooks) ...playbook.tags,
+      for (final playbook in _playbooks) ...playbook.allTags,
     };
     final sorted = tags.toList()..sort();
     return sorted;
@@ -40,7 +40,7 @@ class _QaPlaybooksPageState extends State<QaPlaybooksPage> {
       final matchesQuery =
           _searchQuery.isEmpty || playbook.matchesQuery(_searchQuery);
       final matchesTags = _selectedTags.isEmpty ||
-          _selectedTags.every(playbook.tags.contains);
+          _selectedTags.every(playbook.allTags.contains);
       return matchesQuery && matchesTags;
     }).toList();
   }
@@ -353,7 +353,7 @@ class _PlaybookDetailState extends State<_PlaybookDetail> {
                         'Resolve in ${revision.targetResolution!.inMinutes} mins',
                       ),
                     ),
-                  for (final tag in widget.playbook.tags)
+                  for (final tag in widget.playbook.allTags)
                     Chip(
                       avatar: const Icon(Icons.sell_outlined, size: 18),
                       label: Text(tag),
@@ -511,18 +511,63 @@ class PlaybookRevision {
   final List<String> resources;
 }
 
+const Map<String, List<String>> _tagKeywordMap = {
+  'payments': ['payment', 'card reader', 'terminal', 'pos', 'cashier'],
+  'hardware': ['reader', 'device', 'tablet', 'router', 'hardware'],
+  'critical': ['offline', 'escalate', 'cash-only', 'outage'],
+  'kitchen': ['kitchen', 'kds'],
+  'performance': ['stall', 'lag', 'delay', 'freeze', 'slow'],
+  'menu': ['menu'],
+  'release': ['publish', 'release'],
+  'regression': ['regression'],
+  'reporting': ['reporting', 'reports'],
+  'data': ['export', 'bigquery', 'dataset', 'csv'],
+  'finance': ['finance', 'accounting'],
+};
+
+Set<String> generateTags({
+  required String title,
+  required Iterable<PlaybookRevision> revisions,
+}) {
+  final searchableText = <String>{
+    title,
+    for (final revision in revisions) ...[
+      ...revision.triggers,
+      ...revision.steps,
+      ...revision.followUp,
+    ],
+  }
+      .map((value) => value.toLowerCase())
+      .join(' ');
+
+  final tags = <String>{};
+  for (final entry in _tagKeywordMap.entries) {
+    if (entry.value
+        .map((keyword) => keyword.toLowerCase())
+        .any(searchableText.contains)) {
+      tags.add(entry.key);
+    }
+  }
+  return tags;
+}
+
 class QaPlaybook {
-  const QaPlaybook({
+  QaPlaybook({
     required this.title,
     required this.owner,
-    this.tags = const <String>[],
+    List<String> tags = const <String>[],
     required this.revisions,
-  }) : assert(revisions.length > 0, 'QaPlaybook must have at least 1 revision');
+  })  : _manualTags = List.unmodifiable(tags),
+        assert(revisions.length > 0, 'QaPlaybook must have at least 1 revision');
 
   final String title;
   final String owner;
-  final List<String> tags;
   final List<PlaybookRevision> revisions;
+  final List<String> _manualTags;
+
+  late final List<String> allTags = _computeAllTags();
+
+  List<String> get tags => _manualTags;
 
   PlaybookRevision get latestRevision {
     return revisions.reduce((value, element) {
@@ -568,10 +613,27 @@ class QaPlaybook {
     final haystack = [
       title,
       owner,
-      ...tags,
+      ...allTags,
       revisionText,
     ].join(' ').toLowerCase();
     return haystack.contains(query);
+  }
+
+  List<String> _computeAllTags() {
+    final generated = generateTags(
+      title: title,
+      revisions: revisions,
+    );
+    final manual = _manualTags
+        .map((tag) => tag.toLowerCase())
+        .where((tag) => tag.isNotEmpty)
+        .toSet();
+    final combined = <String>{
+      ...generated,
+      ...manual,
+    }.toList()
+      ..sort();
+    return combined;
   }
 }
 
@@ -579,7 +641,6 @@ final List<QaPlaybook> _playbooks = [
   QaPlaybook(
     title: 'Payments: Card Reader Offline',
     owner: 'Ops Guild',
-    tags: const ['payments', 'critical', 'hardware'],
     revisions: [
       PlaybookRevision(
         id: 'v1.2.0',
@@ -644,7 +705,6 @@ final List<QaPlaybook> _playbooks = [
   QaPlaybook(
     title: 'Kitchen Display Queue Stalling',
     owner: 'Engineering',
-    tags: const ['kitchen', 'performance'],
     revisions: [
       PlaybookRevision(
         id: 'v2.1.0',
@@ -706,7 +766,6 @@ final List<QaPlaybook> _playbooks = [
   QaPlaybook(
     title: 'Menu Publishing Regression',
     owner: 'Menu QA',
-    tags: const ['menu', 'release', 'regression'],
     revisions: [
       PlaybookRevision(
         id: 'v3.0.0',
@@ -767,7 +826,7 @@ final List<QaPlaybook> _playbooks = [
   QaPlaybook(
     title: 'Data Export Delays',
     owner: 'Finance Ops',
-    tags: const ['reporting', 'data'],
+    tags: const ['ops'],
     revisions: [
       PlaybookRevision(
         id: 'v1.5.0',
