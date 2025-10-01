@@ -28,9 +28,7 @@ class _QaPlaybooksPageState extends State<QaPlaybooksPage> {
   }
 
   Iterable<String> get _allTags {
-    final tags = {
-      for (final playbook in _playbooks) ...playbook.allTags,
-    };
+    final tags = {for (final playbook in _playbooks) ...playbook.allTags};
     final sorted = tags.toList()..sort();
     return sorted;
   }
@@ -39,7 +37,8 @@ class _QaPlaybooksPageState extends State<QaPlaybooksPage> {
     return _playbooks.where((playbook) {
       final matchesQuery =
           _searchQuery.isEmpty || playbook.matchesQuery(_searchQuery);
-      final matchesTags = _selectedTags.isEmpty ||
+      final matchesTags =
+          _selectedTags.isEmpty ||
           _selectedTags.every(playbook.allTags.contains);
       return matchesQuery && matchesTags;
     }).toList();
@@ -69,9 +68,7 @@ class _QaPlaybooksPageState extends State<QaPlaybooksPage> {
         : (filtered.isNotEmpty ? filtered.first : null);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('QA Playbooks'),
-      ),
+      appBar: AppBar(title: const Text('QA Playbooks')),
       body: LayoutBuilder(
         builder: (context, constraints) {
           final isWide = constraints.maxWidth > 900;
@@ -94,11 +91,7 @@ class _QaPlaybooksPageState extends State<QaPlaybooksPage> {
           if (!isWide) {
             return ListView(
               padding: const EdgeInsets.all(16),
-              children: [
-                sidebar,
-                const SizedBox(height: 16),
-                detail,
-              ],
+              children: [sidebar, const SizedBox(height: 16), detail],
             );
           }
 
@@ -107,10 +100,7 @@ class _QaPlaybooksPageState extends State<QaPlaybooksPage> {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                SizedBox(
-                  width: 360,
-                  child: sidebar,
-                ),
+                SizedBox(width: 360, child: sidebar),
                 const SizedBox(width: 24),
                 Expanded(child: detail),
               ],
@@ -213,8 +203,9 @@ class _PlaybookSidebar extends StatelessWidget {
                       final isSelected = playbook == focused;
                       return ListTile(
                         selected: isSelected,
-                        selectedTileColor:
-                            Theme.of(context).colorScheme.primaryContainer,
+                        selectedTileColor: Theme.of(
+                          context,
+                        ).colorScheme.primaryContainer,
                         title: Text(playbook.title),
                         subtitle: Text(playbook.summary),
                         onTap: () => onSelect(playbook),
@@ -228,8 +219,9 @@ class _PlaybookSidebar extends StatelessWidget {
                             ),
                             if (playbook.lastUpdated != null)
                               Text(
-                                DateFormat.yMMMd()
-                                    .format(playbook.lastUpdated!),
+                                DateFormat.yMMMd().format(
+                                  playbook.lastUpdated!,
+                                ),
                                 style: Theme.of(context).textTheme.bodySmall,
                               ),
                           ],
@@ -293,10 +285,7 @@ class _PlaybookDetailState extends State<_PlaybookDetail> {
               const SizedBox(height: 12),
               Row(
                 children: [
-                  Text(
-                    'Revision:',
-                    style: theme.textTheme.titleSmall,
-                  ),
+                  Text('Revision:', style: theme.textTheme.titleSmall),
                   const SizedBox(width: 12),
                   DropdownButton<PlaybookRevision>(
                     key: const Key('revisionDropdown'),
@@ -320,10 +309,7 @@ class _PlaybookDetailState extends State<_PlaybookDetail> {
                 ],
               ),
               const SizedBox(height: 8),
-              Text(
-                revision.summary,
-                style: theme.textTheme.bodyLarge,
-              ),
+              Text(revision.summary, style: theme.textTheme.bodyLarge),
               const SizedBox(height: 8),
               if (revision.changeSummary.isNotEmpty)
                 Text(
@@ -420,9 +406,9 @@ class _SectionHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       title,
-      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.bold,
-          ),
+      style: Theme.of(
+        context,
+      ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
     );
   }
 }
@@ -536,9 +522,7 @@ Set<String> generateTags({
       ...revision.steps,
       ...revision.followUp,
     ],
-  }
-      .map((value) => value.toLowerCase())
-      .join(' ');
+  }.map((value) => value.toLowerCase()).join(' ');
 
   final tags = <String>{};
   for (final entry in _tagKeywordMap.entries) {
@@ -557,8 +541,8 @@ class QaPlaybook {
     required this.owner,
     List<String> tags = const <String>[],
     required this.revisions,
-  })  : _manualTags = List.unmodifiable(tags),
-        assert(revisions.length > 0, 'QaPlaybook must have at least 1 revision');
+  }) : _manualTags = List.unmodifiable(tags),
+       assert(revisions.length > 0, 'QaPlaybook must have at least 1 revision');
 
   final String title;
   final String owner;
@@ -597,16 +581,18 @@ class QaPlaybook {
 
   bool matchesQuery(String query) {
     final revisionText = revisions
-        .expand((revision) => [
-              revision.id,
-              revision.summary,
-              revision.changeSummary,
-              ...revision.triggers,
-              ...revision.steps,
-              ...revision.signals,
-              ...revision.followUp,
-              ...revision.resources,
-            ])
+        .expand(
+          (revision) => [
+            revision.id,
+            revision.summary,
+            revision.changeSummary,
+            ...revision.triggers,
+            ...revision.steps,
+            ...revision.signals,
+            ...revision.followUp,
+            ...revision.resources,
+          ],
+        )
         .join(' ')
         .toLowerCase();
 
@@ -620,19 +606,12 @@ class QaPlaybook {
   }
 
   List<String> _computeAllTags() {
-    final generated = generateTags(
-      title: title,
-      revisions: revisions,
-    );
+    final generated = generateTags(title: title, revisions: revisions);
     final manual = _manualTags
         .map((tag) => tag.toLowerCase())
         .where((tag) => tag.isNotEmpty)
         .toSet();
-    final combined = <String>{
-      ...generated,
-      ...manual,
-    }.toList()
-      ..sort();
+    final combined = <String>{...generated, ...manual}.toList()..sort();
     return combined;
   }
 }
@@ -690,15 +669,11 @@ final List<QaPlaybook> _playbooks = [
           'Contact vendor support to confirm if there is a regional outage.',
           'Document incident status in the ops log and monitor for 30 minutes.',
         ],
-        signals: const [
-          'Reader successfully processes a $1 authorization.',
-        ],
+        signals: const ['Reader successfully processes a \$1 authorization.'],
         followUp: const [
           'Update incident ticket with vendor reference number.',
         ],
-        resources: const [
-          'Vendor hotline: +1-800-555-0133',
-        ],
+        resources: const ['Vendor hotline: +1-800-555-0133'],
       ),
     ],
   ),
@@ -751,15 +726,9 @@ final List<QaPlaybook> _playbooks = [
           'Restart kiosk service for the impacted location.',
           'Verify new orders flow in within 3 minutes.',
         ],
-        signals: const [
-          'Kiosk service uptime indicator returns to green.',
-        ],
-        followUp: const [
-          'Email engineering on-call with incident summary.',
-        ],
-        resources: const [
-          'Internal doc: KDS networking primer',
-        ],
+        signals: const ['Kiosk service uptime indicator returns to green.'],
+        followUp: const ['Email engineering on-call with incident summary.'],
+        resources: const ['Internal doc: KDS networking primer'],
       ),
     ],
   ),
@@ -811,15 +780,9 @@ final List<QaPlaybook> _playbooks = [
           'Purge CDN cache for the tenant.',
           'Re-run publish workflow with verbose logging enabled.',
         ],
-        signals: const [
-          'CDN invalidation completes within 5 minutes.',
-        ],
-        followUp: const [
-          'Notify release manager of manual intervention.',
-        ],
-        resources: const [
-          'CDN purge instructions',
-        ],
+        signals: const ['CDN invalidation completes within 5 minutes.'],
+        followUp: const ['Notify release manager of manual intervention.'],
+        resources: const ['CDN purge instructions'],
       ),
     ],
   ),
@@ -864,23 +827,15 @@ final List<QaPlaybook> _playbooks = [
         changeSummary: 'Established process for temporary manual exports.',
         updatedAt: DateTime(2023, 5, 9),
         targetResolution: Duration(hours: 3),
-        triggers: const [
-          'Scheduled export misses agreed delivery window.',
-        ],
+        triggers: const ['Scheduled export misses agreed delivery window.'],
         steps: const [
           'Verify export job status in monitoring dashboard.',
           'Notify stakeholders of anticipated delay.',
           'Kick off manual export script from operations toolkit.',
         ],
-        signals: const [
-          'Manual export file delivered to stakeholders.',
-        ],
-        followUp: const [
-          'Review monitoring alerts for missed warning signs.',
-        ],
-        resources: const [
-          'Operations toolkit manual export guide',
-        ],
+        signals: const ['Manual export file delivered to stakeholders.'],
+        followUp: const ['Review monitoring alerts for missed warning signs.'],
+        resources: const ['Operations toolkit manual export guide'],
       ),
     ],
   ),
