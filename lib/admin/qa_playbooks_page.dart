@@ -244,14 +244,38 @@ class _PlaybookSidebar extends StatelessWidget {
   }
 }
 
-class _PlaybookDetail extends StatelessWidget {
+class _PlaybookDetail extends StatefulWidget {
   const _PlaybookDetail({required this.playbook});
 
   final QaPlaybook playbook;
 
   @override
+  State<_PlaybookDetail> createState() => _PlaybookDetailState();
+}
+
+class _PlaybookDetailState extends State<_PlaybookDetail> {
+  late PlaybookRevision _selectedRevision;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedRevision = widget.playbook.latestRevision;
+  }
+
+  @override
+  void didUpdateWidget(covariant _PlaybookDetail oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.playbook != widget.playbook) {
+      _selectedRevision = widget.playbook.latestRevision;
+    } else if (!widget.playbook.revisions.contains(_selectedRevision)) {
+      _selectedRevision = widget.playbook.latestRevision;
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final revision = _selectedRevision;
     return Card(
       clipBehavior: Clip.antiAlias,
       child: Padding(
@@ -261,13 +285,51 @@ class _PlaybookDetail extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                playbook.title,
+                widget.playbook.title,
                 style: theme.textTheme.headlineSmall?.copyWith(
                   fontWeight: FontWeight.bold,
                 ),
               ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Text(
+                    'Revision:',
+                    style: theme.textTheme.titleSmall,
+                  ),
+                  const SizedBox(width: 12),
+                  DropdownButton<PlaybookRevision>(
+                    key: const Key('revisionDropdown'),
+                    value: revision,
+                    items: [
+                      for (final rev in widget.playbook.revisions)
+                        DropdownMenuItem<PlaybookRevision>(
+                          value: rev,
+                          child: Text(rev.id),
+                        ),
+                    ],
+                    onChanged: (value) {
+                      if (value == null) {
+                        return;
+                      }
+                      setState(() {
+                        _selectedRevision = value;
+                      });
+                    },
+                  ),
+                ],
+              ),
               const SizedBox(height: 8),
-              Text(playbook.summary),
+              Text(
+                revision.summary,
+                style: theme.textTheme.bodyLarge,
+              ),
+              const SizedBox(height: 8),
+              if (revision.changeSummary.isNotEmpty)
+                Text(
+                  'Change summary: ${revision.changeSummary}',
+                  style: theme.textTheme.bodyMedium,
+                ),
               const SizedBox(height: 16),
               Wrap(
                 spacing: 8,
@@ -275,23 +337,23 @@ class _PlaybookDetail extends StatelessWidget {
                 children: [
                   Chip(
                     avatar: const Icon(Icons.manage_accounts, size: 18),
-                    label: Text('Owner: ${playbook.owner}'),
+                    label: Text('Owner: ${widget.playbook.owner}'),
                   ),
-                  if (playbook.lastUpdated != null)
+                  if (revision.updatedAt != null)
                     Chip(
                       avatar: const Icon(Icons.history, size: 18),
                       label: Text(
-                        'Updated ${DateFormat.yMMMd().format(playbook.lastUpdated!)}',
+                        'Updated ${DateFormat.yMMMd().format(revision.updatedAt!)}',
                       ),
                     ),
-                  if (playbook.targetResolution != null)
+                  if (revision.targetResolution != null)
                     Chip(
                       avatar: const Icon(Icons.timer_outlined, size: 18),
                       label: Text(
-                        'Resolve in ${playbook.targetResolution!.inMinutes} mins',
+                        'Resolve in ${revision.targetResolution!.inMinutes} mins',
                       ),
                     ),
-                  for (final tag in playbook.tags)
+                  for (final tag in widget.playbook.tags)
                     Chip(
                       avatar: const Icon(Icons.sell_outlined, size: 18),
                       label: Text(tag),
@@ -300,24 +362,24 @@ class _PlaybookDetail extends StatelessWidget {
               ),
               const SizedBox(height: 24),
               const _SectionHeader('Trigger & Detection'),
-              _BulletList(items: playbook.triggers),
+              _BulletList(items: revision.triggers),
               const SizedBox(height: 16),
               const _SectionHeader('Checklist'),
-              _NumberedList(items: playbook.steps),
-              if (playbook.signals.isNotEmpty) ...[
+              _NumberedList(items: revision.steps),
+              if (revision.signals.isNotEmpty) ...[
                 const SizedBox(height: 16),
                 const _SectionHeader('Success Signals'),
-                _BulletList(items: playbook.signals),
+                _BulletList(items: revision.signals),
               ],
-              if (playbook.followUp.isNotEmpty) ...[
+              if (revision.followUp.isNotEmpty) ...[
                 const SizedBox(height: 16),
                 const _SectionHeader('Follow-up Actions'),
-                _BulletList(items: playbook.followUp),
+                _BulletList(items: revision.followUp),
               ],
               const SizedBox(height: 24),
-              if (playbook.resources.isNotEmpty) ...[
+              if (revision.resources.isNotEmpty) ...[
                 const _SectionHeader('Reference Resources'),
-                _BulletList(items: playbook.resources),
+                _BulletList(items: revision.resources),
               ],
             ],
           ),
@@ -423,14 +485,13 @@ class _NumberedList extends StatelessWidget {
   }
 }
 
-class QaPlaybook {
-  const QaPlaybook({
-    required this.title,
+class PlaybookRevision {
+  const PlaybookRevision({
+    required this.id,
     required this.summary,
-    required this.owner,
-    this.lastUpdated,
+    this.changeSummary = '',
+    this.updatedAt,
     this.targetResolution,
-    this.tags = const <String>[],
     this.triggers = const <String>[],
     this.steps = const <String>[],
     this.signals = const <String>[],
@@ -438,29 +499,77 @@ class QaPlaybook {
     this.resources = const <String>[],
   });
 
-  final String title;
+  final String id;
   final String summary;
-  final String owner;
-  final DateTime? lastUpdated;
+  final String changeSummary;
+  final DateTime? updatedAt;
   final Duration? targetResolution;
-  final List<String> tags;
   final List<String> triggers;
   final List<String> steps;
   final List<String> signals;
   final List<String> followUp;
   final List<String> resources;
+}
+
+class QaPlaybook {
+  const QaPlaybook({
+    required this.title,
+    required this.owner,
+    this.tags = const <String>[],
+    required this.revisions,
+  }) : assert(revisions.length > 0, 'QaPlaybook must have at least 1 revision');
+
+  final String title;
+  final String owner;
+  final List<String> tags;
+  final List<PlaybookRevision> revisions;
+
+  PlaybookRevision get latestRevision {
+    return revisions.reduce((value, element) {
+      final valueDate = value.updatedAt;
+      final elementDate = element.updatedAt;
+      if (valueDate == null && elementDate == null) {
+        return value;
+      }
+      if (valueDate == null) {
+        return element;
+      }
+      if (elementDate == null) {
+        return value;
+      }
+      return valueDate.isAfter(elementDate) ? value : element;
+    });
+  }
+
+  String get summary => latestRevision.summary;
+  DateTime? get lastUpdated => latestRevision.updatedAt;
+  Duration? get targetResolution => latestRevision.targetResolution;
+  List<String> get triggers => latestRevision.triggers;
+  List<String> get steps => latestRevision.steps;
+  List<String> get signals => latestRevision.signals;
+  List<String> get followUp => latestRevision.followUp;
+  List<String> get resources => latestRevision.resources;
 
   bool matchesQuery(String query) {
+    final revisionText = revisions
+        .expand((revision) => [
+              revision.id,
+              revision.summary,
+              revision.changeSummary,
+              ...revision.triggers,
+              ...revision.steps,
+              ...revision.signals,
+              ...revision.followUp,
+              ...revision.resources,
+            ])
+        .join(' ')
+        .toLowerCase();
+
     final haystack = [
       title,
-      summary,
       owner,
       ...tags,
-      ...triggers,
-      ...steps,
-      ...signals,
-      ...followUp,
-      ...resources,
+      revisionText,
     ].join(' ').toLowerCase();
     return haystack.contains(query);
   }
@@ -469,122 +578,251 @@ class QaPlaybook {
 final List<QaPlaybook> _playbooks = [
   QaPlaybook(
     title: 'Payments: Card Reader Offline',
-    summary: 'Investigate when the payment terminal cannot reach the gateway.',
     owner: 'Ops Guild',
-    tags: ['payments', 'critical', 'hardware'],
-    lastUpdated: DateTime(2024, 3, 12),
-    targetResolution: Duration(minutes: 30),
-    triggers: [
-      'Cashiers report repeated payment failures with status OFFLINE.',
-      'Observability dashboard shows spikes in payment retries.',
-    ],
-    steps: [
-      'Confirm that the payment gateway status page reports an incident.',
-      'Check the in-store internet connection and restart the router if needed.',
-      'Power-cycle the card reader and verify it reconnects to Wi-Fi.',
-      'If the issue persists, switch the store to cash-only mode and escalate to L2.',
-    ],
-    signals: [
-      'Successful test transaction processed after restart.',
-      'No new errors in payment gateway logs for 10 minutes.',
-    ],
-    followUp: [
-      'Log incident summary in QA channel.',
-      'Schedule preventative maintenance if device is older than 18 months.',
-    ],
-    resources: [
-      'https://status.stripe.com',
-      'Internal guide: POS network hardening checklist',
+    tags: const ['payments', 'critical', 'hardware'],
+    revisions: [
+      PlaybookRevision(
+        id: 'v1.2.0',
+        summary:
+            'Investigate when the payment terminal cannot reach the gateway.',
+        changeSummary:
+            'Clarified escalation path and added cash-only fallback guidance.',
+        updatedAt: DateTime(2024, 3, 12),
+        targetResolution: Duration(minutes: 30),
+        triggers: const [
+          'Cashiers report repeated payment failures with status OFFLINE.',
+          'Observability dashboard shows spikes in payment retries.',
+        ],
+        steps: const [
+          'Confirm that the payment gateway status page reports an incident.',
+          'Check the in-store internet connection and restart the router if needed.',
+          'Power-cycle the card reader and verify it reconnects to Wi-Fi.',
+          'If the issue persists, switch the store to cash-only mode and escalate to L2.',
+        ],
+        signals: const [
+          'Successful test transaction processed after restart.',
+          'No new errors in payment gateway logs for 10 minutes.',
+        ],
+        followUp: const [
+          'Log incident summary in QA channel.',
+          'Schedule preventative maintenance if device is older than 18 months.',
+        ],
+        resources: const [
+          'https://status.stripe.com',
+          'Internal guide: POS network hardening checklist',
+        ],
+      ),
+      PlaybookRevision(
+        id: 'v1.0.0',
+        summary: 'Legacy workflow for mitigating offline card readers.',
+        changeSummary:
+            'Original draft with emphasis on vendor support confirmation.',
+        updatedAt: DateTime(2023, 9, 10),
+        targetResolution: Duration(minutes: 35),
+        triggers: const [
+          'Store manager reports terminal stuck in reconnecting state.',
+          'Support hotline receives multiple offline terminal alerts.',
+        ],
+        steps: const [
+          'Verify power and network cabling for the reader.',
+          'Restart the router and wait 5 minutes for devices to recover.',
+          'Contact vendor support to confirm if there is a regional outage.',
+          'Document incident status in the ops log and monitor for 30 minutes.',
+        ],
+        signals: const [
+          'Reader successfully processes a $1 authorization.',
+        ],
+        followUp: const [
+          'Update incident ticket with vendor reference number.',
+        ],
+        resources: const [
+          'Vendor hotline: +1-800-555-0133',
+        ],
+      ),
     ],
   ),
   QaPlaybook(
     title: 'Kitchen Display Queue Stalling',
-    summary: 'Orders stop updating on KDS screens during peak service.',
     owner: 'Engineering',
-    tags: ['kitchen', 'performance'],
-    lastUpdated: DateTime(2024, 1, 28),
-    targetResolution: Duration(minutes: 20),
-    triggers: [
-      'Tickets remain in Preparing state for more than 15 minutes.',
-      'Kitchen staff report missing chimes on new orders.',
-    ],
-    steps: [
-      'Open Observability > Sync Queue to ensure background workers are healthy.',
-      'Restart the affected KDS tablet and confirm it re-syncs.',
-      'Rebuild the sync queue from admin > Maintenance tools.',
-      'Escalate to platform team if backlog exceeds 50 pending jobs.',
-    ],
-    signals: [
-      'Average ticket time drops below 6 minutes.',
-      'No pending jobs remain in the sync queue.',
-    ],
-    followUp: [
-      'Capture HAR log from the device if problem recurs.',
-      'File retrospective issue with timestamps and affected stores.',
-    ],
-    resources: [
-      'Runbook: Sync service health checks',
-      'Device SOP: Tablet reboot and cache clear',
+    tags: const ['kitchen', 'performance'],
+    revisions: [
+      PlaybookRevision(
+        id: 'v2.1.0',
+        summary: 'Orders stop updating on KDS screens during peak service.',
+        changeSummary:
+            'Added rebuild instructions for sync queue and metrics to watch.',
+        updatedAt: DateTime(2024, 1, 28),
+        targetResolution: Duration(minutes: 20),
+        triggers: const [
+          'Tickets remain in Preparing state for more than 15 minutes.',
+          'Kitchen staff report missing chimes on new orders.',
+        ],
+        steps: const [
+          'Open Observability > Sync Queue to ensure background workers are healthy.',
+          'Restart the affected KDS tablet and confirm it re-syncs.',
+          'Rebuild the sync queue from admin > Maintenance tools.',
+          'Escalate to platform team if backlog exceeds 50 pending jobs.',
+        ],
+        signals: const [
+          'Average ticket time drops below 6 minutes.',
+          'No pending jobs remain in the sync queue.',
+        ],
+        followUp: const [
+          'Capture HAR log from the device if problem recurs.',
+          'File retrospective issue with timestamps and affected stores.',
+        ],
+        resources: const [
+          'Runbook: Sync service health checks',
+          'Device SOP: Tablet reboot and cache clear',
+        ],
+      ),
+      PlaybookRevision(
+        id: 'v1.3.0',
+        summary:
+            'Baseline steps for when kitchen displays lag or freeze updates.',
+        changeSummary: 'Documented temporary fix via kiosk service restart.',
+        updatedAt: DateTime(2023, 6, 5),
+        targetResolution: Duration(minutes: 25),
+        triggers: const [
+          'Orders take longer than 10 minutes to appear on displays.',
+        ],
+        steps: const [
+          'Check kiosk service status in admin console.',
+          'Restart kiosk service for the impacted location.',
+          'Verify new orders flow in within 3 minutes.',
+        ],
+        signals: const [
+          'Kiosk service uptime indicator returns to green.',
+        ],
+        followUp: const [
+          'Email engineering on-call with incident summary.',
+        ],
+        resources: const [
+          'Internal doc: KDS networking primer',
+        ],
+      ),
     ],
   ),
   QaPlaybook(
     title: 'Menu Publishing Regression',
-    summary: 'New menu items are not visible in customer channels.',
     owner: 'Menu QA',
-    tags: ['menu', 'release', 'regression'],
-    lastUpdated: DateTime(2024, 4, 2),
-    targetResolution: Duration(minutes: 45),
-    triggers: [
-      'Staging publish succeeded but production channels show stale menu.',
-      'Retail POS receives a schema mismatch warning.',
-    ],
-    steps: [
-      'Verify the menu publish job status in Cloud Tasks and Firestore.',
-      'Run menu diff tool against the affected tenant.',
-      'Trigger a manual re-publish from the admin portal.',
-      'Contact release manager if data mismatch persists.',
-    ],
-    signals: [
-      'Menu diff returns zero discrepancies.',
-      'Customer app loads updated items without errors.',
-    ],
-    followUp: [
-      'Tag release commit with "needs-backport" if hotfix required.',
-      'Update regression test suite with new coverage gaps.',
-    ],
-    resources: [
-      'Docs: Menu publishing pipeline overview',
-      'QA Tooling: Tenant diff CLI usage',
+    tags: const ['menu', 'release', 'regression'],
+    revisions: [
+      PlaybookRevision(
+        id: 'v3.0.0',
+        summary: 'New menu items are not visible in customer channels.',
+        changeSummary:
+            'Updated diff tooling instructions and clarified escalation.',
+        updatedAt: DateTime(2024, 4, 2),
+        targetResolution: Duration(minutes: 45),
+        triggers: const [
+          'Staging publish succeeded but production channels show stale menu.',
+          'Retail POS receives a schema mismatch warning.',
+        ],
+        steps: const [
+          'Verify the menu publish job status in Cloud Tasks and Firestore.',
+          'Run menu diff tool against the affected tenant.',
+          'Trigger a manual re-publish from the admin portal.',
+          'Contact release manager if data mismatch persists.',
+        ],
+        signals: const [
+          'Menu diff returns zero discrepancies.',
+          'Customer app loads updated items without errors.',
+        ],
+        followUp: const [
+          'Tag release commit with "needs-backport" if hotfix required.',
+          'Update regression test suite with new coverage gaps.',
+        ],
+        resources: const [
+          'Docs: Menu publishing pipeline overview',
+          'QA Tooling: Tenant diff CLI usage',
+        ],
+      ),
+      PlaybookRevision(
+        id: 'v2.2.1',
+        summary: 'Checklist prior to manual publish reruns.',
+        changeSummary: 'Added step to verify CDN purge completion.',
+        updatedAt: DateTime(2023, 12, 18),
+        targetResolution: Duration(minutes: 40),
+        triggers: const [
+          'Merchants report missing new menu items after publish.',
+        ],
+        steps: const [
+          'Confirm publish queue job completed successfully.',
+          'Purge CDN cache for the tenant.',
+          'Re-run publish workflow with verbose logging enabled.',
+        ],
+        signals: const [
+          'CDN invalidation completes within 5 minutes.',
+        ],
+        followUp: const [
+          'Notify release manager of manual intervention.',
+        ],
+        resources: const [
+          'CDN purge instructions',
+        ],
+      ),
     ],
   ),
   QaPlaybook(
     title: 'Data Export Delays',
-    summary: 'Scheduled exports to accounting systems are lagging behind.',
     owner: 'Finance Ops',
-    tags: ['reporting', 'data'],
-    lastUpdated: DateTime(2023, 11, 16),
-    targetResolution: Duration(hours: 2),
-    triggers: [
-      'Accounting team reports missing files after 2 AM schedule.',
-      'BigQuery export queue shows retrying jobs.',
-    ],
-    steps: [
-      'Check Cloud Scheduler execution logs for recent failures.',
-      'Confirm service account credentials are still valid.',
-      'Manually trigger the export function and monitor progress.',
-      'If backlogged, notify stakeholders and queue incremental export.',
-    ],
-    signals: [
-      'Latest export files available in shared drive.',
-      'Scheduler dashboard returns to green status.',
-    ],
-    followUp: [
-      'Document incident in finance operations tracker.',
-      'Review alert thresholds for export latency.',
-    ],
-    resources: [
-      'Runbook: BigQuery export troubleshooting',
-      'Finance SOP: Data integrity verification',
+    tags: const ['reporting', 'data'],
+    revisions: [
+      PlaybookRevision(
+        id: 'v1.5.0',
+        summary: 'Scheduled exports to accounting systems are lagging behind.',
+        changeSummary:
+            'Refined retry process and added incremental export guidance.',
+        updatedAt: DateTime(2023, 11, 16),
+        targetResolution: Duration(hours: 2),
+        triggers: const [
+          'Accounting team reports missing files after 2 AM schedule.',
+          'BigQuery export queue shows retrying jobs.',
+        ],
+        steps: const [
+          'Check Cloud Scheduler execution logs for recent failures.',
+          'Confirm service account credentials are still valid.',
+          'Manually trigger the export function and monitor progress.',
+          'If backlogged, notify stakeholders and queue incremental export.',
+        ],
+        signals: const [
+          'Latest export files available in shared drive.',
+          'Scheduler dashboard returns to green status.',
+        ],
+        followUp: const [
+          'Document incident in finance operations tracker.',
+          'Review alert thresholds for export latency.',
+        ],
+        resources: const [
+          'Runbook: BigQuery export troubleshooting',
+          'Finance SOP: Data integrity verification',
+        ],
+      ),
+      PlaybookRevision(
+        id: 'v1.2.0',
+        summary: 'Early playbook for delayed data exports.',
+        changeSummary: 'Established process for temporary manual exports.',
+        updatedAt: DateTime(2023, 5, 9),
+        targetResolution: Duration(hours: 3),
+        triggers: const [
+          'Scheduled export misses agreed delivery window.',
+        ],
+        steps: const [
+          'Verify export job status in monitoring dashboard.',
+          'Notify stakeholders of anticipated delay.',
+          'Kick off manual export script from operations toolkit.',
+        ],
+        signals: const [
+          'Manual export file delivered to stakeholders.',
+        ],
+        followUp: const [
+          'Review monitoring alerts for missed warning signs.',
+        ],
+        resources: const [
+          'Operations toolkit manual export guide',
+        ],
+      ),
     ],
   ),
 ];
