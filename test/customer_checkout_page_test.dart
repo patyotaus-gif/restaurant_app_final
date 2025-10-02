@@ -5,6 +5,7 @@ import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
+import 'package:restaurant_app_final/cart_provider.dart';
 import 'package:restaurant_app_final/customer_checkout_page.dart';
 import 'package:restaurant_app_final/services/sync_queue_service.dart';
 import 'package:restaurant_models/restaurant_models.dart';
