@@ -5,6 +5,7 @@ import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'offline_queue_encryption.dart';
@@ -211,7 +212,7 @@ class SyncQueueService extends ChangeNotifier {
     _queue
       ..clear()
       ..addAll(decodedOperations);
-    notifyListeners();
+    _safeNotifyListeners();
 
     if (_queue.isNotEmpty) {
       _requestBackgroundSync();
@@ -242,7 +243,7 @@ class SyncQueueService extends ChangeNotifier {
     );
     if (newStatus != _isOnline) {
       _isOnline = newStatus;
-      notifyListeners();
+      _safeNotifyListeners();
     }
     if (_isOnline) {
       unawaited(_processQueue());
@@ -260,7 +261,7 @@ class SyncQueueService extends ChangeNotifier {
     _queue.add(operation);
     await _persistQueue();
     _requestBackgroundSync();
-    notifyListeners();
+    _safeNotifyListeners();
 
     _recordObservability(
       'Operation queued for offline sync',
@@ -306,7 +307,7 @@ class SyncQueueService extends ChangeNotifier {
       return;
     }
     _isProcessing = true;
-    notifyListeners();
+    _safeNotifyListeners();
 
     while (_queue.isNotEmpty && _isOnline) {
       final operation = _queue.first;
@@ -330,7 +331,7 @@ class SyncQueueService extends ChangeNotifier {
         await _persistQueue();
         _lastSyncedAt = DateTime.now();
         _lastError = null;
-        notifyListeners();
+        _safeNotifyListeners();
 
         _recordObservability(
           'Queued operation synced',
@@ -356,7 +357,7 @@ class SyncQueueService extends ChangeNotifier {
         _lastError = e.toString();
         debugPrint('SyncQueue error for ${operation.id}: $e');
         debugPrint(stackTrace.toString());
-        notifyListeners();
+        _safeNotifyListeners();
 
         _requestBackgroundSync();
 
@@ -382,7 +383,7 @@ class SyncQueueService extends ChangeNotifier {
     }
 
     _isProcessing = false;
-    notifyListeners();
+    _safeNotifyListeners();
   }
 
   @override
@@ -397,6 +398,22 @@ class SyncQueueService extends ChangeNotifier {
     });
     _pendingCompleters.clear();
     super.dispose();
+  }
+
+  void _safeNotifyListeners() {
+    final scheduler = SchedulerBinding.instance;
+    if (scheduler == null) {
+      notifyListeners();
+      return;
+    }
+
+    final phase = scheduler.schedulerPhase;
+    if (phase == SchedulerPhase.idle ||
+        phase == SchedulerPhase.postFrameCallbacks) {
+      notifyListeners();
+    } else {
+      scheduler.addPostFrameCallback((_) => notifyListeners());
+    }
   }
 
   void _recordObservability(
