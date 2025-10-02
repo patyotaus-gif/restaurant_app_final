@@ -1019,227 +1019,239 @@ class _CartPageState extends State<CartPage> {
         return Scaffold(
           appBar: AppBar(title: const Text('ตะกร้าสินค้า (Current Order)')),
           body: Column(
-            children: <Widget>[
-              _buildSyncStatus(syncQueue),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 15.0),
-                child: _buildPointsSection(cart),
-              ),
-              Card(
-                margin: const EdgeInsets.symmetric(
-                  horizontal: 15.0,
-                  vertical: 8.0,
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(12.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      if (cart.orderIdentifier != null)
-                        ListTile(
-                          contentPadding: EdgeInsets.zero,
-                          title: const Text(
-                            'Order Number',
-                            style: TextStyle(color: Colors.grey),
-                          ),
-                          trailing: Text(
-                            cart.orderIdentifier!,
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        title: const Text(
-                          'Subtotal',
-                          style: TextStyle(fontSize: 16),
-                        ),
-                        trailing: Text(
-                          '${cart.subtotal.toStringAsFixed(2)} บาท',
-                          style: const TextStyle(fontSize: 16),
-                        ),
-                      ),
-                      _buildPromotionSection(cart),
-                      _buildServiceChargeSection(cart),
-                      _buildTipSection(cart),
-                      if (cart.serviceChargeEnabled)
-                        ListTile(
-                          contentPadding: EdgeInsets.zero,
-                          title: Text(
-                            'Service Charge (${_formatNumber(cart.serviceChargeRate * 100)}%)',
-                          ),
-                          trailing: Text(
-                            '+ ${cart.serviceChargeAmount.toStringAsFixed(2)} บาท',
-                            style: const TextStyle(color: Colors.deepOrange),
-                          ),
-                        ),
-                      if (cart.tipAmount > 0)
-                        ListTile(
-                          contentPadding: EdgeInsets.zero,
-                          title: const Text('Tip'),
-                          trailing: Text(
-                            '+ ${cart.tipAmount.toStringAsFixed(2)} บาท',
-                            style: const TextStyle(color: Colors.deepOrange),
-                          ),
-                        ),
-                      const Divider(),
-                      ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        title: const Text(
-                          'Total',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        trailing: Text(
-                          '${cart.totalAmount.toStringAsFixed(2)} บาท',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: Theme.of(context).primaryColor,
-                          ),
-                        ),
-                      ),
-                      if (cart.giftCardAmount > 0 || cart.storeCreditAmount > 0)
-                        ListTile(
-                          contentPadding: EdgeInsets.zero,
-                          title: const Text('Paid so far'),
-                          trailing: Text(
-                            '- ${cart.paidTotal.toStringAsFixed(2)} บาท',
-                            style: const TextStyle(color: Colors.green),
-                          ),
-                        ),
-                      if (cart.amountDueAfterCredits < cart.totalAmount)
-                        ListTile(
-                          contentPadding: EdgeInsets.zero,
-                          title: const Text(
-                            'Outstanding Balance',
-                            style: TextStyle(fontWeight: FontWeight.w600),
-                          ),
-                          trailing: Text(
-                            '${cart.amountDueAfterCredits.toStringAsFixed(2)} บาท',
-                            style: const TextStyle(color: Colors.deepPurple),
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-              ),
-              _buildSplitBillSection(cart),
-              _buildGiftCardSection(cart),
-              _buildStoreCreditSection(cart),
+            children: [
               Expanded(
-                child: ListView.builder(
-                  itemCount: cart.items.length,
-                  itemBuilder: (ctx, i) {
-                    final itemKey = cart.items.keys.toList()[i];
-                    final cartItem = cart.items.values.toList()[i];
-                    return Dismissible(
-                      key: ValueKey(itemKey),
-                      background: Container(
-                        color: Theme.of(context).colorScheme.error,
-                        alignment: Alignment.centerRight,
-                        padding: const EdgeInsets.only(right: 20),
-                        margin: const EdgeInsets.symmetric(
-                          horizontal: 15,
-                          vertical: 4,
-                        ),
-                        child: const Icon(
-                          Icons.delete,
-                          color: Colors.white,
-                          size: 40,
-                        ),
+                child: ListView(
+                  padding: const EdgeInsets.only(bottom: 16.0),
+                  children: [
+                    _buildSyncStatus(syncQueue),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 15.0),
+                      child: _buildPointsSection(cart),
+                    ),
+                    Card(
+                      margin: const EdgeInsets.symmetric(
+                        horizontal: 15.0,
+                        vertical: 8.0,
                       ),
-                      direction: DismissDirection.endToStart,
-                      onDismissed: (direction) => _handleItemRemoval(
-                        context,
-                        () => Provider.of<CartProvider>(
-                          context,
-                          listen: false,
-                        ).removeItem(itemKey),
-                      ),
-                      child: Card(
-                        margin: const EdgeInsets.symmetric(
-                          horizontal: 15,
-                          vertical: 4,
-                        ),
-                        child: ListTile(
-                          title: Text(cartItem.name),
-                          subtitle: Text(
-                            'Price: ${cartItem.price.toStringAsFixed(2)} บาท',
-                          ),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              IconButton(
-                                icon: const Icon(Icons.remove),
-                                onPressed: () => _handleItemRemoval(
-                                  context,
-                                  () => cart.removeSingleItem(itemKey),
+                      child: Padding(
+                        padding: const EdgeInsets.all(12.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            if (cart.orderIdentifier != null)
+                              ListTile(
+                                contentPadding: EdgeInsets.zero,
+                                title: const Text(
+                                  'Order Number',
+                                  style: TextStyle(color: Colors.grey),
+                                ),
+                                trailing: Text(
+                                  cart.orderIdentifier!,
+                                  style: const TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
                               ),
-                              Text('${cartItem.quantity}'),
-                              IconButton(
-                                icon: const Icon(Icons.add),
-                                onPressed: () {
-                                  final success = cart.addItem(
-                                    cartItem.product,
-                                    modifiers: cartItem.selectedModifiers,
-                                  );
-                                  if (!success) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text(
-                                          'สินค้าในสต็อกไม่เพียงพอ!',
-                                        ),
-                                        backgroundColor: Colors.red,
-                                      ),
-                                    );
-                                  }
-                                },
+                            ListTile(
+                              contentPadding: EdgeInsets.zero,
+                              title: const Text(
+                                'Subtotal',
+                                style: TextStyle(fontSize: 16),
                               ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.all(12.0),
-                child: Row(
-                  children: [
-                    if (cart.orderType != OrderType.retail)
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: () => _sendToKitchen(cart),
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            side: BorderSide(
-                              color: Theme.of(context).primaryColor,
+                              trailing: Text(
+                                '${cart.subtotal.toStringAsFixed(2)} บาท',
+                                style: const TextStyle(fontSize: 16),
+                              ),
                             ),
-                          ),
-                          child: const Text('Send to Kitchen'),
+                            _buildPromotionSection(cart),
+                            _buildServiceChargeSection(cart),
+                            _buildTipSection(cart),
+                            if (cart.serviceChargeEnabled)
+                              ListTile(
+                                contentPadding: EdgeInsets.zero,
+                                title: Text(
+                                  'Service Charge (${_formatNumber(cart.serviceChargeRate * 100)}%)',
+                                ),
+                                trailing: Text(
+                                  '+ ${cart.serviceChargeAmount.toStringAsFixed(2)} บาท',
+                                  style: const TextStyle(color: Colors.deepOrange),
+                                ),
+                              ),
+                            if (cart.tipAmount > 0)
+                              ListTile(
+                                contentPadding: EdgeInsets.zero,
+                                title: const Text('Tip'),
+                                trailing: Text(
+                                  '+ ${cart.tipAmount.toStringAsFixed(2)} บาท',
+                                  style: const TextStyle(color: Colors.deepOrange),
+                                ),
+                              ),
+                            const Divider(),
+                            ListTile(
+                              contentPadding: EdgeInsets.zero,
+                              title: const Text(
+                                'Total',
+                                style: TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              trailing: Text(
+                                '${cart.totalAmount.toStringAsFixed(2)} บาท',
+                                style: TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                  color: Theme.of(context).primaryColor,
+                                ),
+                              ),
+                            ),
+                            if (cart.giftCardAmount > 0 || cart.storeCreditAmount > 0)
+                              ListTile(
+                                contentPadding: EdgeInsets.zero,
+                                title: const Text('Paid so far'),
+                                trailing: Text(
+                                  '- ${cart.paidTotal.toStringAsFixed(2)} บาท',
+                                  style: const TextStyle(color: Colors.green),
+                                ),
+                              ),
+                            if (cart.amountDueAfterCredits < cart.totalAmount)
+                              ListTile(
+                                contentPadding: EdgeInsets.zero,
+                                title: const Text(
+                                  'Outstanding Balance',
+                                  style: TextStyle(fontWeight: FontWeight.w600),
+                                ),
+                                trailing: Text(
+                                  '${cart.amountDueAfterCredits.toStringAsFixed(2)} บาท',
+                                  style: const TextStyle(color: Colors.deepPurple),
+                                ),
+                              ),
+                          ],
                         ),
-                      ),
-                    if (cart.orderType != OrderType.retail)
-                      const SizedBox(width: 12),
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: () => _goToCheckout(cart),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                        ),
-                        child: const Text('Go to Checkout'),
                       ),
                     ),
+                    _buildSplitBillSection(cart),
+                    _buildGiftCardSection(cart),
+                    _buildStoreCreditSection(cart),
+                    const SizedBox(height: 8),
+                    ListView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: cart.items.length,
+                      itemBuilder: (ctx, i) {
+                        final itemKey = cart.items.keys.toList()[i];
+                        final cartItem = cart.items.values.toList()[i];
+                        return Dismissible(
+                          key: ValueKey(itemKey),
+                          background: Container(
+                            color: Theme.of(context).colorScheme.error,
+                            alignment: Alignment.centerRight,
+                            padding: const EdgeInsets.only(right: 20),
+                            margin: const EdgeInsets.symmetric(
+                              horizontal: 15,
+                              vertical: 4,
+                            ),
+                            child: const Icon(
+                              Icons.delete,
+                              color: Colors.white,
+                              size: 40,
+                            ),
+                          ),
+                          direction: DismissDirection.endToStart,
+                          onDismissed: (direction) => _handleItemRemoval(
+                            context,
+                            () => Provider.of<CartProvider>(
+                              context,
+                              listen: false,
+                            ).removeItem(itemKey),
+                          ),
+                          child: Card(
+                            margin: const EdgeInsets.symmetric(
+                              horizontal: 15,
+                              vertical: 4,
+                            ),
+                            child: ListTile(
+                              title: Text(cartItem.name),
+                              subtitle: Text(
+                                'Price: ${cartItem.price.toStringAsFixed(2)} บาท',
+                              ),
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  IconButton(
+                                    icon: const Icon(Icons.remove),
+                                    onPressed: () => _handleItemRemoval(
+                                      context,
+                                      () => cart.removeSingleItem(itemKey),
+                                    ),
+                                  ),
+                                  Text('${cartItem.quantity}'),
+                                  IconButton(
+                                    icon: const Icon(Icons.add),
+                                    onPressed: () {
+                                      final success = cart.addItem(
+                                        cartItem.product,
+                                        modifiers: cartItem.selectedModifiers,
+                                      );
+                                      if (!success) {
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(
+                                          const SnackBar(
+                                            content: Text(
+                                              'สินค้าในสต็อกไม่เพียงพอ!',
+                                            ),
+                                            backgroundColor: Colors.red,
+                                          ),
+                                        );
+                                      }
+                                    },
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
                   ],
+                ),
+              ),
+              SafeArea(
+                top: false,
+                child: Padding(
+                  padding: const EdgeInsets.all(12.0),
+                  child: Row(
+                    children: [
+                      if (cart.orderType != OrderType.retail)
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () => _sendToKitchen(cart),
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              side: BorderSide(
+                                color: Theme.of(context).primaryColor,
+                              ),
+                            ),
+                            child: const Text('Send to Kitchen'),
+                          ),
+                        ),
+                      if (cart.orderType != OrderType.retail)
+                        const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () => _goToCheckout(cart),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                          child: const Text('Go to Checkout'),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ],
