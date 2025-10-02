@@ -421,9 +421,13 @@ class CartProvider with ChangeNotifier {
     if (_appliedGiftCard == null && _giftCardAmount == 0) {
       return;
     }
+    _resetGiftCard();
+    notifyListeners();
+  }
+
+  void _resetGiftCard() {
     _appliedGiftCard = null;
     _giftCardAmount = 0.0;
-    notifyListeners();
   }
 
   void applyStoreCredit(double amount, {double? availableBalance}) {
@@ -442,8 +446,12 @@ class CartProvider with ChangeNotifier {
 
   void removeStoreCredit() {
     if (_storeCreditAmount == 0) return;
-    _storeCreditAmount = 0.0;
+    _resetStoreCredit();
     notifyListeners();
+  }
+
+  void _resetStoreCredit() {
+    _storeCreditAmount = 0.0;
   }
 
   void overrideCustomerStoreCredit(double newBalance) {
@@ -567,10 +575,14 @@ class CartProvider with ChangeNotifier {
   }
 
   void removeDiscount() {
+    _resetDiscount();
+    notifyListeners();
+  }
+
+  void _resetDiscount() {
     _discount = 0.0;
     _discountType = 'none';
     _appliedPromotion = null;
-    notifyListeners();
   }
 
   void setServiceChargeEnabled(bool value) {
@@ -625,9 +637,9 @@ class CartProvider with ChangeNotifier {
     _selectedHouseAccount = null;
     _invoiceToHouseAccount = false;
     _customHouseAccountDueDate = null;
-    removeDiscount();
-    removeGiftCard();
-    removeStoreCredit();
+    _resetDiscount();
+    _resetGiftCard();
+    _resetStoreCredit();
     notifyListeners();
   }
 
