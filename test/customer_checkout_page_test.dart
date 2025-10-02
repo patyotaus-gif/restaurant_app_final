@@ -9,7 +9,6 @@ import 'package:restaurant_app_final/customer_checkout_page.dart';
 import 'package:restaurant_app_final/services/sync_queue_service.dart';
 import 'package:restaurant_models/restaurant_models.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:test/fake.dart';
 
 class _FakeFirebaseFirestore extends Fake implements FirebaseFirestore {
   final _FakeCollectionReference _collection = _FakeCollectionReference();
@@ -58,8 +57,9 @@ class _FakeConnectivity extends Fake implements Connectivity {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets('confirm payment while online completes without build errors',
-      (tester) async {
+  testWidgets('confirm payment while online completes without build errors', (
+    tester,
+  ) async {
     SharedPreferences.setMockInitialValues({});
 
     final connectivity = _FakeConnectivity();
