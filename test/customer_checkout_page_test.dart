@@ -1,7 +1,8 @@
 import 'dart:async';
+import 'dart:math';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
@@ -37,7 +38,7 @@ void main() {
     SharedPreferences.setMockInitialValues({});
 
     final connectivity = _FakeConnectivity();
-    final firestore = FakeFirebaseFirestore();
+    final firestore = _InMemoryFirebaseFirestore();
     final syncQueue = SyncQueueService(
       firestore,
       connectivity: connectivity,
@@ -89,4 +90,75 @@ void main() {
     expect(recordedErrors, isEmpty);
     expect(find.text('Payment Confirmed!'), findsOneWidget);
   });
+}
+
+class _InMemoryFirebaseFirestore extends Fake implements FirebaseFirestore {
+  final Map<String, _InMemoryCollectionReference> _collections = {};
+
+  @override
+  CollectionReference<Map<String, dynamic>> collection(String path) {
+    return _collections.putIfAbsent(
+      path,
+      () => _InMemoryCollectionReference(path),
+    );
+  }
+
+  @override
+  noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class _InMemoryCollectionReference extends Fake
+    implements CollectionReference<Map<String, dynamic>> {
+  _InMemoryCollectionReference(this._path);
+
+  final String _path;
+  final List<_InMemoryDocumentReference> _documents = [];
+
+  @override
+  Future<DocumentReference<Map<String, dynamic>>> add(
+    Map<String, dynamic> data,
+  ) async {
+    final document = _InMemoryDocumentReference(
+      _path,
+      Map<String, dynamic>.from(data),
+    );
+    _documents.add(document);
+    return document;
+  }
+
+  @override
+  String get path => _path;
+
+  @override
+  noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class _InMemoryDocumentReference extends Fake
+    implements DocumentReference<Map<String, dynamic>> {
+  _InMemoryDocumentReference(
+    this._collectionPath,
+    Map<String, dynamic> data,
+  )   : _data = data,
+        id = _generateDocumentId();
+
+  final String _collectionPath;
+  final Map<String, dynamic> _data;
+
+  @override
+  final String id;
+
+  @override
+  String get path => '$_collectionPath/$id';
+
+  Map<String, dynamic> get data => _data;
+
+  static String _generateDocumentId() {
+    final random = Random();
+    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+    return List.generate(20, (index) => chars[random.nextInt(chars.length)])
+        .join();
+  }
+
+  @override
+  noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
