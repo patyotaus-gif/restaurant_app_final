@@ -519,137 +519,145 @@ class _CartSummaryPanelState extends State<CartSummaryPanel> {
                     },
                   ),
           ),
-          Container(
-            padding: const EdgeInsets.all(16.0),
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.surface,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withAlpha(
-                    (255 * 0.1).round(),
-                  ), // <-- FIXED
-                  blurRadius: 4,
-                  offset: const Offset(0, -2),
-                ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (cart.orderType == OrderType.dineIn) ...[
-                  _buildServiceChargeSection(cart),
-                  const SizedBox(height: 8),
-                  _buildTipSection(cart),
-                  _buildSplitBillSection(cart),
-                  const SizedBox(height: 12),
-                ],
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: <Widget>[
-                    const Text('Subtotal'),
-                    Text('${cart.subtotal.toStringAsFixed(2)} บาท'),
-                  ],
-                ),
-                if (cart.discount > 0)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 4.0),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: <Widget>[
-                        Text('Discount (${cart.discountType})'),
-                        Text(
-                          '-${cart.discount.toStringAsFixed(2)} บาท',
-                          style: TextStyle(color: Colors.green.shade700),
-                        ),
-                      ],
-                    ),
-                  ),
-                if (cart.serviceChargeEnabled)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 4.0),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: <Widget>[
-                        Text(
-                          'Service Charge (${_formatNumber(cart.serviceChargeRate * 100)}%)',
-                        ),
-                        Text(
-                          '+ ${cart.serviceChargeAmount.toStringAsFixed(2)} บาท',
-                          style: const TextStyle(color: Colors.deepOrange),
-                        ),
-                      ],
-                    ),
-                  ),
-                if (cart.tipAmount > 0)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 4.0),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: <Widget>[
-                        const Text('Tip'),
-                        Text(
-                          '+ ${cart.tipAmount.toStringAsFixed(2)} บาท',
-                          style: const TextStyle(color: Colors.deepOrange),
-                        ),
-                      ],
-                    ),
-                  ),
-                const Divider(),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: <Widget>[
-                    const Text(
-                      'Total',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    Text(
-                      '${cart.totalAmount.toStringAsFixed(2)} บาท',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: Theme.of(context).primaryColor,
-                      ),
+          Flexible(
+            fit: FlexFit.loose,
+            child: SafeArea(
+              top: false,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surface,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withAlpha(
+                        (255 * 0.1).round(),
+                      ), // <-- FIXED
+                      blurRadius: 4,
+                      offset: const Offset(0, -2),
                     ),
                   ],
                 ),
-                if (cart.orderType == OrderType.dineIn && cart.splitCount > 1)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 8.0),
-                    child: Text(
-                      'Split between ${cart.splitCount} guests: ${cart.splitAmountPerGuest.toStringAsFixed(2)} บาท each',
-                      style: const TextStyle(fontWeight: FontWeight.w600),
-                    ),
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (cart.orderType == OrderType.dineIn) ...[
+                        _buildServiceChargeSection(cart),
+                        const SizedBox(height: 8),
+                        _buildTipSection(cart),
+                        _buildSplitBillSection(cart),
+                        const SizedBox(height: 12),
+                      ],
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: <Widget>[
+                          const Text('Subtotal'),
+                          Text('${cart.subtotal.toStringAsFixed(2)} บาท'),
+                        ],
+                      ),
+                      if (cart.discount > 0)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 4.0),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: <Widget>[
+                              Text('Discount (${cart.discountType})'),
+                              Text(
+                                '-${cart.discount.toStringAsFixed(2)} บาท',
+                                style: TextStyle(color: Colors.green.shade700),
+                              ),
+                            ],
+                          ),
+                        ),
+                      if (cart.serviceChargeEnabled)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 4.0),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: <Widget>[
+                              Text(
+                                'Service Charge (${_formatNumber(cart.serviceChargeRate * 100)}%)',
+                              ),
+                              Text(
+                                '+ ${cart.serviceChargeAmount.toStringAsFixed(2)} บาท',
+                                style: const TextStyle(color: Colors.deepOrange),
+                              ),
+                            ],
+                          ),
+                        ),
+                      if (cart.tipAmount > 0)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 4.0),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: <Widget>[
+                              const Text('Tip'),
+                              Text(
+                                '+ ${cart.tipAmount.toStringAsFixed(2)} บาท',
+                                style: const TextStyle(color: Colors.deepOrange),
+                              ),
+                            ],
+                          ),
+                        ),
+                      const Divider(),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: <Widget>[
+                          const Text(
+                            'Total',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          Text(
+                            '${cart.totalAmount.toStringAsFixed(2)} บาท',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(context).primaryColor,
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (cart.orderType == OrderType.dineIn && cart.splitCount > 1)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8.0),
+                          child: Text(
+                            'Split between ${cart.splitCount} guests: ${cart.splitAmountPerGuest.toStringAsFixed(2)} บาท each',
+                            style: const TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton(
+                              style: OutlinedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(vertical: 15),
+                              ),
+                              onPressed: () => _sendOrderToKitchen(cart),
+                              child: const Text('Send to Kitchen'),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.green,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(vertical: 15),
+                              ),
+                              onPressed: () => _navigateToCheckout(cart),
+                              child: const Text('Payment'),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 15),
-                        ),
-                        onPressed: () => _sendOrderToKitchen(cart),
-                        child: const Text('Send to Kitchen'),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 15),
-                        ),
-                        onPressed: () => _navigateToCheckout(cart),
-                        child: const Text('Payment'),
-                      ),
-                    ),
-                  ],
                 ),
-              ],
+              ),
             ),
           ),
         ],
