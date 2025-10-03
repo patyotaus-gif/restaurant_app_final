@@ -143,7 +143,8 @@ class _CustomerCheckoutPageState extends State<CustomerCheckoutPage> {
               TextButton(
                 child: const Text('OK'),
                 onPressed: () {
-                  Navigator.of(ctx).popUntil((route) => route.isFirst);
+                  Navigator.of(ctx).pop();
+                  Navigator.of(context).popUntil((route) => route.isFirst);
                 },
               ),
             ],
