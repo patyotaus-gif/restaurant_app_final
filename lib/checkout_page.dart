@@ -1533,7 +1533,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(successMessage)));
-    context.go('/order-type-selection');
+    context.go('/floorplan');
   }
 
   @override
