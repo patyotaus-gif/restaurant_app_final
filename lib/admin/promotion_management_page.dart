@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:restaurant_models/restaurant_models.dart';
+
+import '../widgets/form_field_row.dart';
 class PromotionManagementPage extends StatefulWidget {
   const PromotionManagementPage({super.key});
 
@@ -404,17 +406,17 @@ class _PromotionManagementPageState extends State<PromotionManagementPage> {
                         }).toList(),
                       ),
                       const SizedBox(height: 16),
-                      Row(
+                      FormFieldRow(
+                        spacing: 12,
                         children: [
-                          Expanded(
+                          FormFieldRowChild(
                             child: buildTimeField(
                               label: 'Start Time (HH:MM)',
                               controller: startTimeController,
                               onPick: () => pickTime(isStart: true),
                             ),
                           ),
-                          const SizedBox(width: 12),
-                          Expanded(
+                          FormFieldRowChild(
                             child: buildTimeField(
                               label: 'End Time (HH:MM)',
                               controller: endTimeController,

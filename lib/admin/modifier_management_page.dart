@@ -2,6 +2,8 @@
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+
+import '../widgets/form_field_row.dart';
 // --- Data Models (Helper classes for this page) ---
 class ModifierOption {
   String optionName;
@@ -129,9 +131,10 @@ class _ModifierManagementPageState extends State<ModifierManagementPage> {
                     ...group.options.asMap().entries.map((entry) {
                       int index = entry.key;
                       ModifierOption option = entry.value;
-                      return Row(
+                      return FormFieldRow(
+                        spacing: 8,
                         children: [
-                          Expanded(
+                          FormFieldRowChild(
                             flex: 3,
                             child: TextFormField(
                               initialValue: option.optionName,
@@ -141,8 +144,7 @@ class _ModifierManagementPageState extends State<ModifierManagementPage> {
                               onChanged: (value) => option.optionName = value,
                             ),
                           ),
-                          const SizedBox(width: 8),
-                          Expanded(
+                          FormFieldRowChild(
                             flex: 2,
                             child: TextFormField(
                               initialValue: option.priceChange.toString(),
@@ -154,20 +156,20 @@ class _ModifierManagementPageState extends State<ModifierManagementPage> {
                                   double.tryParse(value) ?? 0.0,
                             ),
                           ),
-                          IconButton(
-                            icon: const Icon(
-                              Icons.remove_circle_outline,
-                              color: Colors.red,
-                            ),
-                            onPressed: () {
-                              if (group.options.length > 1) {
-                                stfSetState(
-                                  () => group.options.removeAt(index),
-                                );
-                              }
-                            },
-                          ),
                         ],
+                        trailing: IconButton(
+                          icon: const Icon(
+                            Icons.remove_circle_outline,
+                            color: Colors.red,
+                          ),
+                          onPressed: () {
+                            if (group.options.length > 1) {
+                              stfSetState(
+                                () => group.options.removeAt(index),
+                              );
+                            }
+                          },
+                        ),
                       );
                     }).toList(),
                     TextButton.icon(

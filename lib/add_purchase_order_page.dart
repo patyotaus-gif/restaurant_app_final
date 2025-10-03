@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import 'package:restaurant_models/restaurant_models.dart';
 
 import 'widgets/app_snack_bar.dart';
+import 'widgets/form_field_row.dart';
 // Helper class for a line item in the PO
 class PurchaseOrderItem {
   Ingredient ingredient;
@@ -207,9 +208,10 @@ class _AddPurchaseOrderPageState extends State<AddPurchaseOrderPage> {
                             ],
                           ),
                           const SizedBox(height: 8),
-                          Row(
+                          FormFieldRow(
+                            spacing: 16,
                             children: [
-                              Expanded(
+                              FormFieldRowChild(
                                 child: TextField(
                                   controller: poItem.quantityController,
                                   decoration: InputDecoration(
@@ -219,8 +221,7 @@ class _AddPurchaseOrderPageState extends State<AddPurchaseOrderPage> {
                                   keyboardType: TextInputType.number,
                                 ),
                               ),
-                              const SizedBox(width: 16),
-                              Expanded(
+                              FormFieldRowChild(
                                 child: TextField(
                                   controller: poItem.costController,
                                   decoration: const InputDecoration(
