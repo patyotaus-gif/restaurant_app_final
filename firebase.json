@@ -37,6 +37,7 @@
         "*.local"
       ],
       "predeploy": [
+        "./tool/preflight_deploy.sh",
         "npm --prefix \"$RESOURCE_DIR\" run build"
       ]
     }

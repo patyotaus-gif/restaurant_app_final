@@ -90,6 +90,51 @@ npm run test:emulator
 
 Without the emulator the integration suite is skipped during `npm test`.
 
+## Deployment workflow
+
+Before running `firebase deploy` execute the preflight script to make sure the
+workspace is healthy:
+
+```bash
+./tool/preflight_deploy.sh
+```
+
+The script runs Flutter format/analyze/test (when Flutter is available), validates
+the Melos workspace, and lints/tests the Cloud Functions package to surface
+regressions before the deployment command executes. The script is also wired into
+`firebase.json` as a `predeploy` hook so `firebase deploy --only functions` will
+run it automatically.
+
+### Canary rollouts & rollbacks with feature flags
+
+Release channels provide a way to direct a subset of stores or terminals to a
+different backend environment or flag configuration. To promote a `canary`
+channel, set the target environment and any overrides using the
+`FeatureFlagProvider.configureReleaseChannel` helper. For example:
+
+```dart
+await featureFlagProvider.configureReleaseChannel(
+  channel: 'canary',
+  environment: ReleaseEnvironment.staging,
+  flagOverrides: {
+    'newMenuFlow': true,
+  },
+);
+```
+
+Point the pilot stores at the `canary` release channel from the admin panel. If a
+rollback is required, clear the channel overrides in a single call:
+
+```dart
+await featureFlagProvider.configureReleaseChannel(
+  channel: 'canary',
+  clear: true,
+);
+```
+
+With the channel cleared, affected stores fall back to the default production
+flags without shipping a new build.
+
 ## QA Emulator Fixtures
 
 Spin up the Firebase emulator suite and populate it with curated demo data in a
