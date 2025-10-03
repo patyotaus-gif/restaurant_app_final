@@ -100,7 +100,7 @@ class _KitchenDisplayPageState extends State<KitchenDisplayPage> {
               stream: _activeOrdersQuery().snapshots(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
+                  return const _KdsSkeletonGrid();
                 }
                 if (snapshot.hasError) {
                   return const Center(
@@ -153,7 +153,10 @@ class _KitchenDisplayPageState extends State<KitchenDisplayPage> {
                   itemCount: orderDocs.length,
                   itemBuilder: (context, index) {
                     final order = orderDocs[index];
-                    return _OrderCard(orderDoc: order, station: station);
+                    return RepaintBoundary(
+                      key: ValueKey(order.id),
+                      child: _OrderCard(orderDoc: order, station: station),
+                    );
                   },
                 );
               },
@@ -189,7 +192,7 @@ class _StationSelector extends StatelessWidget {
             .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const LinearProgressIndicator();
+            return const _StationSelectorSkeleton();
           }
           if (snapshot.hasError) {
             return const Text(
@@ -411,9 +414,10 @@ class _OrderCardState extends State<_OrderCard> {
             ),
             const Divider(color: Colors.white54, height: 20),
             Expanded(
-              child: ListView.builder(
-                itemCount: filteredItems.length,
-                itemBuilder: (context, index) {
+              child: RepaintBoundary(
+                child: ListView.builder(
+                  itemCount: filteredItems.length,
+                  itemBuilder: (context, index) {
                   final item = filteredItems[index] as Map<String, dynamic>;
                   final bool isComplete = item['isComplete'] ?? false;
                   final List<dynamic> modifiers =
@@ -435,63 +439,64 @@ class _OrderCardState extends State<_OrderCard> {
                     );
                   }).toList();
 
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        dense: true,
-                        onTap: () => _toggleItemComplete(items.indexOf(item)),
-                        title: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              '${item['quantity']}x',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                                color: isComplete
-                                    ? Colors.white54
-                                    : Colors.white,
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          dense: true,
+                          onTap: () => _toggleItemComplete(items.indexOf(item)),
+                          title: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                '${item['quantity']}x',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                  color: isComplete
+                                      ? Colors.white54
+                                      : Colors.white,
+                                ),
                               ),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    item['name'],
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      color: isComplete
-                                          ? Colors.white54
-                                          : Colors.white,
-                                      decoration: isComplete
-                                          ? TextDecoration.lineThrough
-                                          : TextDecoration.none,
-                                    ),
-                                  ),
-                                  if ((item['prepTimeMinutes'] ?? 0) > 0)
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
                                     Text(
-                                      'Prep ${item['prepTimeMinutes']}m',
+                                      item['name'],
                                       style: TextStyle(
-                                        fontSize: 12,
+                                        fontSize: 16,
                                         color: isComplete
-                                            ? Colors.white38
-                                            : Colors.white70,
+                                            ? Colors.white54
+                                            : Colors.white,
+                                        decoration: isComplete
+                                            ? TextDecoration.lineThrough
+                                            : TextDecoration.none,
                                       ),
                                     ),
-                                ],
+                                    if ((item['prepTimeMinutes'] ?? 0) > 0)
+                                      Text(
+                                        'Prep ${item['prepTimeMinutes']}m',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: isComplete
+                                              ? Colors.white38
+                                              : Colors.white70,
+                                        ),
+                                      ),
+                                  ],
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
-                      ...modifierWidgets,
-                    ],
-                  );
-                },
+                        ...modifierWidgets,
+                      ],
+                    );
+                  },
+                ),
               ),
             ),
             const SizedBox(height: 10),
@@ -550,5 +555,147 @@ class _OrderCardState extends State<_OrderCard> {
       return '${minutes}m';
     }
     return '${seconds}s';
+  }
+}
+
+class _KdsSkeletonGrid extends StatelessWidget {
+  const _KdsSkeletonGrid();
+
+  static const int _placeholderCount = 8;
+
+  @override
+  Widget build(BuildContext context) {
+    return GridView.builder(
+      padding: const EdgeInsets.all(16),
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 4,
+        crossAxisSpacing: 16,
+        mainAxisSpacing: 16,
+        childAspectRatio: 0.8,
+      ),
+      itemCount: _placeholderCount,
+      itemBuilder: (_, __) => const _KdsSkeletonCard(),
+    );
+  }
+}
+
+class _KdsSkeletonCard extends StatelessWidget {
+  const _KdsSkeletonCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return RepaintBoundary(
+      child: Card(
+        color: Colors.blueGrey[800],
+        elevation: 4,
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: const [
+                  _SkeletonBox(width: 80, height: 20),
+                  _SkeletonBox(width: 56, height: 20),
+                ],
+              ),
+              const SizedBox(height: 12),
+              const _SkeletonBox(width: 140, height: 12),
+              const SizedBox(height: 4),
+              const _SkeletonBox(width: 110, height: 12),
+              const SizedBox(height: 16),
+              const _SkeletonBox(width: 120, height: 10),
+              const SizedBox(height: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: const [
+                    _SkeletonOrderLine(),
+                    SizedBox(height: 12),
+                    _SkeletonOrderLine(),
+                    SizedBox(height: 12),
+                    _SkeletonOrderLine(),
+                    Spacer(),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              const _SkeletonBox(height: 40, borderRadius: 12),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SkeletonOrderLine extends StatelessWidget {
+  const _SkeletonOrderLine();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Row(
+      children: [
+        _SkeletonBox(width: 30, height: 18),
+        SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _SkeletonBox(height: 16),
+              SizedBox(height: 6),
+              _SkeletonBox(width: 120, height: 10),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _StationSelectorSkeleton extends StatelessWidget {
+  const _StationSelectorSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return const RepaintBoundary(
+      child: Row(
+        children: [
+          _SkeletonBox(width: 28, height: 28, borderRadius: 14),
+          SizedBox(width: 12),
+          Expanded(
+            child: _SkeletonBox(height: 36, borderRadius: 12),
+          ),
+          SizedBox(width: 12),
+          _SkeletonBox(width: 80, height: 14),
+        ],
+      ),
+    );
+  }
+}
+
+class _SkeletonBox extends StatelessWidget {
+  const _SkeletonBox({
+    this.height = 16,
+    this.width,
+    this.borderRadius = 8,
+  });
+
+  final double height;
+  final double? width;
+  final double borderRadius;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: height,
+      width: width,
+      decoration: BoxDecoration(
+        color: const Color(0xFF4A6572),
+        borderRadius: BorderRadius.circular(borderRadius),
+      ),
+    );
   }
 }
