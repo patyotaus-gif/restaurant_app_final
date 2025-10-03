@@ -43,6 +43,20 @@ flutter run
 
 For more Flutter resources see the [Flutter documentation](https://docs.flutter.dev/).
 
+## Environment Flavors
+
+The application ships with dedicated **dev**, **stg**, and **prod** flavors on both Android and iOS. Each flavor has its own `google-services.json` / `GoogleService-Info.plist` placeholder and a Dart entry point under `lib/` so configuration stays isolated per backend environment.
+
+### Quick commands
+
+| Environment | Debug run | Android release build | iOS release build |
+| --- | --- | --- | --- |
+| Dev | `flutter run --flavor dev --target lib/main_dev.dart` | `flutter build apk --flavor dev --target lib/main_dev.dart` | `flutter build ipa --flavor dev --target lib/main_dev.dart` |
+| Staging | `flutter run --flavor stg --target lib/main_stg.dart` | `flutter build apk --flavor stg --target lib/main_stg.dart` | `flutter build ipa --flavor stg --target lib/main_stg.dart` |
+| Production | `flutter run --flavor prod --target lib/main_prod.dart` | `flutter build apk --flavor prod --target lib/main_prod.dart` | `flutter build ipa --flavor prod --target lib/main_prod.dart` |
+
+> Tip: add a `key.properties` file at the Android root to sign release builds automatically, and drop the real Firebase config files into each flavor directory before shipping.
+
 ## Monorepo Structure
 
 The application now adopts a [Melos](https://melos.invertase.dev/) workspace to

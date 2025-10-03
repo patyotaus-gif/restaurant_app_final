@@ -8,7 +8,7 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_remote_config/firebase_remote_config.dart';
 import 'package:flutter/src/widgets/binding.dart' show DartPluginRegistrant;
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show debugPrint, kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:go_router/go_router.dart';
@@ -59,6 +59,7 @@ import 'feature_flags/feature_flag_provider.dart';
 import 'feature_flags/feature_flag_service.dart';
 import 'feature_flags/terminal_provider.dart';
 import 'firebase_options.dart';
+import 'flavor_config.dart';
 import 'floor_plan_page.dart';
 import 'ingredient_management_page.dart';
 import 'kitchen_display_page.dart';
@@ -434,6 +435,7 @@ Future<void> main() async {
   return runZonedGuarded(
     () async {
       WidgetsFlutterBinding.ensureInitialized();
+      debugPrint('Launching Restaurant App (${FlavorConfig.flavorName})');
       ensureBackgroundPlugins = () {
         DartPluginRegistrant.ensureInitialized();
       };
@@ -528,6 +530,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
+        Provider<FlavorConfig>.value(value: FlavorConfig.instance),
         ChangeNotifierProvider.value(value: availability),
         ChangeNotifierProvider.value(value: observability),
         Provider<PerformanceMetricsService>(
