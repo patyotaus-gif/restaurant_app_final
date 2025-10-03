@@ -101,271 +101,385 @@ import 'accessibility_provider.dart';
 import 'theme/app_theme.dart';
 import 'widgets/accessibility_overlay.dart';
 
+CustomTransitionPage<void> _buildTransitionPage({required Widget child}) {
+  return CustomTransitionPage<void>(
+    child: child,
+    transitionDuration: const Duration(milliseconds: 350),
+    reverseTransitionDuration: const Duration(milliseconds: 250),
+    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+      final fadeAnimation = CurvedAnimation(
+        parent: animation,
+        curve: Curves.easeOutCubic,
+        reverseCurve: Curves.easeInCubic,
+      );
+
+      final slideAnimation = Tween<Offset>(
+        begin: const Offset(0.05, 0.02),
+        end: Offset.zero,
+      ).animate(
+        CurvedAnimation(
+          parent: animation,
+          curve: Curves.easeOutCubic,
+          reverseCurve: Curves.easeInCubic,
+        ),
+      );
+
+      final scaleAnimation = Tween<double>(begin: 0.98, end: 1).animate(
+        CurvedAnimation(
+          parent: animation,
+          curve: Curves.easeOutBack,
+          reverseCurve: Curves.easeIn,
+        ),
+      );
+
+      return FadeTransition(
+        opacity: fadeAnimation,
+        child: SlideTransition(
+          position: slideAnimation,
+          child: ScaleTransition(
+            scale: scaleAnimation,
+            child: child,
+          ),
+        ),
+      );
+    },
+  );
+}
+
 final _router = GoRouter(
   routes: [
-    GoRoute(path: '/', builder: (context, state) => const SplashScreen()),
-    GoRoute(path: '/login', builder: (context, state) => const PinLoginPage()),
+    GoRoute(
+      path: '/',
+      pageBuilder: (context, state) =>
+          _buildTransitionPage(child: const SplashScreen()),
+    ),
+    GoRoute(
+      path: '/login',
+      pageBuilder: (context, state) =>
+          _buildTransitionPage(child: const PinLoginPage()),
+    ),
     GoRoute(
       path: '/order-type-selection',
-      builder: (context, state) => const OrderTypeSelectionPage(),
+      pageBuilder: (context, state) =>
+          _buildTransitionPage(child: const OrderTypeSelectionPage()),
     ),
     GoRoute(
       path: '/retail-pos',
-      builder: (context, state) => const RetailPosPage(),
+      pageBuilder: (context, state) =>
+          _buildTransitionPage(child: const RetailPosPage()),
     ),
     GoRoute(
       path: '/clock-in-out',
-      builder: (context, state) => const ClockInOutPage(),
+      pageBuilder: (context, state) =>
+          _buildTransitionPage(child: const ClockInOutPage()),
     ),
     GoRoute(
       path: '/roles',
-      builder: (context, state) => const RoleSelectionPage(),
+      pageBuilder: (context, state) =>
+          _buildTransitionPage(child: const RoleSelectionPage()),
     ),
     GoRoute(
       path: '/floorplan',
-      builder: (context, state) => const FloorPlanPage(),
+      pageBuilder: (context, state) =>
+          _buildTransitionPage(child: const FloorPlanPage()),
     ),
     GoRoute(
       path: '/takeaway-orders',
-      builder: (context, state) => const TakeawayOrdersPage(),
+      pageBuilder: (context, state) =>
+          _buildTransitionPage(child: const TakeawayOrdersPage()),
     ),
     GoRoute(
       path: '/dashboard',
-      builder: (context, state) => const OrderDashboardPage(),
+      pageBuilder: (context, state) =>
+          _buildTransitionPage(child: const OrderDashboardPage()),
     ),
     GoRoute(
       path: '/admin',
-      builder: (context, state) => RoutePermissionGuard(
-        state: state,
-        policy: PermissionPolicy.anyOf({
-          Permission.manageStores,
-          Permission.manageEmployees,
-          Permission.managePurchaseOrders,
-          Permission.viewAuditLogs,
-          Permission.adjustInventory,
-        }),
-        builder: (context, state) => const AdminPage(),
+      pageBuilder: (context, state) => _buildTransitionPage(
+        child: RoutePermissionGuard(
+          state: state,
+          policy: PermissionPolicy.anyOf({
+            Permission.manageStores,
+            Permission.manageEmployees,
+            Permission.managePurchaseOrders,
+            Permission.viewAuditLogs,
+            Permission.adjustInventory,
+          }),
+          builder: (context, state) => const AdminPage(),
+        ),
       ),
       routes: [
         GoRoute(
           path: 'reservations',
-          builder: (context, state) => RoutePermissionGuard(
-            state: state,
-            policy: PermissionPolicy.require(Permission.manageStores),
-            builder: (context, state) => const ReservationManagementPage(),
+          pageBuilder: (context, state) => _buildTransitionPage(
+            child: RoutePermissionGuard(
+              state: state,
+              policy: PermissionPolicy.require(Permission.manageStores),
+              builder: (context, state) => const ReservationManagementPage(),
+            ),
           ),
         ),
         GoRoute(
           path: 'low-stock-alerts',
-          builder: (context, state) => RoutePermissionGuard(
-            state: state,
-            policy: PermissionPolicy.require(Permission.viewInventory),
-            builder: (context, state) => const LowStockAlertPage(),
+          pageBuilder: (context, state) => _buildTransitionPage(
+            child: RoutePermissionGuard(
+              state: state,
+              policy: PermissionPolicy.require(Permission.viewInventory),
+              builder: (context, state) => const LowStockAlertPage(),
+            ),
           ),
         ),
         GoRoute(
           path: 'employees',
-          builder: (context, state) => RoutePermissionGuard(
-            state: state,
-            policy: PermissionPolicy.require(Permission.manageEmployees),
-            builder: (context, state) => const EmployeeManagementPage(),
+          pageBuilder: (context, state) => _buildTransitionPage(
+            child: RoutePermissionGuard(
+              state: state,
+              policy: PermissionPolicy.require(Permission.manageEmployees),
+              builder: (context, state) => const EmployeeManagementPage(),
+            ),
           ),
         ),
         GoRoute(
           path: 'time-report',
-          builder: (context, state) => RoutePermissionGuard(
-            state: state,
-            policy: PermissionPolicy.require(Permission.manageEmployees),
-            builder: (context, state) => const TimeReportPage(),
+          pageBuilder: (context, state) => _buildTransitionPage(
+            child: RoutePermissionGuard(
+              state: state,
+              policy: PermissionPolicy.require(Permission.manageEmployees),
+              builder: (context, state) => const TimeReportPage(),
+            ),
           ),
         ),
         GoRoute(
           path: 'waste',
-          builder: (context, state) => RoutePermissionGuard(
-            state: state,
-            policy: PermissionPolicy.require(Permission.adjustInventory),
-            builder: (context, state) => const WasteTrackingPage(),
+          pageBuilder: (context, state) => _buildTransitionPage(
+            child: RoutePermissionGuard(
+              state: state,
+              policy: PermissionPolicy.require(Permission.adjustInventory),
+              builder: (context, state) => const WasteTrackingPage(),
+            ),
           ),
         ),
         GoRoute(
           path: 'promotions',
-          builder: (context, state) => RoutePermissionGuard(
-            state: state,
-            policy: PermissionPolicy.require(Permission.manageStores),
-            builder: (context, state) => const PromotionManagementPage(),
+          pageBuilder: (context, state) => _buildTransitionPage(
+            child: RoutePermissionGuard(
+              state: state,
+              policy: PermissionPolicy.require(Permission.manageStores),
+              builder: (context, state) => const PromotionManagementPage(),
+            ),
           ),
         ),
         GoRoute(
           path: 'punch-cards',
-          builder: (context, state) => RoutePermissionGuard(
-            state: state,
-            policy: PermissionPolicy.require(Permission.manageStores),
-            builder: (context, state) => const PunchCardManagementPage(),
+          pageBuilder: (context, state) => _buildTransitionPage(
+            child: RoutePermissionGuard(
+              state: state,
+              policy: PermissionPolicy.require(Permission.manageStores),
+              builder: (context, state) => const PunchCardManagementPage(),
+            ),
           ),
         ),
         GoRoute(
           path: 'qa-playbooks',
-          builder: (context, state) => RoutePermissionGuard(
-            state: state,
-            policy: PermissionPolicy.require(Permission.manageStores),
-            builder: (context, state) => const QaPlaybooksPage(),
+          pageBuilder: (context, state) => _buildTransitionPage(
+            child: RoutePermissionGuard(
+              state: state,
+              policy: PermissionPolicy.require(Permission.manageStores),
+              builder: (context, state) => const QaPlaybooksPage(),
+            ),
           ),
         ),
         GoRoute(
           path: 'observability',
-          builder: (context, state) => RoutePermissionGuard(
-            state: state,
-            policy: PermissionPolicy.anyOf({
-              Permission.manageStores,
-              Permission.viewAuditLogs,
-            }),
-            builder: (context, state) => const ObservabilityPage(),
+          pageBuilder: (context, state) => _buildTransitionPage(
+            child: RoutePermissionGuard(
+              state: state,
+              policy: PermissionPolicy.anyOf({
+                Permission.manageStores,
+                Permission.viewAuditLogs,
+              }),
+              builder: (context, state) => const ObservabilityPage(),
+            ),
           ),
         ),
         GoRoute(
           path: 'modifiers',
-          builder: (context, state) => RoutePermissionGuard(
-            state: state,
-            policy: PermissionPolicy.require(Permission.manageStores),
-            builder: (context, state) => const ModifierManagementPage(),
+          pageBuilder: (context, state) => _buildTransitionPage(
+            child: RoutePermissionGuard(
+              state: state,
+              policy: PermissionPolicy.require(Permission.manageStores),
+              builder: (context, state) => const ModifierManagementPage(),
+            ),
           ),
         ),
         GoRoute(
           path: 'schema-designer',
-          builder: (context, state) => RoutePermissionGuard(
-            state: state,
-            policy: PermissionPolicy.require(Permission.manageStores),
-            builder: (context, state) => const BackofficeSchemaPage(),
+          pageBuilder: (context, state) => _buildTransitionPage(
+            child: RoutePermissionGuard(
+              state: state,
+              policy: PermissionPolicy.require(Permission.manageStores),
+              builder: (context, state) => const BackofficeSchemaPage(),
+            ),
           ),
         ),
         GoRoute(
           path: 'accounting-export',
-          builder: (context, state) => RoutePermissionGuard(
-            state: state,
-            policy: PermissionPolicy.require(Permission.manageStores),
-            builder: (context, state) => const AccountingExportPage(),
+          pageBuilder: (context, state) => _buildTransitionPage(
+            child: RoutePermissionGuard(
+              state: state,
+              policy: PermissionPolicy.require(Permission.manageStores),
+              builder: (context, state) => const AccountingExportPage(),
+            ),
           ),
         ),
         GoRoute(
           path: 'customer-profile/:customerId',
-          builder: (context, state) => RoutePermissionGuard(
-            state: state,
-            policy: PermissionPolicy.require(Permission.manageStores),
-            builder: (context, state) {
-              final customerId = state.pathParameters['customerId']!;
-              return CustomerProfilePage(customerId: customerId);
-            },
+          pageBuilder: (context, state) => _buildTransitionPage(
+            child: RoutePermissionGuard(
+              state: state,
+              policy: PermissionPolicy.require(Permission.manageStores),
+              builder: (context, state) {
+                final customerId = state.pathParameters['customerId']!;
+                return CustomerProfilePage(customerId: customerId);
+              },
+            ),
           ),
         ),
         GoRoute(
           path: 'products',
-          builder: (context, state) => RoutePermissionGuard(
-            state: state,
-            policy: PermissionPolicy.require(Permission.adjustInventory),
-            builder: (context, state) => const ProductManagementPage(),
+          pageBuilder: (context, state) => _buildTransitionPage(
+            child: RoutePermissionGuard(
+              state: state,
+              policy: PermissionPolicy.require(Permission.adjustInventory),
+              builder: (context, state) => const ProductManagementPage(),
+            ),
           ),
         ),
         GoRoute(
           path: 'products/edit',
-          builder: (context, state) => RoutePermissionGuard(
-            state: state,
-            policy: PermissionPolicy.require(Permission.adjustInventory),
-            builder: (context, state) {
-              final product = state.extra as Product?;
-              return EditProductPage(product: product);
-            },
+          pageBuilder: (context, state) => _buildTransitionPage(
+            child: RoutePermissionGuard(
+              state: state,
+              policy: PermissionPolicy.require(Permission.adjustInventory),
+              builder: (context, state) {
+                final product = state.extra as Product?;
+                return EditProductPage(product: product);
+              },
+            ),
           ),
         ),
         GoRoute(
           path: 'suppliers',
-          builder: (context, state) => RoutePermissionGuard(
-            state: state,
-            policy: PermissionPolicy.require(Permission.managePurchaseOrders),
-            builder: (context, state) => const SupplierManagementPage(),
+          pageBuilder: (context, state) => _buildTransitionPage(
+            child: RoutePermissionGuard(
+              state: state,
+              policy: PermissionPolicy.require(Permission.managePurchaseOrders),
+              builder: (context, state) => const SupplierManagementPage(),
+            ),
           ),
         ),
         GoRoute(
           path: 'purchase-orders',
-          builder: (context, state) => RoutePermissionGuard(
-            state: state,
-            policy: PermissionPolicy.require(Permission.managePurchaseOrders),
-            builder: (context, state) => const PurchaseOrderListPage(),
+          pageBuilder: (context, state) => _buildTransitionPage(
+            child: RoutePermissionGuard(
+              state: state,
+              policy: PermissionPolicy.require(Permission.managePurchaseOrders),
+              builder: (context, state) => const PurchaseOrderListPage(),
+            ),
           ),
         ),
         GoRoute(
           path: 'purchase-orders/create',
-          builder: (context, state) => RoutePermissionGuard(
-            state: state,
-            policy: PermissionPolicy.require(Permission.managePurchaseOrders),
-            builder: (context, state) => const CreatePurchaseOrderPage(),
+          pageBuilder: (context, state) => _buildTransitionPage(
+            child: RoutePermissionGuard(
+              state: state,
+              policy: PermissionPolicy.require(Permission.managePurchaseOrders),
+              builder: (context, state) => const CreatePurchaseOrderPage(),
+            ),
           ),
         ),
         GoRoute(
           path: 'stocktake',
-          builder: (context, state) => RoutePermissionGuard(
-            state: state,
-            policy: PermissionPolicy.require(Permission.adjustInventory),
-            builder: (context, state) => const StocktakePage(),
+          pageBuilder: (context, state) => _buildTransitionPage(
+            child: RoutePermissionGuard(
+              state: state,
+              policy: PermissionPolicy.require(Permission.adjustInventory),
+              builder: (context, state) => const StocktakePage(),
+            ),
           ),
         ),
         GoRoute(
           path: 'dashboard',
-          builder: (context, state) => RoutePermissionGuard(
-            state: state,
-            policy: PermissionPolicy.require(Permission.viewInventory),
-            builder: (context, state) => const DashboardPage(),
+          pageBuilder: (context, state) => _buildTransitionPage(
+            child: RoutePermissionGuard(
+              state: state,
+              policy: PermissionPolicy.require(Permission.viewInventory),
+              builder: (context, state) => const DashboardPage(),
+            ),
           ),
         ),
         GoRoute(
           path: 'eod',
-          builder: (context, state) => RoutePermissionGuard(
-            state: state,
-            policy: PermissionPolicy.require(Permission.manageStores),
-            builder: (context, state) => const EndOfDayReportPage(),
+          pageBuilder: (context, state) => _buildTransitionPage(
+            child: RoutePermissionGuard(
+              state: state,
+              policy: PermissionPolicy.require(Permission.manageStores),
+              builder: (context, state) => const EndOfDayReportPage(),
+            ),
           ),
         ),
         GoRoute(
           path: 'stores',
-          builder: (context, state) => RoutePermissionGuard(
-            state: state,
-            policy: PermissionPolicy.require(Permission.manageStores),
-            builder: (context, state) => const StoreManagementPage(),
+          pageBuilder: (context, state) => _buildTransitionPage(
+            child: RoutePermissionGuard(
+              state: state,
+              policy: PermissionPolicy.require(Permission.manageStores),
+              builder: (context, state) => const StoreManagementPage(),
+            ),
           ),
         ),
         GoRoute(
           path: 'audit-log',
-          builder: (context, state) => RoutePermissionGuard(
-            state: state,
-            policy: PermissionPolicy.require(Permission.viewAuditLogs),
-            builder: (context, state) => const AuditLogPage(),
+          pageBuilder: (context, state) => _buildTransitionPage(
+            child: RoutePermissionGuard(
+              state: state,
+              policy: PermissionPolicy.require(Permission.viewAuditLogs),
+              builder: (context, state) => const AuditLogPage(),
+            ),
           ),
         ),
         GoRoute(
           path: 'inventory',
-          builder: (context, state) => RoutePermissionGuard(
-            state: state,
-            policy: PermissionPolicy.require(Permission.viewInventory),
-            builder: (context, state) => const IngredientManagementPage(),
+          pageBuilder: (context, state) => _buildTransitionPage(
+            child: RoutePermissionGuard(
+              state: state,
+              policy: PermissionPolicy.require(Permission.viewInventory),
+              builder: (context, state) => const IngredientManagementPage(),
+            ),
           ),
         ),
         GoRoute(
           path: 'analytics',
-          builder: (context, state) => RoutePermissionGuard(
-            state: state,
-            policy: PermissionPolicy.anyOf({
-              Permission.manageStores,
-              Permission.viewInventory,
-            }),
-            builder: (context, state) => const AnalyticsPage(),
+          pageBuilder: (context, state) => _buildTransitionPage(
+            child: RoutePermissionGuard(
+              state: state,
+              policy: PermissionPolicy.anyOf({
+                Permission.manageStores,
+                Permission.viewInventory,
+              }),
+              builder: (context, state) => const AnalyticsPage(),
+            ),
           ),
         ),
         GoRoute(
           path: 'kds',
-          builder: (context, state) => RoutePermissionGuard(
-            state: state,
-            policy: PermissionPolicy.require(Permission.processSales),
-            builder: (context, state) => KitchenDisplayPage(
-              initialStationId: state.uri.queryParameters['station'],
+          pageBuilder: (context, state) => _buildTransitionPage(
+            child: RoutePermissionGuard(
+              state: state,
+              policy: PermissionPolicy.require(Permission.processSales),
+              builder: (context, state) => KitchenDisplayPage(
+                initialStationId: state.uri.queryParameters['station'],
+              ),
             ),
           ),
         ),
@@ -373,14 +487,21 @@ final _router = GoRouter(
     ),
     GoRoute(
       path: '/all-orders',
-      builder: (context, state) => const AllOrdersPage(),
+      pageBuilder: (context, state) =>
+          _buildTransitionPage(child: const AllOrdersPage()),
     ),
-    GoRoute(path: '/cart', builder: (context, state) => const CartPage()),
+    GoRoute(
+      path: '/cart',
+      pageBuilder: (context, state) =>
+          _buildTransitionPage(child: const CartPage()),
+    ),
     GoRoute(
       path: '/table/:tableNumber',
-      builder: (context, state) {
+      pageBuilder: (context, state) {
         final tableNumber = state.pathParameters['tableNumber'] ?? 'Unknown';
-        return CustomerMenuPage(tableNumber: tableNumber);
+        return _buildTransitionPage(
+          child: CustomerMenuPage(tableNumber: tableNumber),
+        );
       },
     ),
   ],
