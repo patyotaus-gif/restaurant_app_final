@@ -97,6 +97,20 @@ const TTL_RULES: TtlRule[] = [
 
 const MAX_BACKFILL_BATCH_SIZE = 500;
 
+const DEFAULT_SYNTHETIC_MONITOR_TIMEOUT_MS = 5000;
+const MAX_SYNTHETIC_MONITOR_TIMEOUT_MS = 60000;
+const SYNTHETIC_MONITOR_TARGET = process.env.SYNTHETIC_MONITOR_TARGET;
+const SYNTHETIC_MONITOR_BEARER_TOKEN =
+  process.env.SYNTHETIC_MONITOR_BEARER_TOKEN;
+const SYNTHETIC_MONITOR_EXPECTED_STATUS_CODES =
+  process.env.SYNTHETIC_MONITOR_EXPECTED_STATUS_CODES;
+const SYNTHETIC_MONITOR_EXPECTED_SUBSTRING =
+  process.env.SYNTHETIC_MONITOR_EXPECTED_SUBSTRING;
+const SYNTHETIC_MONITOR_SCHEDULE =
+  process.env.SYNTHETIC_MONITOR_SCHEDULE ?? "*/15 * * * *";
+const SYNTHETIC_MONITOR_TIMEZONE =
+  process.env.SYNTHETIC_MONITOR_TIMEZONE ?? "Asia/Bangkok";
+
 type MasterDataBackfillTaskPayload = {
   collection: MasterDataCollection;
   startAfter?: string;
@@ -116,6 +130,113 @@ const masterDataBackfillQueue = (tasks as any).taskQueue({
 const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY;
 const SENDGRID_FROM_EMAIL =
   process.env.SENDGRID_FROM_EMAIL ?? "no-reply@restaurant.local";
+
+export function parseSyntheticTimeout(
+  value: string | undefined,
+  fallback = DEFAULT_SYNTHETIC_MONITOR_TIMEOUT_MS,
+): number {
+  if (value === undefined) {
+    return fallback;
+  }
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric) || numeric <= 0) {
+    return fallback;
+  }
+  const coerced = Math.trunc(numeric);
+  if (coerced <= 0) {
+    return fallback;
+  }
+  return Math.min(coerced, MAX_SYNTHETIC_MONITOR_TIMEOUT_MS);
+}
+
+export function parseExpectedStatusCodes(
+  value?: string,
+): Set<number> | null {
+  if (!value) {
+    return null;
+  }
+  const result = new Set<number>();
+  for (const piece of value.split(/[,\s]+/)) {
+    if (!piece) {
+      continue;
+    }
+    const parsed = Number(piece);
+    if (Number.isInteger(parsed) && parsed >= 100 && parsed <= 599) {
+      result.add(parsed);
+    }
+  }
+  return result.size > 0 ? result : null;
+}
+
+function buildSyntheticHeaders(): Record<string, string> {
+  const headers: Record<string, string> = {};
+  if (SYNTHETIC_MONITOR_BEARER_TOKEN) {
+    headers["Authorization"] = `Bearer ${SYNTHETIC_MONITOR_BEARER_TOKEN}`;
+  }
+  return headers;
+}
+
+function describeSyntheticTarget(target: string): string {
+  try {
+    const parsed = new URL(target);
+    return `${parsed.protocol}//${parsed.host}${parsed.pathname}`;
+  } catch (error) {
+    logger.debug("Failed to parse synthetic monitor target", {error});
+    return target;
+  }
+}
+
+export async function performSyntheticRequest(
+  target: string,
+  timeoutMs: number,
+  headers: Record<string, string> = {},
+): Promise<{statusCode: number; body: string}> {
+  if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
+    throw new Error("Synthetic monitor timeout must be a positive number");
+  }
+  const url = new URL(target);
+  if (url.protocol !== "https:") {
+    throw new Error(
+      `Synthetic monitor only supports HTTPS targets. Received: ${url.protocol}`,
+    );
+  }
+
+  const options: https.RequestOptions = {
+    hostname: url.hostname,
+    method: "GET",
+    path: `${url.pathname}${url.search}`,
+    headers,
+  };
+
+  if (url.port) {
+    options.port = Number(url.port);
+  }
+
+  return await new Promise((resolve, reject) => {
+    const request = https.request(options, (response) => {
+      const statusCode = response.statusCode ?? 0;
+      let body = "";
+      response.setEncoding("utf8");
+      response.on("data", (chunk) => {
+        body += chunk;
+      });
+      response.on("error", reject);
+      response.on("end", () => {
+        resolve({statusCode, body});
+      });
+    });
+
+    request.on("error", reject);
+    request.setTimeout(timeoutMs, () => {
+      request.destroy(
+        new Error(
+          `Synthetic monitor timed out after ${timeoutMs}ms for target ${target}`,
+        ),
+      );
+    });
+    request.end();
+  });
+}
 
 // --- TIER UPGRADE CONFIGURATION ---
 const TIER_THRESHOLDS = {
@@ -1014,6 +1135,72 @@ export const cleanupOperationalCollections = onSchedule(
       logger.info("TTL cleanup results", {results});
     } else {
       logger.debug("TTL cleanup completed with no deletions");
+    }
+  },
+);
+
+export const runSyntheticMonitor = onSchedule(
+  {
+    schedule: SYNTHETIC_MONITOR_SCHEDULE,
+    timeZone: SYNTHETIC_MONITOR_TIMEZONE,
+    retryCount: 0,
+  },
+  async () => {
+    if (!SYNTHETIC_MONITOR_TARGET) {
+      logger.warn(
+        "Synthetic monitor skipped because SYNTHETIC_MONITOR_TARGET is not configured.",
+      );
+      return;
+    }
+
+    const timeoutMs = parseSyntheticTimeout(
+      process.env.SYNTHETIC_MONITOR_TIMEOUT_MS,
+    );
+    const headers = buildSyntheticHeaders();
+    const targetDescription = describeSyntheticTarget(SYNTHETIC_MONITOR_TARGET);
+    const startedAt = Date.now();
+
+    try {
+      const {statusCode, body} = await performSyntheticRequest(
+        SYNTHETIC_MONITOR_TARGET,
+        timeoutMs,
+        headers,
+      );
+      const durationMs = Date.now() - startedAt;
+      const expectedStatuses = parseExpectedStatusCodes(
+        SYNTHETIC_MONITOR_EXPECTED_STATUS_CODES,
+      );
+      const statusOk =
+        expectedStatuses !== null
+          ? expectedStatuses.has(statusCode)
+          : statusCode >= 200 && statusCode < 300;
+
+      if (!statusOk) {
+        throw new Error(
+          `Unexpected status code ${statusCode} from synthetic monitor target`,
+        );
+      }
+
+      if (
+        SYNTHETIC_MONITOR_EXPECTED_SUBSTRING &&
+        !body.includes(SYNTHETIC_MONITOR_EXPECTED_SUBSTRING)
+      ) {
+        throw new Error(
+          `Synthetic monitor response missing expected content: "${SYNTHETIC_MONITOR_EXPECTED_SUBSTRING}"`,
+        );
+      }
+
+      logger.debug("Synthetic monitor check succeeded", {
+        target: targetDescription,
+        statusCode,
+        durationMs,
+      });
+    } catch (error) {
+      logger.error("Synthetic monitor check failed", {
+        target: targetDescription,
+        error,
+      });
+      throw error;
     }
   },
 );
