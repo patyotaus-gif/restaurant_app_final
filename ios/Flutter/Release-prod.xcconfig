@@ -1,0 +1,4 @@
+#include "Release.xcconfig"
+FLUTTER_TARGET=lib/main_prod.dart
+FLAVOR=prod
+GOOGLE_SERVICE_INFO_PLIST=Runner/GoogleService-Info-Prod.plist
