@@ -1,0 +1,73 @@
+name: Dependency Audit
+
+on:
+  pull_request:
+    paths:
+      - '**/pubspec.yaml'
+      - '**/pubspec.lock'
+      - 'functions/package.json'
+      - 'functions/package-lock.json'
+      - '.github/workflows/dependency-audit.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - '**/pubspec.yaml'
+      - '**/pubspec.lock'
+      - 'functions/package.json'
+      - 'functions/package-lock.json'
+  schedule:
+    - cron: '0 5 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  flutter_audit:
+    name: Audit Flutter & Dart dependencies
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Install Melos
+        run: |
+          dart pub global activate melos
+          echo "${HOME}/.pub-cache/bin" >> "$GITHUB_PATH"
+
+      - name: Fetch Flutter dependencies
+        run: flutter pub get
+
+      - name: Bootstrap Melos workspace
+        run: melos bootstrap
+
+      - name: Audit root pubspec
+        run: flutter pub outdated --mode=null-safety
+
+      - name: Audit workspace packages
+        run: melos exec --no-private -- flutter pub outdated --mode=null-safety
+
+  functions_audit:
+    name: Audit Cloud Functions dependencies
+    runs-on: ubuntu-latest
+    needs: flutter_audit
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install dependencies
+        run: npm --prefix functions ci
+
+      - name: Run npm audit
+        run: npm --prefix functions audit --omit=dev --audit-level=high

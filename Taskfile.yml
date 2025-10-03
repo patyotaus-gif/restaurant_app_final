@@ -1,0 +1,68 @@
+version: '3'
+
+vars:
+  FLUTTER: flutter
+  MELOS: melos
+  NPM: npm
+  FORMAT_DIRS: lib packages integration_test test tool
+
+tasks:
+  setup:
+    desc: Install Flutter, Melos, and Cloud Functions dependencies.
+    deps:
+      - task: flutter:setup
+      - task: functions:install
+
+  flutter:setup:
+    desc: Fetch Flutter packages and bootstrap the Melos workspace.
+    cmds:
+      - '{{.FLUTTER}} pub get'
+      - '{{.MELOS}} bootstrap'
+
+  functions:install:
+    desc: Install Node dependencies for Firebase Functions.
+    cmds:
+      - '{{.NPM}} --prefix functions ci'
+
+  format:
+    desc: Format Dart sources in the app and packages.
+    cmds:
+      - '{{.FLUTTER}} format {{.FORMAT_DIRS}}'
+
+  format:check:
+    desc: Check that Dart sources are formatted.
+    cmds:
+      - '{{.FLUTTER}} format --set-exit-if-changed {{.FORMAT_DIRS}}'
+
+  analyze:
+    desc: Run Flutter analyzer across the workspace via Melos.
+    cmds:
+      - '{{.MELOS}} run analyze'
+
+  flutter:test:
+    desc: Run Flutter tests across the Melos workspace.
+    cmds:
+      - '{{.MELOS}} run test'
+
+  functions:test:
+    desc: Execute the Cloud Functions Vitest suite.
+    cmds:
+      - '{{.NPM}} --prefix functions test'
+
+  qa:
+    desc: Run analysis and all automated tests.
+    deps:
+      - task: analyze
+      - task: flutter:test
+      - task: functions:test
+
+  ci:
+    desc: Full CI surface for local verification.
+    deps:
+      - task: setup
+      - task: qa
+
+  watch:
+    desc: Launch the dev flavor in debug mode.
+    cmds:
+      - '{{.FLUTTER}} run --flavor dev --target lib/main_dev.dart'

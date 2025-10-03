@@ -43,6 +43,25 @@ flutter run
 
 For more Flutter resources see the [Flutter documentation](https://docs.flutter.dev/).
 
+### Dev automation shortcuts
+
+The repository ships with both a `Makefile` and `Taskfile.yml` so common flows are
+one command away. Use whichever tool you prefer:
+
+```bash
+make setup   # flutter pub get, melos bootstrap, npm ci (functions/)
+make qa      # analyze + Flutter tests + Cloud Functions Vitest suite
+make watch   # launch the dev flavor in debug mode
+make format-check
+
+task setup   # same as make setup
+task qa      # runs analyzer, Flutter tests, and Vitest
+task format:check
+```
+
+Every command works from the repository root and keeps the Flutter app and
+Firebase Functions in sync during local development.
+
 ## Environment Flavors
 
 The application ships with dedicated **dev**, **stg**, and **prod** flavors on both Android and iOS. Each flavor has its own `google-services.json` / `GoogleService-Info.plist` placeholder and a Dart entry point under `lib/` so configuration stays isolated per backend environment.
@@ -104,6 +123,14 @@ the Melos workspace, and lints/tests the Cloud Functions package to surface
 regressions before the deployment command executes. The script is also wired into
 `firebase.json` as a `predeploy` hook so `firebase deploy --only functions` will
 run it automatically.
+
+### Automated dependency audits
+
+GitHub Actions runs a dedicated **Dependency Audit** workflow on pull requests,
+`main` branch pushes, and every Monday. It executes `flutter pub outdated` across
+the Flutter workspace and `npm audit --omit=dev --audit-level=high` for the
+Firebase Functions package to highlight vulnerable or stale dependencies before
+they reach production.
 
 ### Canary rollouts & rollbacks with feature flags
 
