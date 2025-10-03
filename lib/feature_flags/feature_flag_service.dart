@@ -72,4 +72,49 @@ class FeatureFlagService {
 
     await docRef.set(updates, SetOptions(merge: true));
   }
+
+  Future<void> configureReleaseChannel({
+    required String tenantId,
+    required String channel,
+    ReleaseEnvironment? environment,
+    Map<String, bool>? flagOverrides,
+    Map<String, StagedRollout>? rollouts,
+    bool clear = false,
+  }) async {
+    final docRef = _firestore.collection('featureFlags').doc(tenantId);
+
+    if (clear) {
+      await docRef.set(
+        {
+          'releaseChannels': {channel: FieldValue.delete()},
+        },
+        SetOptions(merge: true),
+      );
+      return;
+    }
+
+    final updates = <String, dynamic>{};
+
+    if (environment != null) {
+      updates['releaseChannels.$channel.environment'] = environment.wireName;
+    }
+
+    if (flagOverrides != null && flagOverrides.isNotEmpty) {
+      flagOverrides.forEach((flag, value) {
+        updates['releaseChannels.$channel.flags.$flag'] = value;
+      });
+    }
+
+    if (rollouts != null && rollouts.isNotEmpty) {
+      rollouts.forEach((flag, rollout) {
+        updates['releaseChannels.$channel.rollouts.$flag'] = rollout.toMap();
+      });
+    }
+
+    if (updates.isEmpty) {
+      return;
+    }
+
+    await docRef.set(updates, SetOptions(merge: true));
+  }
 }

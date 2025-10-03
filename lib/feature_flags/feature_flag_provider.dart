@@ -163,6 +163,27 @@ class FeatureFlagProvider with ChangeNotifier {
     );
   }
 
+  Future<void> configureReleaseChannel({
+    required String channel,
+    ReleaseEnvironment? environment,
+    Map<String, bool>? flagOverrides,
+    Map<String, StagedRollout>? rollouts,
+    bool clear = false,
+  }) async {
+    final tenantId = _tenantId;
+    if (tenantId == null) {
+      throw StateError('Cannot modify feature flags without a tenant context.');
+    }
+    await _featureFlagService.configureReleaseChannel(
+      tenantId: tenantId,
+      channel: channel,
+      environment: environment,
+      flagOverrides: flagOverrides,
+      rollouts: rollouts,
+      clear: clear,
+    );
+  }
+
   @override
   void dispose() {
     _subscription?.cancel();
