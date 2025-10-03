@@ -132,12 +132,9 @@ class _BackofficeSchemaPageState extends State<BackofficeSchemaPage> {
   }
 
   Widget _buildFormPane(ThemeData theme) {
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final formContent = Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             LayoutBuilder(
@@ -214,8 +211,26 @@ class _BackofficeSchemaPageState extends State<BackofficeSchemaPage> {
               ),
             ),
           ],
-        ),
-      ),
+        );
+
+        final bool hasBoundedHeight = constraints.maxHeight.isFinite;
+        final EdgeInsets padding = const EdgeInsets.all(24);
+
+        return Card(
+          elevation: 4,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          child: hasBoundedHeight
+              ? SingleChildScrollView(
+                  padding: padding,
+                  child: formContent,
+                )
+              : Padding(
+                  padding: padding,
+                  child: formContent,
+                ),
+        );
+      },
     );
   }
 
