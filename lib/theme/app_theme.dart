@@ -91,8 +91,8 @@ class AppTheme {
           vertical: spacingTokens.xs,
         ),
       ),
-      extensions: <ThemeExtension<dynamic>>[
-        ...base.extensions.values.cast<ThemeExtension<dynamic>>(),
+      extensions: [
+        ...base.extensions.values,
         colorTokens,
         spacingTokens,
         radiusTokens,
