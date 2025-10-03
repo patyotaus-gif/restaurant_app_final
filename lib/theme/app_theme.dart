@@ -92,7 +92,7 @@ class AppTheme {
         ),
       ),
       extensions: <ThemeExtension<dynamic>>[
-        ...base.extensions.values,
+        ...base.extensions.values.cast<ThemeExtension<dynamic>>(),
         colorTokens,
         spacingTokens,
         radiusTokens,
