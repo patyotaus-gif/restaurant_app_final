@@ -1301,7 +1301,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
               Padding(
                 padding: const EdgeInsets.only(top: 4, bottom: 12),
                 child: Text(
-                  'เลือกผู้ให้บริการสำหรับประมวลผลการชำระเงินออนไลน์ได้ทันที',
+                  'เลือกผู้ให้บริการสำหรับบัตร, QR และกระเป๋าเงินดิจิทัลได้ในที่เดียว',
                   style: helperStyle,
                 ),
               ),
