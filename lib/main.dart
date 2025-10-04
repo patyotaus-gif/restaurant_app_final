@@ -146,6 +146,44 @@ CustomTransitionPage<void> _buildTransitionPage({required Widget child}) {
   );
 }
 
+Future<void> _initializePaymentGateways(
+  PaymentGatewayService service,
+) async {
+  try {
+    final remoteConfig = FirebaseRemoteConfig.instance;
+    try {
+      await remoteConfig.fetchAndActivate();
+    } catch (error) {
+      debugPrint('Failed to refresh Remote Config for Omise: $error');
+    }
+
+    final publicKey = remoteConfig.getString('omise_public_key');
+    final secretKey = remoteConfig.getString('omise_secret_key');
+    final defaultSourceType =
+        remoteConfig.getString('omise_default_source_type');
+
+    if (publicKey.isEmpty || secretKey.isEmpty) {
+      return;
+    }
+
+    service.updateConfig(
+      PaymentGatewayType.omise,
+      PaymentGatewayConfig(
+        apiKey: publicKey,
+        secretKey: secretKey,
+        additionalData: <String, dynamic>{
+          'publicKey': publicKey,
+          'secretKey': secretKey,
+          if (defaultSourceType.isNotEmpty)
+            'defaultSourceType': defaultSourceType,
+        },
+      ),
+    );
+  } catch (error) {
+    debugPrint('Unable to initialize Omise payment gateway: $error');
+  }
+}
+
 final _router = GoRouter(
   routes: [
     GoRoute(
@@ -817,7 +855,13 @@ class MyApp extends StatelessWidget {
             return service;
           },
         ),
-        ChangeNotifierProvider(create: (_) => PaymentGatewayService()),
+        ChangeNotifierProvider(
+          create: (_) {
+            final service = PaymentGatewayService();
+            unawaited(_initializePaymentGateways(service));
+            return service;
+          },
+        ),
         Provider<PrinterDrawerService>(create: (_) => PrinterDrawerService()),
         Provider<AuditLogService>(
           create: (_) => AuditLogService(FirebaseFirestore.instance),
