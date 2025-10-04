@@ -1,11 +1,14 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
+import 'package:http/http.dart' as http;
 /// Supported payment gateways for the POS checkout flow.
 enum PaymentGatewayType {
   stripe,
   square,
   adyen,
+  omise,
   creditDebitCard,
   promptPay,
   mobileBanking,
@@ -525,6 +528,8 @@ class PaymentGatewayService with ChangeNotifier {
         return 'Square';
       case PaymentGatewayType.adyen:
         return 'Adyen';
+      case PaymentGatewayType.omise:
+        return 'Omise';
       case PaymentGatewayType.creditDebitCard:
         return 'บัตรเครดิต/เดบิต';
       case PaymentGatewayType.promptPay:
@@ -551,6 +556,8 @@ class PaymentGatewayService with ChangeNotifier {
         return SquarePaymentAdapter(config);
       case PaymentGatewayType.adyen:
         return AdyenPaymentAdapter(config);
+      case PaymentGatewayType.omise:
+        return OmisePaymentAdapter(config);
       case PaymentGatewayType.creditDebitCard:
         return CreditDebitCardPaymentAdapter(config);
       case PaymentGatewayType.promptPay:
@@ -566,5 +573,208 @@ class PaymentGatewayService with ChangeNotifier {
       case PaymentGatewayType.billPayment:
         return BillPaymentAdapter(config);
     }
+  }
+}
+
+class OmisePaymentAdapter extends PaymentGatewayAdapter {
+  OmisePaymentAdapter(PaymentGatewayConfig? config) : super(config);
+
+  @override
+  PaymentGatewayType get type => PaymentGatewayType.omise;
+
+  @override
+  Future<PaymentResult> processPayment(PaymentRequest request) async {
+    if (request.amount <= 0) {
+      throw PaymentGatewayException('Amount must be greater than zero.');
+    }
+
+    final config = this.config;
+    if (config == null) {
+      throw PaymentGatewayException('Omise gateway is not configured.');
+    }
+
+    final publicKey =
+        config.apiKey ?? config.additionalData['publicKey'] as String?;
+    final secretKey =
+        config.secretKey ?? config.additionalData['secretKey'] as String?;
+    if (publicKey == null || publicKey.isEmpty) {
+      throw PaymentGatewayException('Omise public key is missing.');
+    }
+    if (secretKey == null || secretKey.isEmpty) {
+      throw PaymentGatewayException('Omise secret key is missing.');
+    }
+
+    final currency = request.currency.trim();
+    if (currency.isEmpty) {
+      throw PaymentGatewayException('Currency is required for Omise payments.');
+    }
+
+    final sourceType = (request.metadata['sourceType'] ??
+        config.additionalData['defaultSourceType']) as String?;
+    if (sourceType == null || sourceType.isEmpty) {
+      throw PaymentGatewayException(
+        'Omise source type is not configured. Provide it in request metadata or configuration.',
+      );
+    }
+
+    final amountInSubunits = (request.amount * 100).round();
+    final sharedMetadata = <String, dynamic>{
+      'orderId': request.orderId,
+      ...request.metadata,
+    };
+
+    try {
+      final sourceResponse = await http.post(
+        Uri.https('vault.omise.co', '/sources'),
+        headers: _authorizationHeaders(publicKey),
+        body: jsonEncode({
+          'type': sourceType,
+          'amount': amountInSubunits,
+          'currency': currency.toLowerCase(),
+          'metadata': sharedMetadata,
+          if (request.customerEmail != null) 'email': request.customerEmail,
+          if (request.customerName != null) 'name': request.customerName,
+        }),
+      );
+
+      final sourceData =
+          _decodeResponse(sourceResponse, action: 'create source');
+      final sourceId = sourceData['id'] as String?;
+      if (sourceId == null || sourceId.isEmpty) {
+        throw PaymentGatewayException(
+          'Omise did not return a source identifier.',
+        );
+      }
+
+      final chargeResponse = await http.post(
+        Uri.https('api.omise.co', '/charges'),
+        headers: _authorizationHeaders(secretKey),
+        body: jsonEncode({
+          'amount': amountInSubunits,
+          'currency': currency.toLowerCase(),
+          'source': sourceId,
+          'description':
+              request.description ?? 'Order ${request.orderId} via Omise',
+          'metadata': sharedMetadata,
+        }),
+      );
+
+      final chargeData =
+          _decodeResponse(chargeResponse, action: 'create charge');
+      final transactionId = chargeData['id'] as String?;
+      if (transactionId == null || transactionId.isEmpty) {
+        throw PaymentGatewayException(
+          'Omise charge is missing a transaction identifier.',
+        );
+      }
+
+      final metadata = <String, dynamic>{
+        ...sharedMetadata,
+        'gateway': 'omise',
+        'sourceId': sourceId,
+        'sourceType': sourceData['type'],
+        if (chargeData['status'] != null) 'status': chargeData['status'],
+        if (chargeData['authorized'] != null)
+          'authorized': chargeData['authorized'],
+        if (chargeData['metadata'] is Map<String, dynamic>)
+          'omiseMetadata': Map<String, dynamic>.from(
+            chargeData['metadata'] as Map<String, dynamic>,
+          ),
+      };
+
+      return PaymentResult.success(
+        transactionId: transactionId,
+        receiptUrl: (chargeData['receipt_url'] as String?) ??
+            (chargeData['authorize_uri'] as String?),
+        metadata: metadata,
+      );
+    } on PaymentGatewayException {
+      rethrow;
+    } catch (error) {
+      throw PaymentGatewayException(
+        'Unexpected Omise payment error: $error',
+      );
+    }
+  }
+
+  @override
+  Future<void> refundPayment(String transactionId, {double? amount}) async {
+    if (transactionId.isEmpty) {
+      throw PaymentGatewayException('Transaction ID is required for refunds.');
+    }
+
+    final config = this.config;
+    if (config == null) {
+      throw PaymentGatewayException('Omise gateway is not configured.');
+    }
+
+    final secretKey =
+        config.secretKey ?? config.additionalData['secretKey'] as String?;
+    if (secretKey == null || secretKey.isEmpty) {
+      throw PaymentGatewayException('Omise secret key is missing.');
+    }
+
+    final body = <String, dynamic>{};
+    if (amount != null) {
+      if (amount <= 0) {
+        throw PaymentGatewayException('Refund amount must be positive.');
+      }
+      body['amount'] = (amount * 100).round();
+    }
+
+    final response = await http.post(
+      Uri.https('api.omise.co', '/charges/$transactionId/refunds'),
+      headers: _authorizationHeaders(secretKey),
+      body: jsonEncode(body),
+    );
+
+    _decodeResponse(response, action: 'issue refund');
+  }
+
+  static Map<String, String> _authorizationHeaders(String key) {
+    final token = base64Encode(utf8.encode('$key:'));
+    return <String, String>{
+      'Authorization': 'Basic $token',
+      'Content-Type': 'application/json; charset=utf-8',
+    };
+  }
+
+  static Map<String, dynamic> _decodeResponse(
+    http.Response response, {
+    required String action,
+  }) {
+    var data = <String, dynamic>{};
+    if (response.body.isNotEmpty) {
+      final decoded = jsonDecode(response.body);
+      if (decoded is Map<String, dynamic>) {
+        data = decoded;
+      }
+    }
+
+    if (response.statusCode >= 400) {
+      final message = _resolveErrorMessage(data) ??
+          'Failed to $action with Omise (status ${response.statusCode}).';
+      throw PaymentGatewayException(message);
+    }
+
+    return data;
+  }
+
+  static String? _resolveErrorMessage(Map<String, dynamic> body) {
+    if (body['message'] is String && (body['message'] as String).isNotEmpty) {
+      return body['message'] as String;
+    }
+    final error = body['error'];
+    if (error is Map<String, dynamic>) {
+      final message = error['message'];
+      if (message is String && message.isNotEmpty) {
+        return message;
+      }
+      final code = error['code'];
+      if (code is String && code.isNotEmpty) {
+        return code;
+      }
+    }
+    return null;
   }
 }
