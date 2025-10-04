@@ -2,7 +2,18 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 /// Supported payment gateways for the POS checkout flow.
-enum PaymentGatewayType { stripe, square, adyen }
+enum PaymentGatewayType {
+  stripe,
+  square,
+  adyen,
+  creditDebitCard,
+  promptPay,
+  mobileBanking,
+  trueMoneyWallet,
+  rabbitLinePay,
+  weChatPay,
+  billPayment,
+}
 
 /// Data transfer object describing a payment request that should be sent to
 /// the configured payment gateway adapter.
@@ -203,6 +214,257 @@ class AdyenPaymentAdapter extends PaymentGatewayAdapter {
   }
 }
 
+class CreditDebitCardPaymentAdapter extends PaymentGatewayAdapter {
+  CreditDebitCardPaymentAdapter(PaymentGatewayConfig? config) : super(config);
+
+  @override
+  PaymentGatewayType get type => PaymentGatewayType.creditDebitCard;
+
+  @override
+  Future<PaymentResult> processPayment(PaymentRequest request) async {
+    await Future.delayed(const Duration(milliseconds: 420));
+    if (request.amount <= 0) {
+      return PaymentResult.failure('Amount must be greater than zero.');
+    }
+
+    final transactionId =
+        'card_${DateTime.now().millisecondsSinceEpoch.toString()}';
+    final metadata = <String, dynamic>{
+      ...request.metadata,
+      'gateway': 'in_house_card',
+      'channel': 'credit_debit',
+      if (config?.merchantAccount != null)
+        'merchantAccount': config!.merchantAccount,
+    };
+    return PaymentResult.success(
+      transactionId: transactionId,
+      receiptUrl: 'https://merchant-portal.example/cards/$transactionId',
+      metadata: metadata,
+    );
+  }
+
+  @override
+  Future<void> refundPayment(String transactionId, {double? amount}) async {
+    await Future.delayed(const Duration(milliseconds: 280));
+  }
+}
+
+class PromptPayPaymentAdapter extends PaymentGatewayAdapter {
+  PromptPayPaymentAdapter(PaymentGatewayConfig? config) : super(config);
+
+  @override
+  PaymentGatewayType get type => PaymentGatewayType.promptPay;
+
+  @override
+  Future<PaymentResult> processPayment(PaymentRequest request) async {
+    await Future.delayed(const Duration(milliseconds: 380));
+    if (request.amount <= 0) {
+      return PaymentResult.failure('Amount must be greater than zero.');
+    }
+
+    final transactionId =
+        'promptpay_${DateTime.now().millisecondsSinceEpoch.toString()}';
+    final metadata = <String, dynamic>{
+      ...request.metadata,
+      'gateway': 'promptpay',
+      'channel': 'qr_payment',
+      if (config?.additionalData['billerId'] != null)
+        'billerId': config!.additionalData['billerId'],
+    };
+    return PaymentResult.success(
+      transactionId: transactionId,
+      receiptUrl:
+          'https://smart-portal.example/promptpay/transactions/$transactionId',
+      metadata: metadata,
+    );
+  }
+
+  @override
+  Future<void> refundPayment(String transactionId, {double? amount}) async {
+    await Future.delayed(const Duration(milliseconds: 260));
+  }
+}
+
+class MobileBankingPaymentAdapter extends PaymentGatewayAdapter {
+  MobileBankingPaymentAdapter(PaymentGatewayConfig? config) : super(config);
+
+  @override
+  PaymentGatewayType get type => PaymentGatewayType.mobileBanking;
+
+  @override
+  Future<PaymentResult> processPayment(PaymentRequest request) async {
+    await Future.delayed(const Duration(milliseconds: 460));
+    if (request.amount <= 0) {
+      return PaymentResult.failure('Amount must be greater than zero.');
+    }
+
+    final transactionId =
+        'mobilebank_${DateTime.now().millisecondsSinceEpoch.toString()}';
+    final metadata = <String, dynamic>{
+      ...request.metadata,
+      'gateway': 'mobile_banking',
+      'channel': 'app_transfer',
+      if (config?.additionalData['bankCode'] != null)
+        'bankCode': config!.additionalData['bankCode'],
+    };
+    return PaymentResult.success(
+      transactionId: transactionId,
+      receiptUrl:
+          'https://merchant-portal.example/mobilebanking/$transactionId',
+      metadata: metadata,
+    );
+  }
+
+  @override
+  Future<void> refundPayment(String transactionId, {double? amount}) async {
+    await Future.delayed(const Duration(milliseconds: 300));
+  }
+}
+
+class TrueMoneyWalletPaymentAdapter extends PaymentGatewayAdapter {
+  TrueMoneyWalletPaymentAdapter(PaymentGatewayConfig? config) : super(config);
+
+  @override
+  PaymentGatewayType get type => PaymentGatewayType.trueMoneyWallet;
+
+  @override
+  Future<PaymentResult> processPayment(PaymentRequest request) async {
+    await Future.delayed(const Duration(milliseconds: 410));
+    if (request.amount <= 0) {
+      return PaymentResult.failure('Amount must be greater than zero.');
+    }
+
+    final transactionId =
+        'truemoney_${DateTime.now().millisecondsSinceEpoch.toString()}';
+    final metadata = <String, dynamic>{
+      ...request.metadata,
+      'gateway': 'truemoney',
+      'channel': 'ewallet',
+      if (config?.additionalData['merchantWalletId'] != null)
+        'merchantWalletId': config!.additionalData['merchantWalletId'],
+    };
+    return PaymentResult.success(
+      transactionId: transactionId,
+      receiptUrl:
+          'https://merchant-portal.example/truemoney/$transactionId',
+      metadata: metadata,
+    );
+  }
+
+  @override
+  Future<void> refundPayment(String transactionId, {double? amount}) async {
+    await Future.delayed(const Duration(milliseconds: 270));
+  }
+}
+
+class RabbitLinePayPaymentAdapter extends PaymentGatewayAdapter {
+  RabbitLinePayPaymentAdapter(PaymentGatewayConfig? config) : super(config);
+
+  @override
+  PaymentGatewayType get type => PaymentGatewayType.rabbitLinePay;
+
+  @override
+  Future<PaymentResult> processPayment(PaymentRequest request) async {
+    await Future.delayed(const Duration(milliseconds: 480));
+    if (request.amount <= 0) {
+      return PaymentResult.failure('Amount must be greater than zero.');
+    }
+
+    final transactionId =
+        'rabbitline_${DateTime.now().millisecondsSinceEpoch.toString()}';
+    final metadata = <String, dynamic>{
+      ...request.metadata,
+      'gateway': 'rabbit_line_pay',
+      'channel': 'ewallet',
+      if (config?.additionalData['channelId'] != null)
+        'channelId': config!.additionalData['channelId'],
+    };
+    return PaymentResult.success(
+      transactionId: transactionId,
+      receiptUrl:
+          'https://merchant-portal.example/rabbitlinepay/$transactionId',
+      metadata: metadata,
+    );
+  }
+
+  @override
+  Future<void> refundPayment(String transactionId, {double? amount}) async {
+    await Future.delayed(const Duration(milliseconds: 310));
+  }
+}
+
+class WeChatPayPaymentAdapter extends PaymentGatewayAdapter {
+  WeChatPayPaymentAdapter(PaymentGatewayConfig? config) : super(config);
+
+  @override
+  PaymentGatewayType get type => PaymentGatewayType.weChatPay;
+
+  @override
+  Future<PaymentResult> processPayment(PaymentRequest request) async {
+    await Future.delayed(const Duration(milliseconds: 500));
+    if (request.amount <= 0) {
+      return PaymentResult.failure('Amount must be greater than zero.');
+    }
+
+    final transactionId =
+        'wechatpay_${DateTime.now().millisecondsSinceEpoch.toString()}';
+    final metadata = <String, dynamic>{
+      ...request.metadata,
+      'gateway': 'wechat_pay',
+      'channel': 'cross_border_qr',
+      if (config?.additionalData['mchId'] != null)
+        'mchId': config!.additionalData['mchId'],
+    };
+    return PaymentResult.success(
+      transactionId: transactionId,
+      receiptUrl:
+          'https://merchant-portal.example/wechatpay/$transactionId',
+      metadata: metadata,
+    );
+  }
+
+  @override
+  Future<void> refundPayment(String transactionId, {double? amount}) async {
+    await Future.delayed(const Duration(milliseconds: 320));
+  }
+}
+
+class BillPaymentAdapter extends PaymentGatewayAdapter {
+  BillPaymentAdapter(PaymentGatewayConfig? config) : super(config);
+
+  @override
+  PaymentGatewayType get type => PaymentGatewayType.billPayment;
+
+  @override
+  Future<PaymentResult> processPayment(PaymentRequest request) async {
+    await Future.delayed(const Duration(milliseconds: 450));
+    if (request.amount <= 0) {
+      return PaymentResult.failure('Amount must be greater than zero.');
+    }
+
+    final transactionId =
+        'billpay_${DateTime.now().millisecondsSinceEpoch.toString()}';
+    final metadata = <String, dynamic>{
+      ...request.metadata,
+      'gateway': 'bill_payment',
+      'channel': 'offline_counter',
+      if (config?.additionalData['referenceCode'] != null)
+        'referenceCode': config!.additionalData['referenceCode'],
+    };
+    return PaymentResult.success(
+      transactionId: transactionId,
+      receiptUrl:
+          'https://merchant-portal.example/billpayment/$transactionId',
+      metadata: metadata,
+    );
+  }
+
+  @override
+  Future<void> refundPayment(String transactionId, {double? amount}) async {
+    await Future.delayed(const Duration(milliseconds: 330));
+  }
+}
+
 /// Service responsible for orchestrating payment gateway adapters and exposing
 /// them to the Flutter widget tree via Provider.
 class PaymentGatewayService with ChangeNotifier {
@@ -263,6 +525,20 @@ class PaymentGatewayService with ChangeNotifier {
         return 'Square';
       case PaymentGatewayType.adyen:
         return 'Adyen';
+      case PaymentGatewayType.creditDebitCard:
+        return 'บัตรเครดิต/เดบิต';
+      case PaymentGatewayType.promptPay:
+        return 'QR พร้อมเพย์';
+      case PaymentGatewayType.mobileBanking:
+        return 'โมบายล์แบงก์กิ้ง';
+      case PaymentGatewayType.trueMoneyWallet:
+        return 'ทรูมันนี่ วอลเล็ท';
+      case PaymentGatewayType.rabbitLinePay:
+        return 'Rabbit LINE Pay';
+      case PaymentGatewayType.weChatPay:
+        return 'WeChat Pay';
+      case PaymentGatewayType.billPayment:
+        return 'บิลเพย์เมนต์';
     }
   }
 
@@ -275,6 +551,20 @@ class PaymentGatewayService with ChangeNotifier {
         return SquarePaymentAdapter(config);
       case PaymentGatewayType.adyen:
         return AdyenPaymentAdapter(config);
+      case PaymentGatewayType.creditDebitCard:
+        return CreditDebitCardPaymentAdapter(config);
+      case PaymentGatewayType.promptPay:
+        return PromptPayPaymentAdapter(config);
+      case PaymentGatewayType.mobileBanking:
+        return MobileBankingPaymentAdapter(config);
+      case PaymentGatewayType.trueMoneyWallet:
+        return TrueMoneyWalletPaymentAdapter(config);
+      case PaymentGatewayType.rabbitLinePay:
+        return RabbitLinePayPaymentAdapter(config);
+      case PaymentGatewayType.weChatPay:
+        return WeChatPayPaymentAdapter(config);
+      case PaymentGatewayType.billPayment:
+        return BillPaymentAdapter(config);
     }
   }
 }
