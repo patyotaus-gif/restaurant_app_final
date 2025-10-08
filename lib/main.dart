@@ -179,6 +179,19 @@ Future<void> _initializePaymentGateways(
         },
       ),
     );
+
+    service.updateConfig(
+      PaymentGatewayType.creditDebitCard,
+      PaymentGatewayConfig(
+        apiKey: publicKey,
+        secretKey: secretKey,
+        additionalData: <String, dynamic>{
+          'publicKey': publicKey,
+          'secretKey': secretKey,
+          'provider': 'omise',
+        },
+      ),
+    );
   } catch (error) {
     debugPrint('Unable to initialize Omise payment gateway: $error');
   }

@@ -29,6 +29,7 @@ class PaymentRequest {
     this.metadata = const <String, dynamic>{},
     this.customerEmail,
     this.customerName,
+    this.paymentToken,
   });
 
   final double amount;
@@ -38,6 +39,7 @@ class PaymentRequest {
   final Map<String, dynamic> metadata;
   final String? customerEmail;
   final String? customerName;
+  final String? paymentToken;
 }
 
 /// Result returned from a payment gateway adapter.
@@ -225,30 +227,145 @@ class CreditDebitCardPaymentAdapter extends PaymentGatewayAdapter {
 
   @override
   Future<PaymentResult> processPayment(PaymentRequest request) async {
-    await Future.delayed(const Duration(milliseconds: 420));
     if (request.amount <= 0) {
-      return PaymentResult.failure('Amount must be greater than zero.');
+      throw PaymentGatewayException('Amount must be greater than zero.');
     }
 
-    final transactionId =
-        'card_${DateTime.now().millisecondsSinceEpoch.toString()}';
-    final metadata = <String, dynamic>{
+    final config = this.config;
+    if (config == null) {
+      throw PaymentGatewayException('Omise card gateway is not configured.');
+    }
+
+    final secretKey =
+        config.secretKey ?? config.additionalData['secretKey'] as String?;
+    if (secretKey == null || secretKey.isEmpty) {
+      throw PaymentGatewayException('Omise secret key is missing.');
+    }
+
+    final token = request.paymentToken;
+    if (token == null || token.isEmpty) {
+      throw PaymentGatewayException(
+        'Card token is missing. Please tokenize the card before charging.',
+      );
+    }
+
+    final currency = request.currency.trim();
+    if (currency.isEmpty) {
+      throw PaymentGatewayException(
+        'Currency is required for Omise card payments.',
+      );
+    }
+
+    final amountInSubunits = (request.amount * 100).round();
+    final sharedMetadata = <String, dynamic>{
+      'orderId': request.orderId,
       ...request.metadata,
-      'gateway': 'in_house_card',
-      'channel': 'credit_debit',
-      if (config?.merchantAccount != null)
-        'merchantAccount': config!.merchantAccount,
     };
-    return PaymentResult.success(
-      transactionId: transactionId,
-      receiptUrl: 'https://merchant-portal.example/cards/$transactionId',
-      metadata: metadata,
-    );
+
+    try {
+      final chargeResponse = await http.post(
+        Uri.https('api.omise.co', '/charges'),
+        headers: _buildOmiseAuthorizationHeaders(secretKey),
+        body: jsonEncode({
+          'amount': amountInSubunits,
+          'currency': currency.toLowerCase(),
+          'card': token,
+          'capture': true,
+          if (request.description != null) 'description': request.description,
+          if (sharedMetadata.isNotEmpty) 'metadata': sharedMetadata,
+          if (request.customerEmail != null) 'email': request.customerEmail,
+        }),
+      );
+
+      final chargeData =
+          _parseOmiseResponse(chargeResponse, action: 'charge card');
+      final transactionId = chargeData['id'] as String?;
+      if (transactionId == null || transactionId.isEmpty) {
+        throw PaymentGatewayException(
+          'Omise card charge is missing a transaction identifier.',
+        );
+      }
+
+      final metadata = <String, dynamic>{
+        ...sharedMetadata,
+        'gateway': 'omise',
+        'channel': 'card',
+        if (chargeData['status'] != null) 'status': chargeData['status'],
+        if (chargeData['authorized'] != null)
+          'authorized': chargeData['authorized'],
+      };
+
+      final cardData = chargeData['card'];
+      if (cardData is Map<String, dynamic>) {
+        final brand = cardData['brand'];
+        final lastDigits = cardData['last_digits'];
+        final name = cardData['name'];
+        final expiryMonth = cardData['expiration_month'];
+        final expiryYear = cardData['expiration_year'];
+        if (brand is String && brand.isNotEmpty) {
+          metadata['cardBrand'] = brand;
+        }
+        if (lastDigits is String && lastDigits.isNotEmpty) {
+          metadata['cardLastDigits'] = lastDigits;
+        }
+        if (name is String && name.isNotEmpty) {
+          metadata['cardHolderName'] = name;
+        }
+        if (expiryMonth is String && expiryMonth.isNotEmpty) {
+          metadata['cardExpiryMonth'] = expiryMonth;
+        }
+        if (expiryYear is String && expiryYear.isNotEmpty) {
+          metadata['cardExpiryYear'] = expiryYear;
+        }
+      }
+
+      return PaymentResult.success(
+        transactionId: transactionId,
+        receiptUrl: (chargeData['receipt_url'] as String?) ??
+            (chargeData['authorize_uri'] as String?),
+        metadata: metadata,
+      );
+    } on PaymentGatewayException {
+      rethrow;
+    } catch (error) {
+      throw PaymentGatewayException(
+        'Unexpected Omise card payment error: $error',
+      );
+    }
   }
 
   @override
   Future<void> refundPayment(String transactionId, {double? amount}) async {
-    await Future.delayed(const Duration(milliseconds: 280));
+    if (transactionId.isEmpty) {
+      throw PaymentGatewayException('Transaction ID is required for refunds.');
+    }
+
+    final config = this.config;
+    if (config == null) {
+      throw PaymentGatewayException('Omise card gateway is not configured.');
+    }
+
+    final secretKey =
+        config.secretKey ?? config.additionalData['secretKey'] as String?;
+    if (secretKey == null || secretKey.isEmpty) {
+      throw PaymentGatewayException('Omise secret key is missing.');
+    }
+
+    final body = <String, dynamic>{};
+    if (amount != null) {
+      if (amount <= 0) {
+        throw PaymentGatewayException('Refund amount must be positive.');
+      }
+      body['amount'] = (amount * 100).round();
+    }
+
+    final response = await http.post(
+      Uri.https('api.omise.co', '/charges/$transactionId/refunds'),
+      headers: _buildOmiseAuthorizationHeaders(secretKey),
+      body: jsonEncode(body),
+    );
+
+    _parseOmiseResponse(response, action: 'issue refund');
   }
 }
 
@@ -626,7 +743,7 @@ class OmisePaymentAdapter extends PaymentGatewayAdapter {
     try {
       final sourceResponse = await http.post(
         Uri.https('vault.omise.co', '/sources'),
-        headers: _authorizationHeaders(publicKey),
+        headers: _buildOmiseAuthorizationHeaders(publicKey),
         body: jsonEncode({
           'type': sourceType,
           'amount': amountInSubunits,
@@ -638,7 +755,7 @@ class OmisePaymentAdapter extends PaymentGatewayAdapter {
       );
 
       final sourceData =
-          _decodeResponse(sourceResponse, action: 'create source');
+          _parseOmiseResponse(sourceResponse, action: 'create source');
       final sourceId = sourceData['id'] as String?;
       if (sourceId == null || sourceId.isEmpty) {
         throw PaymentGatewayException(
@@ -648,7 +765,7 @@ class OmisePaymentAdapter extends PaymentGatewayAdapter {
 
       final chargeResponse = await http.post(
         Uri.https('api.omise.co', '/charges'),
-        headers: _authorizationHeaders(secretKey),
+        headers: _buildOmiseAuthorizationHeaders(secretKey),
         body: jsonEncode({
           'amount': amountInSubunits,
           'currency': currency.toLowerCase(),
@@ -660,7 +777,7 @@ class OmisePaymentAdapter extends PaymentGatewayAdapter {
       );
 
       final chargeData =
-          _decodeResponse(chargeResponse, action: 'create charge');
+          _parseOmiseResponse(chargeResponse, action: 'create charge');
       final transactionId = chargeData['id'] as String?;
       if (transactionId == null || transactionId.isEmpty) {
         throw PaymentGatewayException(
@@ -724,57 +841,58 @@ class OmisePaymentAdapter extends PaymentGatewayAdapter {
 
     final response = await http.post(
       Uri.https('api.omise.co', '/charges/$transactionId/refunds'),
-      headers: _authorizationHeaders(secretKey),
+      headers: _buildOmiseAuthorizationHeaders(secretKey),
       body: jsonEncode(body),
     );
 
-    _decodeResponse(response, action: 'issue refund');
+    _parseOmiseResponse(response, action: 'issue refund');
   }
 
-  static Map<String, String> _authorizationHeaders(String key) {
-    final token = base64Encode(utf8.encode('$key:'));
-    return <String, String>{
-      'Authorization': 'Basic $token',
-      'Content-Type': 'application/json; charset=utf-8',
-    };
+}
+
+Map<String, String> _buildOmiseAuthorizationHeaders(String key) {
+  final token = base64Encode(utf8.encode('$key:'));
+  return <String, String>{
+    'Authorization': 'Basic $token',
+    'Content-Type': 'application/json; charset=utf-8',
+  };
+}
+
+Map<String, dynamic> _parseOmiseResponse(
+  http.Response response, {
+  required String action,
+}) {
+  var data = <String, dynamic>{};
+  if (response.body.isNotEmpty) {
+    final decoded = jsonDecode(response.body);
+    if (decoded is Map<String, dynamic>) {
+      data = decoded;
+    }
   }
 
-  static Map<String, dynamic> _decodeResponse(
-    http.Response response, {
-    required String action,
-  }) {
-    var data = <String, dynamic>{};
-    if (response.body.isNotEmpty) {
-      final decoded = jsonDecode(response.body);
-      if (decoded is Map<String, dynamic>) {
-        data = decoded;
-      }
-    }
-
-    if (response.statusCode >= 400) {
-      final message = _resolveErrorMessage(data) ??
-          'Failed to $action with Omise (status ${response.statusCode}).';
-      throw PaymentGatewayException(message);
-    }
-
-    return data;
+  if (response.statusCode >= 400) {
+    final message = _resolveOmiseErrorMessage(data) ??
+        'Failed to $action with Omise (status ${response.statusCode}).';
+    throw PaymentGatewayException(message);
   }
 
-  static String? _resolveErrorMessage(Map<String, dynamic> body) {
-    if (body['message'] is String && (body['message'] as String).isNotEmpty) {
-      return body['message'] as String;
-    }
-    final error = body['error'];
-    if (error is Map<String, dynamic>) {
-      final message = error['message'];
-      if (message is String && message.isNotEmpty) {
-        return message;
-      }
-      final code = error['code'];
-      if (code is String && code.isNotEmpty) {
-        return code;
-      }
-    }
-    return null;
+  return data;
+}
+
+String? _resolveOmiseErrorMessage(Map<String, dynamic> body) {
+  if (body['message'] is String && (body['message'] as String).isNotEmpty) {
+    return body['message'] as String;
   }
+  final error = body['error'];
+  if (error is Map<String, dynamic>) {
+    final message = error['message'];
+    if (message is String && message.isNotEmpty) {
+      return message;
+    }
+    final code = error['code'];
+    if (code is String && code.isNotEmpty) {
+      return code;
+    }
+  }
+  return null;
 }
