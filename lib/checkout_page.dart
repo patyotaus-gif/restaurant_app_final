@@ -4,6 +4,8 @@ import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:collection/collection.dart';
+import 'package:flutter/foundation.dart'
+    show TargetPlatform, defaultTargetPlatform, kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
@@ -11,12 +13,14 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:restaurant_models/restaurant_models.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'currency_provider.dart';
 import 'locale_provider.dart';
 import 'localization/app_localizations.dart';
 import 'services/house_account_service.dart';
 import 'services/payment_gateway_service.dart';
+import 'payments/payments_service.dart';
 import 'services/print_spooler_service.dart';
 import 'services/printing_service.dart';
 import 'services/receipt_service.dart';
@@ -81,12 +85,76 @@ class CheckoutPage extends StatefulWidget {
   State<CheckoutPage> createState() => _CheckoutPageState();
 }
 
+enum _WindowsChargeState { pending, success, failure }
+
+class _WindowsChargeEvaluation {
+  const _WindowsChargeEvaluation._(
+    this.state, {
+    this.charge,
+    this.metadata,
+    this.message,
+  });
+
+  factory _WindowsChargeEvaluation.pending({
+    Map<String, dynamic>? charge,
+    Map<String, dynamic>? metadata,
+  }) {
+    return _WindowsChargeEvaluation._(
+      _WindowsChargeState.pending,
+      charge: charge,
+      metadata: metadata,
+    );
+  }
+
+  factory _WindowsChargeEvaluation.success({
+    required Map<String, dynamic> charge,
+    Map<String, dynamic>? metadata,
+  }) {
+    return _WindowsChargeEvaluation._(
+      _WindowsChargeState.success,
+      charge: charge,
+      metadata: metadata,
+    );
+  }
+
+  factory _WindowsChargeEvaluation.failure({
+    Map<String, dynamic>? charge,
+    Map<String, dynamic>? metadata,
+    String? message,
+  }) {
+    return _WindowsChargeEvaluation._(
+      _WindowsChargeState.failure,
+      charge: charge,
+      metadata: metadata,
+      message: message,
+    );
+  }
+
+  final _WindowsChargeState state;
+  final Map<String, dynamic>? charge;
+  final Map<String, dynamic>? metadata;
+  final String? message;
+}
+
+class _WindowsChargePollResult {
+  const _WindowsChargePollResult({
+    required this.charge,
+    this.metadata,
+  });
+
+  final Map<String, dynamic> charge;
+  final Map<String, dynamic>? metadata;
+}
+
 class _CheckoutPageState extends State<CheckoutPage> {
   static const String _promptPayRecipientId = '0812345678';
+  static const String _fallbackOmiseReturnUri =
+      'https://restaurant-pos.web.app/payments/omise-return';
   final PrintingService _printingService = PrintingService();
   final ReceiptService _receiptService = ReceiptService();
   final HouseAccountService _houseAccountService = HouseAccountService();
   bool _isConfirming = false;
+  bool _awaitingWindowsCardConfirmation = false;
   bool _includeTaxInvoice = false;
   bool _sendEmailReceipt = false;
   bool _isGeneratingReceipt = false;
@@ -1278,27 +1346,75 @@ class _CheckoutPageState extends State<CheckoutPage> {
       paymentToken: cardTokenResult?.token,
     );
 
+    final isWindowsDesktop =
+        !kIsWeb && defaultTargetPlatform == TargetPlatform.windows;
+
     PaymentResult paymentResult;
-    try {
-      paymentResult = await gatewayService.processPayment(paymentRequest);
-    } on PaymentGatewayException catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _isConfirming = false;
-      });
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Payment failed: ${e.message}')));
-      return;
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _isConfirming = false;
-      });
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Payment failed: $e')));
-      return;
+    if (isWindowsDesktop &&
+        gatewayService.activeGateway == PaymentGatewayType.creditDebitCard &&
+        cardTokenResult != null) {
+      try {
+        if (mounted) {
+          setState(() {
+            _awaitingWindowsCardConfirmation = true;
+          });
+        }
+        paymentResult = await _processWindowsCardPayment(
+          request: paymentRequest,
+          cardTokenResult: cardTokenResult,
+          gatewayConfig: gatewayService.activeConfig,
+        );
+      } on PaymentGatewayException catch (e) {
+        if (!mounted) return;
+        setState(() {
+          _isConfirming = false;
+        });
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(
+          SnackBar(content: Text('Payment failed: ${e.message}')),
+        );
+        return;
+      } catch (e) {
+        if (!mounted) return;
+        setState(() {
+          _isConfirming = false;
+        });
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Payment failed: $e')));
+        return;
+      } finally {
+        if (mounted) {
+          setState(() {
+            _awaitingWindowsCardConfirmation = false;
+          });
+        }
+      }
+    } else {
+      try {
+        paymentResult = await gatewayService.processPayment(paymentRequest);
+      } on PaymentGatewayException catch (e) {
+        if (!mounted) return;
+        setState(() {
+          _isConfirming = false;
+        });
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(
+          SnackBar(content: Text('Payment failed: ${e.message}')),
+        );
+        return;
+      } catch (e) {
+        if (!mounted) return;
+        setState(() {
+          _isConfirming = false;
+        });
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Payment failed: $e')));
+        return;
+      }
     }
 
     if (!mounted) {
@@ -1564,6 +1680,338 @@ class _CheckoutPageState extends State<CheckoutPage> {
       title: title,
       description: description,
     );
+  }
+
+  Future<PaymentResult> _processWindowsCardPayment({
+    required PaymentRequest request,
+    required OmiseCardTokenizationResult cardTokenResult,
+    PaymentGatewayConfig? gatewayConfig,
+  }) async {
+    final paymentsService = PaymentsService();
+    PaymentsChargeResult chargeResult;
+    try {
+      chargeResult = await paymentsService.createCardCharge3ds(
+        amountInMinorUnits: (request.amount * 100).round(),
+        currency: request.currency,
+        cardToken: cardTokenResult.token,
+        returnUri: _resolveWindows3dsReturnUri(gatewayConfig),
+        description: request.description,
+        metadata: request.metadata,
+        capture: true,
+      );
+    } on PaymentsServiceException catch (error) {
+      throw PaymentGatewayException(error.message);
+    } catch (error) {
+      throw PaymentGatewayException(
+        'ไม่สามารถสร้างคำสั่งชำระเงินกับ Omise ได้: $error',
+      );
+    }
+
+    final chargeId = chargeResult.chargeId;
+    if (chargeId == null || chargeId.isEmpty) {
+      throw PaymentGatewayException('Omise charge is missing an identifier.');
+    }
+
+    final authorizeUri = chargeResult.authorizeUri;
+    if (authorizeUri != null && authorizeUri.isNotEmpty) {
+      final uri = Uri.tryParse(authorizeUri);
+      if (uri != null) {
+        final launched = await launchUrl(
+          uri,
+          mode: LaunchMode.externalApplication,
+        );
+        if (!launched) {
+          throw PaymentGatewayException(
+            'ไม่สามารถเปิดเบราว์เซอร์สำหรับยืนยัน 3-D Secure ได้',
+          );
+        }
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content:
+                  Text('กรุณายืนยันการชำระเงินในหน้าต่างธนาคารที่เปิดขึ้น'),
+              duration: Duration(seconds: 5),
+            ),
+          );
+        }
+      }
+    }
+
+    final pollResult = await _waitForWindowsPaymentCompletion(chargeId);
+    final charge = pollResult.charge;
+
+    final metadata = <String, dynamic>{
+      ...request.metadata,
+      'gateway': 'omise',
+      'channel': 'card',
+    };
+
+    final status = charge['status'];
+    if (status is String && status.isNotEmpty) {
+      metadata['status'] = status;
+    }
+    final authorized = _coerceToBool(charge['authorized']);
+    if (authorized != null) {
+      metadata['authorized'] = authorized;
+    }
+    final paid = _coerceToBool(charge['paid']);
+    if (paid != null) {
+      metadata['paid'] = paid;
+    }
+    final captured = _coerceToBool(charge['captured']);
+    if (captured != null) {
+      metadata['captured'] = captured;
+    }
+    final failureCode = charge['failure_code'];
+    if (failureCode is String && failureCode.isNotEmpty) {
+      metadata['failureCode'] = failureCode;
+    }
+    final failureMessage = charge['failure_message'];
+    if (failureMessage is String && failureMessage.isNotEmpty) {
+      metadata['failureMessage'] = failureMessage;
+    }
+    final authorizeUriFromCharge = charge['authorize_uri'];
+    if (authorizeUriFromCharge is String && authorizeUriFromCharge.isNotEmpty) {
+      metadata['authorizeUri'] = authorizeUriFromCharge;
+    }
+    if (pollResult.metadata != null && pollResult.metadata!.isNotEmpty) {
+      metadata['omiseMetadata'] = pollResult.metadata;
+    }
+
+    final card = charge['card'];
+    if (card is Map) {
+      final cardMap = Map<String, dynamic>.from(card as Map);
+      final brand = cardMap['brand'];
+      if (brand is String && brand.isNotEmpty) {
+        metadata['cardBrand'] = brand;
+      }
+      final lastDigits = cardMap['last_digits'];
+      if (lastDigits is String && lastDigits.isNotEmpty) {
+        metadata['cardLastDigits'] = lastDigits;
+      }
+      final holderName = cardMap['name'];
+      if (holderName is String && holderName.isNotEmpty) {
+        metadata['cardHolderName'] = holderName;
+      }
+      final expiryMonth = cardMap['expiration_month'];
+      if (expiryMonth is String && expiryMonth.isNotEmpty) {
+        metadata['cardExpiryMonth'] = expiryMonth;
+      }
+      final expiryYear = cardMap['expiration_year'];
+      if (expiryYear is String && expiryYear.isNotEmpty) {
+        metadata['cardExpiryYear'] = expiryYear;
+      }
+    }
+
+    final receiptUrlValue = charge['receipt_url'];
+    final receiptUrl = receiptUrlValue is String && receiptUrlValue.isNotEmpty
+        ? receiptUrlValue
+        : null;
+
+    return PaymentResult.success(
+      transactionId: chargeId,
+      receiptUrl: receiptUrl,
+      metadata: metadata,
+    );
+  }
+
+  Future<_WindowsChargePollResult> _waitForWindowsPaymentCompletion(
+    String chargeId, {
+    Duration timeout = const Duration(minutes: 5),
+  }) async {
+    final docRef =
+        FirebaseFirestore.instance.collection('payments').doc(chargeId);
+
+    final completer = Completer<_WindowsChargePollResult>();
+    late final StreamSubscription<DocumentSnapshot<Map<String, dynamic>>> sub;
+    Timer? timer;
+
+    void resolvePending(DocumentSnapshot<Map<String, dynamic>> snapshot) {
+      final data = snapshot.data();
+      if (data == null) {
+        return;
+      }
+      final evaluation = _evaluateWindowsChargeDocument(data);
+      switch (evaluation.state) {
+        case _WindowsChargeState.pending:
+          return;
+        case _WindowsChargeState.success:
+          if (!completer.isCompleted) {
+            completer.complete(
+              _WindowsChargePollResult(
+                charge: evaluation.charge ?? <String, dynamic>{},
+                metadata: evaluation.metadata,
+              ),
+            );
+          }
+          break;
+        case _WindowsChargeState.failure:
+          if (!completer.isCompleted) {
+            completer.completeError(
+              PaymentGatewayException(
+                evaluation.message ??
+                    'การยืนยัน 3-D Secure ไม่สำเร็จ โปรดลองใหม่อีกครั้ง.',
+              ),
+            );
+          }
+          break;
+      }
+    }
+
+    sub = docRef.snapshots().listen(
+      resolvePending,
+      onError: (error) {
+        if (!completer.isCompleted) {
+          completer.completeError(
+            PaymentGatewayException(
+              'ไม่สามารถตรวจสอบสถานะการชำระเงินได้: $error',
+            ),
+          );
+        }
+      },
+    );
+
+    timer = Timer(timeout, () {
+      if (!completer.isCompleted) {
+        completer.completeError(
+          PaymentGatewayException(
+            'หมดเวลารอการยืนยัน 3-D Secure โปรดลองใหม่อีกครั้ง.',
+          ),
+        );
+      }
+    });
+
+    try {
+      return await completer.future;
+    } finally {
+      await sub.cancel();
+      timer?.cancel();
+    }
+  }
+
+  _WindowsChargeEvaluation _evaluateWindowsChargeDocument(
+    Map<String, dynamic> data,
+  ) {
+    Map<String, dynamic>? charge;
+    final rawCharge = data['charge'];
+    if (rawCharge is Map<String, dynamic>) {
+      charge = rawCharge;
+    } else if (rawCharge is Map) {
+      charge = Map<String, dynamic>.from(rawCharge as Map);
+    }
+
+    final normalizedCharge = charge != null
+        ? Map<String, dynamic>.from(charge)
+        : Map<String, dynamic>.from(data);
+    final metadata = data['metadata'] is Map
+        ? Map<String, dynamic>.from(data['metadata'] as Map)
+        : null;
+
+    final statusValue = normalizedCharge['status'] ?? data['status'];
+    final status = statusValue is String ? statusValue.toLowerCase() : null;
+    final authorized = _coerceToBool(normalizedCharge['authorized']);
+    final paid = _coerceToBool(normalizedCharge['paid']);
+    final captured = _coerceToBool(normalizedCharge['captured']);
+    final refunded = _coerceToBool(
+      normalizedCharge['refunded'] ?? normalizedCharge['refunded_amount'],
+    );
+    final reversed = _coerceToBool(normalizedCharge['reversed']);
+    final voided = _coerceToBool(
+          normalizedCharge['voided'] ?? normalizedCharge['void'],
+        ) ==
+        true;
+    final failureCode = normalizedCharge['failure_code'] ?? data['failureCode'];
+    final failureMessage =
+        normalizedCharge['failure_message'] ?? data['failureMessage'];
+
+    const successStatuses = <String>{
+      'successful',
+      'succeeded',
+      'paid',
+      'captured',
+      'completed',
+      'authorized',
+      'closed',
+    };
+    const failureStatuses = <String>{
+      'failed',
+      'expired',
+      'void',
+      'voided',
+      'cancelled',
+      'canceled',
+      'rejected',
+      'reversed',
+      'refunded',
+    };
+
+    final hasFailure =
+        refunded == true ||
+            reversed == true ||
+            voided ||
+            failureCode != null ||
+            (status != null && failureStatuses.contains(status)) ||
+            (authorized == false && status != null &&
+                failureStatuses.contains(status));
+
+    if (hasFailure) {
+      final message = (failureMessage is String && failureMessage.isNotEmpty)
+          ? failureMessage as String
+          : 'การยืนยัน 3-D Secure ไม่สำเร็จ'
+              ' (${(status ?? 'failed').toUpperCase()})';
+      return _WindowsChargeEvaluation.failure(
+        charge: normalizedCharge,
+        metadata: metadata,
+        message: message,
+      );
+    }
+
+    final hasSuccess = paid == true ||
+        captured == true ||
+        (authorized == true && failureCode == null) ||
+        (status != null && successStatuses.contains(status));
+
+    if (hasSuccess) {
+      return _WindowsChargeEvaluation.success(
+        charge: normalizedCharge,
+        metadata: metadata,
+      );
+    }
+
+    return _WindowsChargeEvaluation.pending(
+      charge: normalizedCharge,
+      metadata: metadata,
+    );
+  }
+
+  String _resolveWindows3dsReturnUri(PaymentGatewayConfig? config) {
+    final additional = config?.additionalData;
+    final configured = additional is Map<String, dynamic>
+        ? additional['returnUri'] as String?
+        : null;
+    if (configured != null && configured.trim().isNotEmpty) {
+      return configured.trim();
+    }
+    return _fallbackOmiseReturnUri;
+  }
+
+  bool? _coerceToBool(dynamic value) {
+    if (value is bool) {
+      return value;
+    }
+    if (value is num) {
+      return value != 0;
+    }
+    if (value is String) {
+      final normalized = value.trim().toLowerCase();
+      if (normalized == 'true' || normalized == 'yes' || normalized == '1') {
+        return true;
+      }
+      if (normalized == 'false' || normalized == 'no' || normalized == '0') {
+        return false;
+      }
+    }
+    return null;
   }
 
   String _maskCredential(String? value) {
@@ -2256,6 +2704,28 @@ class _CheckoutPageState extends State<CheckoutPage> {
                       ),
                     ],
                   ),
+                  if (_awaitingWindowsCardConfirmation)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 12),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                          const SizedBox(width: 8),
+                          Flexible(
+                            child: Text(
+                              'กำลังรอยืนยัน 3-D Secure จากธนาคาร...',
+                              style: Theme.of(context).textTheme.bodyMedium,
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                 ],
               ),
             ),
