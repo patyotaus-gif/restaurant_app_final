@@ -24,6 +24,7 @@ import 'stock_provider.dart';
 import 'store_provider.dart';
 import 'widgets/omise_card_tokenizer.dart';
 import 'widgets/payment_redirect_page.dart';
+import 'utils/promptpay_qr_generator.dart';
 class CheckoutPage extends StatefulWidget {
   final String orderId;
   final double totalAmount;
@@ -81,6 +82,7 @@ class CheckoutPage extends StatefulWidget {
 }
 
 class _CheckoutPageState extends State<CheckoutPage> {
+  static const String _promptPayRecipientId = '0812345678';
   final PrintingService _printingService = PrintingService();
   final ReceiptService _receiptService = ReceiptService();
   final HouseAccountService _houseAccountService = HouseAccountService();
@@ -89,6 +91,11 @@ class _CheckoutPageState extends State<CheckoutPage> {
   bool _sendEmailReceipt = false;
   bool _isGeneratingReceipt = false;
   String? _generatedReceiptUrl;
+  late final DocumentReference<Map<String, dynamic>> _orderRef;
+  StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>?
+      _promptPayStatusSubscription;
+  bool _awaitingPromptPayConfirmation = false;
+  bool _promptPayCompletionHandled = false;
   late final TextEditingController _printerIpController;
   late final TextEditingController _printerPortController;
   bool _openDrawerAfterPrint = true;
@@ -112,6 +119,11 @@ class _CheckoutPageState extends State<CheckoutPage> {
   @override
   void initState() {
     super.initState();
+    _orderRef = FirebaseFirestore.instance
+        .collection('orders')
+        .doc(widget.orderId);
+    _promptPayStatusSubscription =
+        _orderRef.snapshots().listen(_handlePromptPayOrderUpdate);
     _printerIpController = TextEditingController();
     _printerPortController = TextEditingController(text: '9100');
     _draftHouseAccountId = widget.houseAccountDraft?['accountId'] as String?;
@@ -648,11 +660,6 @@ class _CheckoutPageState extends State<CheckoutPage> {
     );
   }
 
-  String _generatePromptPayPayload(double amount) {
-    const promptPayId = '0812345678';
-    return 'promptpay-qr-code-payload-for-$promptPayId-with-amount-$amount';
-  }
-
   DateTime? _parseDraftDueDate(dynamic value) {
     if (value == null) return null;
     if (value is Timestamp) {
@@ -764,10 +771,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
         dueDate: dueDate,
       );
 
-      await FirebaseFirestore.instance
-          .collection('orders')
-          .doc(widget.orderId)
-          .set({
+      await _orderRef.set({
             'paymentStatus': 'invoiced',
             'settlementType': 'houseAccount',
             'invoiceToHouseAccount': true,
@@ -1123,20 +1127,16 @@ class _CheckoutPageState extends State<CheckoutPage> {
             fromCurrency: baseCurrency,
             toCurrency: tenderCurrency,
           );
-    final orderRef = FirebaseFirestore.instance
-        .collection('orders')
-        .doc(widget.orderId);
-
     if (outstanding == 0) {
       try {
-        await orderRef.update({
+        await _orderRef.update({
           'status': 'completed',
           'completedAt': Timestamp.now(),
           'paidTotal': widget.totalAmount,
           'paymentStatus': 'paid',
         });
         await _handlePostPaymentSuccess(
-          orderRef,
+          _orderRef,
           successMessage: 'Order settled using credits and gift cards.',
         );
       } catch (e) {
@@ -1252,6 +1252,17 @@ class _CheckoutPageState extends State<CheckoutPage> {
       }
     }
 
+    if (gatewayService.activeGateway == PaymentGatewayType.promptPay) {
+      await _startPromptPayCollection(
+        baseAmount: outstanding,
+        baseCurrency: baseCurrency,
+        displayAmount: convertedOutstanding,
+        displayCurrency: tenderCurrency,
+        metadata: requestMetadata,
+      );
+      return;
+    }
+
     final paymentRequest = PaymentRequest(
       amount: convertedOutstanding,
       currency: tenderCurrency,
@@ -1354,6 +1365,157 @@ class _CheckoutPageState extends State<CheckoutPage> {
           _isConfirming = false;
         });
       }
+    }
+  }
+
+  Future<void> _startPromptPayCollection({
+    required double baseAmount,
+    required String baseCurrency,
+    required double displayAmount,
+    required String displayCurrency,
+    required Map<String, dynamic> metadata,
+  }) async {
+    final store = context.read<StoreProvider>().activeStore;
+    final merchantName = store?.name;
+    final merchantCity = store?.address;
+    final now = Timestamp.now();
+
+    final effectiveQrAmount =
+        baseCurrency.toUpperCase() == 'THB' && baseAmount > 0
+            ? baseAmount
+            : (displayCurrency.toUpperCase() == 'THB' && displayAmount > 0
+                ? displayAmount
+                : baseAmount);
+
+    final qrPayload = PromptPayQrGenerator.generate(
+      promptPayId: _promptPayRecipientId,
+      amount: effectiveQrAmount,
+      merchantName: merchantName,
+      merchantCity: merchantCity,
+    );
+
+    final paidBefore =
+        (widget.totalAmount - baseAmount).clamp(0.0, double.infinity).toDouble();
+
+    final promptPayData = <String, dynamic>{
+      'status': 'pending',
+      'amount': baseAmount,
+      'currency': baseCurrency,
+      'displayAmount': displayAmount,
+      'displayCurrency': displayCurrency,
+      'qrAmount': effectiveQrAmount,
+      'qrCurrency': 'THB',
+      'qrPayload': qrPayload,
+      'metadata': metadata,
+      if (merchantName != null && merchantName.isNotEmpty)
+        'merchantName': merchantName,
+      if (merchantCity != null && merchantCity.isNotEmpty)
+        'merchantCity': merchantCity,
+      'createdAt': now,
+      'lastUpdated': now,
+    };
+
+    try {
+      await _orderRef.set({
+        'paymentStatus': 'pending',
+        'settlementType': 'promptPay',
+        'outstandingBalance': baseAmount,
+        'paidTotal': paidBefore,
+        'promptPay': promptPayData,
+      }, SetOptions(merge: true));
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _isConfirming = false;
+        _awaitingPromptPayConfirmation = true;
+        _promptPayCompletionHandled = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('PromptPay QR พร้อมแล้ว รอให้ลูกค้าชำระเงิน...'),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _isConfirming = false;
+        _awaitingPromptPayConfirmation = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('ไม่สามารถสร้าง PromptPay QR ได้: $error')),
+      );
+    }
+  }
+
+  void _handlePromptPayOrderUpdate(
+    DocumentSnapshot<Map<String, dynamic>> snapshot,
+  ) {
+    if (!_awaitingPromptPayConfirmation || _promptPayCompletionHandled) {
+      return;
+    }
+
+    final data = snapshot.data();
+    if (data == null) {
+      return;
+    }
+
+    final paymentStatus = (data['paymentStatus'] as String?)?.toLowerCase();
+    final rawPromptPay = data['promptPay'];
+    Map<String, dynamic>? promptPay;
+    if (rawPromptPay is Map<String, dynamic>) {
+      promptPay = rawPromptPay;
+    } else if (rawPromptPay is Map) {
+      promptPay = Map<String, dynamic>.from(rawPromptPay as Map);
+    }
+
+    final promptPayStatus =
+        (promptPay?['status'] as String?)?.toLowerCase() ?? paymentStatus;
+
+    if (promptPayStatus == null) {
+      return;
+    }
+
+    const failureStates = {'failed', 'cancelled', 'void', 'expired'};
+    if (failureStates.contains(promptPayStatus)) {
+      _promptPayCompletionHandled = true;
+      if (mounted) {
+        setState(() {
+          _awaitingPromptPayConfirmation = false;
+          _isConfirming = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('PromptPay ชำระไม่สำเร็จ (สถานะ: ${promptPayStatus.toUpperCase()})'),
+          ),
+        );
+      }
+      return;
+    }
+
+    const successStates = {'paid', 'successful', 'succeeded', 'completed'};
+    final isPaid = successStates.contains(promptPayStatus) ||
+        (paymentStatus != null && successStates.contains(paymentStatus));
+
+    if (isPaid) {
+      _promptPayCompletionHandled = true;
+      _awaitingPromptPayConfirmation = false;
+      if (mounted) {
+        setState(() {
+          _isConfirming = false;
+        });
+      }
+      _handlePostPaymentSuccess(
+        _orderRef,
+        successMessage: 'PromptPay payment confirmed!',
+      );
     }
   }
 
@@ -1687,123 +1849,417 @@ class _CheckoutPageState extends State<CheckoutPage> {
     _printerIpController.dispose();
     _printerPortController.dispose();
     _houseAccountSubscription?.cancel();
+    _promptPayStatusSubscription?.cancel();
 
     super.dispose();
   }
 
+  Widget _buildPromptPayStatusCard(
+    DocumentSnapshot<Map<String, dynamic>>? snapshot,
+    CurrencyProvider currencyProvider,
+  ) {
+    final data = snapshot?.data();
+    Map<String, dynamic>? promptPay;
+    final rawPromptPay = data?['promptPay'];
+    if (rawPromptPay is Map<String, dynamic>) {
+      promptPay = rawPromptPay;
+    } else if (rawPromptPay is Map) {
+      promptPay = Map<String, dynamic>.from(rawPromptPay as Map);
+    }
+
+    if (promptPay == null && !_awaitingPromptPayConfirmation) {
+      return const SizedBox.shrink();
+    }
+
+    final paymentStatus = (data?['paymentStatus'] as String?) ?? 'unknown';
+    final promptPayStatus = (promptPay?['status'] as String?) ?? paymentStatus;
+    final statusLabel = _describePromptPayStatus(promptPayStatus);
+    final statusColor = _colorForPromptPayStatus(promptPayStatus);
+    final statusIcon = _statusIconForPromptPay(promptPayStatus);
+    final outstanding = (data?['outstandingBalance'] as num?)?.toDouble();
+    final paidTotal = (data?['paidTotal'] as num?)?.toDouble();
+    final pendingWrites = snapshot?.metadata.hasPendingWrites ?? false;
+    final lastUpdated = _parseTimestamp(promptPay?['lastUpdated']) ??
+        _parseTimestamp(promptPay?['updatedAt']) ??
+        _parseTimestamp(data?['completedAt']) ??
+        _parseTimestamp(data?['timestamp']);
+
+    final theme = Theme.of(context);
+
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 12),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'PromptPay Status',
+              style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ) ??
+                  const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(statusIcon, color: statusColor),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        statusLabel,
+                        style: theme.textTheme.titleMedium?.copyWith(
+                              color: statusColor,
+                              fontWeight: FontWeight.w600,
+                            ) ??
+                            TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: statusColor,
+                            ),
+                      ),
+                      if (_awaitingPromptPayConfirmation &&
+                          !_promptPayCompletionHandled)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: Text(
+                            'รอการยืนยันการชำระเงินจากลูกค้า...',
+                            style: theme.textTheme.bodySmall,
+                          ),
+                        ),
+                      if (pendingWrites)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: Text(
+                            'กำลังซิงค์ข้อมูลกับระบบ...',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                                  color: Colors.orange.shade700,
+                                ) ??
+                                TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.orange.shade700,
+                                ),
+                          ),
+                        ),
+                      if (lastUpdated != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: Text(
+                            'อัปเดตล่าสุด: ${DateFormat('dd MMM yyyy HH:mm').format(lastUpdated.toLocal())}',
+                            style: theme.textTheme.bodySmall,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: [
+                if (outstanding != null)
+                  _buildStatusChip(
+                    label: 'ยอดค้างชำระ',
+                    value: currencyProvider.formatBaseAmount(outstanding),
+                    color: Colors.orange.shade100,
+                  ),
+                if (paidTotal != null)
+                  _buildStatusChip(
+                    label: 'ชำระแล้ว',
+                    value: currencyProvider.formatBaseAmount(paidTotal),
+                    color: Colors.green.shade100,
+                  ),
+              ],
+            ),
+            if (_awaitingPromptPayConfirmation &&
+                !_promptPayCompletionHandled)
+              const Padding(
+                padding: EdgeInsets.only(top: 12),
+                child: LinearProgressIndicator(minHeight: 4),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatusChip({
+    required String label,
+    required String value,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(fontSize: 12, color: Colors.black54),
+          ),
+          Text(
+            value,
+            style: const TextStyle(fontWeight: FontWeight.w600),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _resolvePromptPayQr(
+    Map<String, dynamic>? orderData, {
+    String? merchantName,
+    String? merchantCity,
+  }) {
+    Map<String, dynamic>? promptPay;
+    final rawPromptPay = orderData?['promptPay'];
+    if (rawPromptPay is Map<String, dynamic>) {
+      promptPay = rawPromptPay;
+    } else if (rawPromptPay is Map) {
+      promptPay = Map<String, dynamic>.from(rawPromptPay as Map);
+    }
+
+    final qrPayload = promptPay?['qrPayload'] as String?;
+    if (qrPayload != null && qrPayload.isNotEmpty) {
+      return qrPayload;
+    }
+
+    final fallbackAmount = widget.amountDueAfterCredits > 0
+        ? widget.amountDueAfterCredits
+        : widget.totalAmount;
+    final amount = (promptPay?['qrAmount'] as num?)?.toDouble() ??
+        (promptPay?['amount'] as num?)?.toDouble() ??
+        (orderData?['outstandingBalance'] as num?)?.toDouble() ??
+        fallbackAmount;
+
+    return PromptPayQrGenerator.generate(
+      promptPayId: _promptPayRecipientId,
+      amount: amount,
+      merchantName: merchantName,
+      merchantCity: merchantCity,
+    );
+  }
+
+  String _describePromptPayStatus(String? status) {
+    final normalized = status?.toLowerCase() ?? 'pending';
+    switch (normalized) {
+      case 'paid':
+      case 'successful':
+      case 'succeeded':
+      case 'completed':
+        return 'ชำระเงินเรียบร้อย';
+      case 'failed':
+      case 'cancelled':
+      case 'void':
+      case 'expired':
+        return 'การชำระเงินไม่สำเร็จ';
+      case 'pending':
+      case 'processing':
+      case 'awaiting_payment':
+      case 'waiting':
+        return 'รอการชำระเงิน';
+      default:
+        return 'สถานะ: ${status ?? 'ไม่ทราบ'}';
+    }
+  }
+
+  Color _colorForPromptPayStatus(String? status) {
+    final normalized = status?.toLowerCase() ?? 'pending';
+    switch (normalized) {
+      case 'paid':
+      case 'successful':
+      case 'succeeded':
+      case 'completed':
+        return Colors.green.shade600;
+      case 'failed':
+      case 'cancelled':
+      case 'void':
+      case 'expired':
+        return Colors.red.shade600;
+      default:
+        return Colors.blue.shade600;
+    }
+  }
+
+  IconData _statusIconForPromptPay(String? status) {
+    final normalized = status?.toLowerCase() ?? 'pending';
+    switch (normalized) {
+      case 'paid':
+      case 'successful':
+      case 'succeeded':
+      case 'completed':
+        return Icons.check_circle_outline;
+      case 'failed':
+      case 'cancelled':
+      case 'void':
+      case 'expired':
+        return Icons.error_outline;
+      default:
+        return Icons.schedule;
+    }
+  }
+
+  DateTime? _parseTimestamp(dynamic value) {
+    if (value is Timestamp) {
+      return value.toDate();
+    }
+    if (value is DateTime) {
+      return value;
+    }
+    if (value is String) {
+      return DateTime.tryParse(value);
+    }
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
-    final qrData = _generatePromptPayPayload(widget.totalAmount);
     final currencyProvider = context.watch<CurrencyProvider>();
+    final store = context.watch<StoreProvider>().activeStore;
+    final merchantName = store?.name;
+    final merchantCity = store?.address;
 
     return Scaffold(
       appBar: AppBar(
         title: Text('Checkout • ${widget.orderIdentifier}'),
         backgroundColor: Colors.green,
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24.0),
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Text(
-                'Scan to Pay',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 20),
-              Card(
-                elevation: 8,
-                child: QrImageView(
-                  data: qrData,
-                  version: QrVersions.auto,
-                  size: 250.0,
-                  backgroundColor: Colors.white,
-                ),
-              ),
-              const SizedBox(height: 30),
-              Text(
-                'Total Amount: ${currencyProvider.formatBaseAmount(widget.totalAmount)}',
-                style: const TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              _buildAmountBreakdown(),
-              _buildExistingPaymentsCard(),
-              _buildHouseAccountSection(),
-              _buildPaymentGatewayCard(),
-              _buildDigitalReceiptCard(),
-              _buildPrinterCard(),
-              const SizedBox(height: 24),
-              Wrap(
-                spacing: 12,
-                runSpacing: 12,
-                alignment: WrapAlignment.center,
+      body: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+        stream: _orderRef.snapshots(),
+        builder: (context, snapshot) {
+          final orderSnapshot = snapshot.data;
+          final orderData = orderSnapshot?.data();
+          final qrData = _resolvePromptPayQr(
+            orderData,
+            merchantName: merchantName,
+            merchantCity: merchantCity,
+          );
+
+          return SingleChildScrollView(
+            padding: const EdgeInsets.all(24.0),
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  OutlinedButton.icon(
-                    icon: const Icon(Icons.visibility),
-                    label: const Text('Preview Receipt (PDF)'),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 15,
-                      ),
-                      textStyle: const TextStyle(fontSize: 16),
-                    ),
-                    onPressed: _handleReceiptPreview,
+                  const Text(
+                    'Scan to Pay',
+                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                   ),
-                  OutlinedButton.icon(
-                    icon: _isPrintingEscPos
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.print),
-                    label: const Text('Print to ESC/POS'),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 15,
-                      ),
-                      textStyle: const TextStyle(fontSize: 16),
+                  const SizedBox(height: 20),
+                  Card(
+                    elevation: 8,
+                    child: QrImageView(
+                      data: qrData,
+                      version: QrVersions.auto,
+                      size: 250.0,
+                      backgroundColor: Colors.white,
                     ),
-                    onPressed: _isPrintingEscPos ? null : _printViaEscPos,
+                  ),
+                  if (snapshot.hasError)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 16),
+                      child: Text(
+                        'ไม่สามารถโหลดสถานะการชำระเงินได้: ${snapshot.error}',
+                        style: const TextStyle(color: Colors.redAccent),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  const SizedBox(height: 16),
+                  _buildPromptPayStatusCard(orderSnapshot, currencyProvider),
+                  const SizedBox(height: 14),
+                  Text(
+                    'Total Amount: ${currencyProvider.formatBaseAmount(widget.totalAmount)}',
+                    style: const TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  _buildAmountBreakdown(),
+                  _buildExistingPaymentsCard(),
+                  _buildHouseAccountSection(),
+                  _buildPaymentGatewayCard(),
+                  _buildDigitalReceiptCard(),
+                  _buildPrinterCard(),
+                  const SizedBox(height: 24),
+                  Wrap(
+                    spacing: 12,
+                    runSpacing: 12,
+                    alignment: WrapAlignment.center,
+                    children: [
+                      OutlinedButton.icon(
+                        icon: const Icon(Icons.visibility),
+                        label: const Text('Preview Receipt (PDF)'),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 15,
+                          ),
+                          textStyle: const TextStyle(fontSize: 16),
+                        ),
+                        onPressed: _handleReceiptPreview,
+                      ),
+                      OutlinedButton.icon(
+                        icon: _isPrintingEscPos
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : const Icon(Icons.print),
+                        label:
+                            Text(_isPrintingEscPos ? 'Printing...' : 'Print Receipt'),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 15,
+                          ),
+                          textStyle: const TextStyle(fontSize: 16),
+                        ),
+                        onPressed: _isPrintingEscPos ? null : _handlePrintReceipt,
+                      ),
+                      ElevatedButton.icon(
+                        icon: _isConfirming
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor:
+                                      AlwaysStoppedAnimation<Color>(Colors.white),
+                                ),
+                              )
+                            : const Icon(Icons.check_circle),
+                        label:
+                            Text(_isConfirming ? 'Processing...' : 'Confirm Payment'),
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 24,
+                            vertical: 16,
+                          ),
+                          textStyle: const TextStyle(fontSize: 18),
+                        ),
+                        onPressed: _isConfirming ? null : _confirmPayment,
+                      ),
+                    ],
                   ),
                 ],
               ),
-              const SizedBox(height: 24),
-              ElevatedButton.icon(
-                icon: _isConfirming
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      )
-                    : const Icon(Icons.check_circle),
-                label: const Text('Confirm Payment'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 15,
-                  ),
-                  textStyle: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                onPressed: _isConfirming ? null : _confirmPayment,
-              ),
-            ],
-          ),
-        ),
+            ),
+          );
+        },
       ),
     );
   }
+
+
 }

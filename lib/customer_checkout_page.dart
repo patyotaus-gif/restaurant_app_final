@@ -8,6 +8,7 @@ import 'package:restaurant_models/restaurant_models.dart';
 
 import 'cart_provider.dart';
 import 'services/sync_queue_service.dart';
+import 'utils/promptpay_qr_generator.dart';
 class CustomerCheckoutPage extends StatefulWidget {
   final String tableNumber;
   final Map<String, CartItem> cart;
@@ -81,8 +82,12 @@ class _CustomerCheckoutPageState extends State<CustomerCheckoutPage> {
   }
 
   String _generatePromptPayPayload(double amount) {
-    const promptPayId = "0812345678";
-    return "promptpay-qr-for-$promptPayId-amount-$amount";
+    const promptPayId = '0812345678';
+    return PromptPayQrGenerator.generate(
+      promptPayId: promptPayId,
+      amount: amount,
+      merchantName: 'Self-Checkout',
+    );
   }
 
   Future<void> _confirmPayment() async {
