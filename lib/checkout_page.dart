@@ -1230,6 +1230,8 @@ class _CheckoutPageState extends State<CheckoutPage> {
       final config = gatewayService.activeConfig;
       final publicKey =
           config?.apiKey ?? config?.additionalData['publicKey'] as String?;
+      final secretKey =
+          config?.secretKey ?? config?.additionalData['secretKey'] as String?;
 
       if (publicKey == null || publicKey.isEmpty) {
         if (mounted) {
@@ -1239,6 +1241,21 @@ class _CheckoutPageState extends State<CheckoutPage> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('Unable to process card payment: Omise public key is missing.'),
+            ),
+          );
+        }
+        return;
+      }
+
+      if (secretKey == null || secretKey.isEmpty) {
+        if (mounted) {
+          setState(() {
+            _isConfirming = false;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content:
+                  Text('Unable to process card payment: Omise secret key is missing.'),
             ),
           );
         }
