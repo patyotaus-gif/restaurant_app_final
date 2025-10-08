@@ -23,6 +23,7 @@ import 'services/receipt_service.dart';
 import 'stock_provider.dart';
 import 'store_provider.dart';
 import 'widgets/omise_card_tokenizer.dart';
+import 'widgets/payment_redirect_page.dart';
 class CheckoutPage extends StatefulWidget {
   final String orderId;
   final double totalAmount;
@@ -1289,6 +1290,15 @@ class _CheckoutPageState extends State<CheckoutPage> {
       return;
     }
 
+    if (!mounted) {
+      return;
+    }
+
+    await _maybeHandlePaymentRedirect(
+      paymentResult: paymentResult,
+      gatewayType: gatewayService.activeGateway,
+    );
+
     final payload = <String, dynamic>{
       'status': 'completed',
       'completedAt': Timestamp.now(),
@@ -1345,6 +1355,53 @@ class _CheckoutPageState extends State<CheckoutPage> {
         });
       }
     }
+  }
+
+  Future<void> _maybeHandlePaymentRedirect({
+    required PaymentResult paymentResult,
+    required PaymentGatewayType gatewayType,
+  }) async {
+    final redirectUrl = paymentResult.receiptUrl;
+    if (redirectUrl == null || redirectUrl.isEmpty) {
+      return;
+    }
+
+    final uri = Uri.tryParse(redirectUrl);
+    if (uri == null) {
+      return;
+    }
+
+    final metadata = paymentResult.metadata;
+    final status = (metadata['status'] as String?)?.toLowerCase();
+    final authorized = metadata['authorized'];
+    final isWaitingFor3ds = gatewayType == PaymentGatewayType.creditDebitCard &&
+        (authorized == false ||
+            (status != null &&
+                (status.contains('pending') ||
+                    status.contains('authorize') ||
+                    status.contains('await'))));
+
+    final channel = (metadata['channel'] as String?)?.toLowerCase();
+    final isMobileBankingFlow = gatewayType == PaymentGatewayType.mobileBanking ||
+        channel == 'app_transfer';
+
+    if (!isWaitingFor3ds && !isMobileBankingFlow) {
+      return;
+    }
+
+    final title = isMobileBankingFlow
+        ? 'เปิดแอปโมบายแบงก์กิ้ง'
+        : 'ยืนยันความปลอดภัยของบัตร';
+    final description = isMobileBankingFlow
+        ? 'ระบบจะพาคุณไปยังแอปธนาคารเพื่ออนุมัติการชำระเงินให้เสร็จสมบูรณ์.'
+        : 'โปรดยืนยัน 3-D Secure กับธนาคารของคุณเพื่อทำรายการให้สำเร็จ.';
+
+    await PaymentRedirectLauncher.open(
+      context: context,
+      url: uri,
+      title: title,
+      description: description,
+    );
   }
 
   String _maskCredential(String? value) {
