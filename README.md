@@ -159,6 +159,21 @@ await featureFlagProvider.configureReleaseChannel(
 );
 ```
 
+## Secrets & backend environment variables
+
+Cloud Functions rely on a mix of environment variables and Google Secret Manager
+entries for third-party integrations such as SendGrid and the synthetic monitor.
+The `functions/.env.example` template lists every variable consumed via
+`process.env`. Follow the [Firebase Functions README](functions/README.md) to:
+
+- create a local `.env` file for emulator runs,
+- publish non-sensitive values with `firebase deploy --env-vars-file`, and
+- register secrets (`SENDGRID_API_KEY`, `SYNTHETIC_MONITOR_BEARER_TOKEN`, etc.)
+  with `firebase functions:secrets:set`.
+
+Without these values the scheduled monitor, backup exports, and email delivery
+will fail fast during deployment.
+
 With the channel cleared, affected stores fall back to the default production
 flags without shipping a new build.
 
