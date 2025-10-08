@@ -98,6 +98,10 @@ export interface OmiseClient {
     chargeId: string,
     options?: OmiseRequestOptions
   ): Promise<OmiseResponse>;
+  captureCharge(
+    chargeId: string,
+    options?: OmiseRequestOptions
+  ): Promise<OmiseResponse>;
   refundCharge(
     chargeId: string,
     payload?: OmiseRefundRequest,
@@ -204,6 +208,13 @@ export function createOmiseClient(config: OmiseClientConfig): OmiseClient {
         ...options,
         method: options?.method ?? "GET",
       });
+    },
+    captureCharge(chargeId, options) {
+      return requestWithSecretKey(
+        `/charges/${encodeURIComponent(chargeId)}/capture`,
+        undefined,
+        options
+      );
     },
     refundCharge(chargeId, payload, options) {
       return requestWithSecretKey(
