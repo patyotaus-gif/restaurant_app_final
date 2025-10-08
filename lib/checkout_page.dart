@@ -22,6 +22,7 @@ import 'services/printing_service.dart';
 import 'services/receipt_service.dart';
 import 'stock_provider.dart';
 import 'store_provider.dart';
+import 'widgets/omise_card_tokenizer.dart';
 class CheckoutPage extends StatefulWidget {
   final String orderId;
   final double totalAmount;
@@ -1154,32 +1155,115 @@ class _CheckoutPageState extends State<CheckoutPage> {
     }
 
     final gatewayService = context.read<PaymentGatewayService>();
+    OmiseCardTokenizationResult? cardTokenResult;
+
+    if (gatewayService.activeGateway == PaymentGatewayType.creditDebitCard) {
+      final config = gatewayService.activeConfig;
+      final publicKey =
+          config?.apiKey ?? config?.additionalData['publicKey'] as String?;
+
+      if (publicKey == null || publicKey.isEmpty) {
+        if (mounted) {
+          setState(() {
+            _isConfirming = false;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Unable to process card payment: Omise public key is missing.'),
+            ),
+          );
+        }
+        return;
+      }
+
+      try {
+        cardTokenResult = await OmiseCardTokenizer.collectToken(
+          context: context,
+          publicKey: publicKey,
+          amount: convertedOutstanding,
+          currency: tenderCurrency,
+        );
+      } catch (error) {
+        if (!mounted) {
+          return;
+        }
+        setState(() {
+          _isConfirming = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to open card entry form: $error')),
+        );
+        return;
+      }
+
+      if (!mounted) {
+        return;
+      }
+
+      if (cardTokenResult == null) {
+        setState(() {
+          _isConfirming = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Card payment was cancelled.')),
+        );
+        return;
+      }
+    }
+
+    final requestMetadata = <String, dynamic>{
+      'orderIdentifier': widget.orderIdentifier,
+      'subtotal': widget.subtotal,
+      'discount': widget.discountAmount,
+      'serviceCharge': widget.serviceChargeAmount,
+      'tip': widget.tipAmount,
+      'splitCount': widget.splitCount,
+      'baseCurrency': baseCurrency,
+      'displayCurrency': tenderCurrency,
+      'baseAmount': outstanding,
+      'displayAmount': convertedOutstanding,
+      'fxRate': outstanding == 0
+          ? 1.0
+          : convertedOutstanding / outstanding,
+    };
+
+    final cardDetails = cardTokenResult?.card;
+    if (cardDetails != null) {
+      final brand = cardDetails['brand'];
+      final lastDigits = cardDetails['last_digits'];
+      final name = cardDetails['name'];
+      final expiryMonth = cardDetails['expiration_month'];
+      final expiryYear = cardDetails['expiration_year'];
+      if (brand is String && brand.isNotEmpty) {
+        requestMetadata['cardBrand'] = brand;
+      }
+      if (lastDigits is String && lastDigits.isNotEmpty) {
+        requestMetadata['cardLastDigits'] = lastDigits;
+      }
+      if (name is String && name.isNotEmpty) {
+        requestMetadata['cardHolderName'] = name;
+      }
+      if (expiryMonth is String && expiryMonth.isNotEmpty) {
+        requestMetadata['cardExpiryMonth'] = expiryMonth;
+      }
+      if (expiryYear is String && expiryYear.isNotEmpty) {
+        requestMetadata['cardExpiryYear'] = expiryYear;
+      }
+    }
+
     final paymentRequest = PaymentRequest(
       amount: convertedOutstanding,
       currency: tenderCurrency,
       orderId: widget.orderId,
       description: 'Order ${widget.orderIdentifier}',
-      metadata: {
-        'orderIdentifier': widget.orderIdentifier,
-        'subtotal': widget.subtotal,
-        'discount': widget.discountAmount,
-        'serviceCharge': widget.serviceChargeAmount,
-        'tip': widget.tipAmount,
-        'splitCount': widget.splitCount,
-        'baseCurrency': baseCurrency,
-        'displayCurrency': tenderCurrency,
-        'baseAmount': outstanding,
-        'displayAmount': convertedOutstanding,
-        'fxRate': outstanding == 0
-            ? 1.0
-            : convertedOutstanding / outstanding,
-      },
+      metadata: requestMetadata,
       customerEmail: _customerEmailController.text.trim().isEmpty
           ? null
           : _customerEmailController.text.trim(),
       customerName: _customerNameController.text.trim().isEmpty
           ? null
           : _customerNameController.text.trim(),
+      paymentToken: cardTokenResult?.token,
     );
 
     PaymentResult paymentResult;

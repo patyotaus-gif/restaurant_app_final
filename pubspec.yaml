@@ -64,6 +64,7 @@ dependencies:
   cryptography: ^2.7.0
   workmanager:
     path: packages/workmanager_patched
+  webview_flutter: ^4.7.0
 
   
   # The following adds the Cupertino Icons font to your application.
