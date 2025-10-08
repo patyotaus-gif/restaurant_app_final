@@ -1349,9 +1349,9 @@ class _CheckoutPageState extends State<CheckoutPage> {
     };
 
     try {
-      await orderRef.update(payload);
+      await _orderRef.update(payload);
       await _handlePostPaymentSuccess(
-        orderRef,
+        _orderRef,
         successMessage: 'Payment confirmed successfully!',
       );
     } catch (e) {
@@ -1805,6 +1805,10 @@ class _CheckoutPageState extends State<CheckoutPage> {
         });
       }
     }
+  }
+
+  Future<void> _handlePrintReceipt() {
+    return _printViaEscPos();
   }
 
   Future<void> _handlePostPaymentSuccess(

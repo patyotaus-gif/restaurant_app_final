@@ -126,7 +126,7 @@ class _PaymentRedirectPageState extends State<_PaymentRedirectPage> {
           },
           onNavigationRequest: (request) {
             final uri = Uri.tryParse(request.url);
-            if (uri != null && !_isHttpScheme(uri)) {
+            if (uri != null && !PaymentRedirectLauncher._isHttpScheme(uri)) {
               // Launch non-http(s) URLs using the platform handler to support
               // app redirects (e.g. SCB Easy deep links).
               unawaited(PaymentRedirectLauncher._launchExternal(context, uri));

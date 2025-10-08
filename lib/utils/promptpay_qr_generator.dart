@@ -46,7 +46,7 @@ class PromptPayQrGenerator {
 
     final withoutChecksum = payload.toString();
     final checksum = _calculateCrc16('${withoutChecksum}6304');
-    return '$withoutChecksum6304$checksum';
+    return '${withoutChecksum}6304$checksum';
   }
 
   static const String _promptPayAid = 'A000000677010111';
