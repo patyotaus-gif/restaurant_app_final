@@ -43,6 +43,9 @@ void backgroundSyncDispatcher() {
     }
     try {
       WidgetsFlutterBinding.ensureInitialized();
+      if (!_supportsBackgroundSync) {
+        return true;
+      }
       await BackgroundSyncManager.instance.ensureInitialized();
       ensureBackgroundPlugins();
 
