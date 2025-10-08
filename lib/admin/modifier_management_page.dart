@@ -72,15 +72,19 @@ class _ModifierManagementPageState extends State<ModifierManagementPage> {
 
   // --- FIX: Added 'async' to the function signature ---
   Future<void> _showModifierGroupDialog({ModifierGroup? existingGroup}) async {
-    final bool isNew = existingGroup == null;
-    final group = isNew
-        ? ModifierGroup()
-        : ModifierGroup.fromFirestore(
-            await _firestore
-                .collection('modifierGroups')
-                .doc(existingGroup!.id)
-                .get(),
-          );
+    final ModifierGroup? initialGroup = existingGroup;
+    final bool isNew = initialGroup == null;
+
+    late ModifierGroup group;
+    if (initialGroup == null) {
+      group = ModifierGroup();
+    } else {
+      final snapshot = await _firestore
+          .collection('modifierGroups')
+          .doc(initialGroup.id)
+          .get();
+      group = ModifierGroup.fromFirestore(snapshot);
+    }
 
     if (!mounted) return;
 

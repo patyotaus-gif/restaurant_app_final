@@ -200,7 +200,7 @@ class _OmiseCardTokenizationPageState
       ..writeln('      }')
       ..writeln('    }')
       ..writeln('    function formatCardNumber(value) {')
-      ..writeln('      return value.replace(/[^0-9]/g, "").replace(/(.{4})/g, "$1 ").trim();')
+      ..writeln('      return value.replace(/[^0-9]/g, "").replace(/(.{4})/g, "\$1 ").trim();')
       ..writeln('    }')
       ..writeln('    document.addEventListener("DOMContentLoaded", () => {')
       ..writeln('      if (!PUBLIC_KEY) {')
@@ -253,7 +253,7 @@ class _OmiseCardTokenizationPageState
       ..writeln('      });')
       ..writeln('      const amountLabel = document.getElementById("amount-label");')
       ..writeln('      if (DISPLAY_AMOUNT && amountLabel) {')
-      ..writeln('        amountLabel.textContent = `ยอดเรียกเก็บ ${DISPLAY_CURRENCY} ${DISPLAY_AMOUNT}`;')
+      ..writeln('        amountLabel.textContent = `ยอดเรียกเก็บ \${DISPLAY_CURRENCY} \${DISPLAY_AMOUNT}`;')
       ..writeln('        amountLabel.style.display = "block";')
       ..writeln('      }');
     buffer
