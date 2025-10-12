@@ -8,7 +8,8 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_remote_config/firebase_remote_config.dart';
 import 'package:flutter/src/widgets/binding.dart' show DartPluginRegistrant;
-import 'package:flutter/foundation.dart' show debugPrint, kIsWeb;
+import 'package:flutter/foundation.dart'
+    show TargetPlatform, debugPrint, defaultTargetPlatform, kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:go_router/go_router.dart';
@@ -88,6 +89,7 @@ import 'services/schema_migration_runner.dart';
 import 'services/stocktake_service.dart';
 import 'services/store_service.dart';
 import 'services/sync_queue_service.dart';
+import 'payments/omise_keys.dart';
 import 'splash_screen.dart';
 import 'stock_provider.dart';
 import 'store_provider.dart';
@@ -146,23 +148,71 @@ CustomTransitionPage<void> _buildTransitionPage({required Widget child}) {
   );
 }
 
-Future<void> _initializePaymentGateways(
-  PaymentGatewayService service,
-) async {
+bool get _supportsRemoteConfig {
+  if (kIsWeb) {
+    return true;
+  }
+  switch (defaultTargetPlatform) {
+    case TargetPlatform.android:
+    case TargetPlatform.iOS:
+    case TargetPlatform.macOS:
+      return true;
+    default:
+      return false;
+  }
+}
+
+FirebaseRemoteConfig? _obtainRemoteConfigInstance() {
+  if (!_supportsRemoteConfig) {
+    debugPrint(
+      'Firebase Remote Config is not supported on this platform; using defaults.',
+    );
+    return null;
+  }
   try {
-    final remoteConfig = FirebaseRemoteConfig.instance;
-    try {
-      await remoteConfig.fetchAndActivate();
-    } catch (error) {
-      debugPrint('Failed to refresh Remote Config for Omise: $error');
+    return FirebaseRemoteConfig.instance;
+  } catch (error) {
+    debugPrint('Unable to access Firebase Remote Config: $error');
+    return null;
+  }
+}
+
+Future<void> _initializePaymentGateways(
+  PaymentGatewayService service, {
+  FirebaseRemoteConfig? remoteConfig,
+}) async {
+  try {
+    String publicKey = '';
+    String secretKey = '';
+    String defaultSourceType = '';
+
+    if (remoteConfig != null) {
+      try {
+        await remoteConfig.fetchAndActivate();
+      } catch (error) {
+        debugPrint('Failed to refresh Remote Config for Omise: $error');
+      }
+
+      publicKey = remoteConfig.getString('omise_public_key');
+      secretKey = remoteConfig.getString('omise_secret_key');
+      defaultSourceType =
+          remoteConfig.getString('omise_default_source_type');
     }
 
-    final publicKey = remoteConfig.getString('omise_public_key');
-    final secretKey = remoteConfig.getString('omise_secret_key');
-    final defaultSourceType =
-        remoteConfig.getString('omise_default_source_type');
+    if (publicKey.isEmpty) {
+      publicKey = OmiseKeys.publicKey;
+    }
+    if (secretKey.isEmpty) {
+      secretKey = OmiseKeys.secretKey;
+    }
+    if (defaultSourceType.isEmpty) {
+      defaultSourceType = OmiseKeys.defaultSourceType;
+    }
 
     if (publicKey.isEmpty || secretKey.isEmpty) {
+      debugPrint(
+        'Skipping Omise configuration because API credentials are missing.',
+      );
       return;
     }
 
@@ -189,6 +239,8 @@ Future<void> _initializePaymentGateways(
           'publicKey': publicKey,
           'secretKey': secretKey,
           'provider': 'omise',
+          if (defaultSourceType.isNotEmpty)
+            'defaultSourceType': defaultSourceType,
         },
       ),
     );
@@ -619,6 +671,8 @@ Future<void> main() async {
         options: DefaultFirebaseOptions.currentPlatform,
       );
 
+      final remoteConfig = _obtainRemoteConfigInstance();
+
       // Note: the 'settings' setter was removed from newer cloud_firestore versions.
       // Persistence and cache configuration should be handled using the current API.
       // By default, persistence is enabled on mobile platforms; if you need to
@@ -660,14 +714,20 @@ Future<void> main() async {
 
       final packageInfo = await PackageInfo.fromPlatform();
       final availability = AppAvailabilityService(
-        FirebaseRemoteConfig.instance,
+        remoteConfig,
         observability!,
         packageInfo.buildNumber,
       );
       await availability.initialize();
 
       await BackgroundSyncManager.instance.registerPeriodicSync();
-      runApp(MyApp(observability: observability!, availability: availability));
+      runApp(
+        MyApp(
+          observability: observability!,
+          availability: availability,
+          remoteConfig: remoteConfig,
+        ),
+      );
     },
     (error, stackTrace) {
       final logger = observability;
@@ -692,14 +752,17 @@ class MyApp extends StatelessWidget {
   const MyApp({
     required this.observability,
     required this.availability,
+    this.remoteConfig,
     super.key,
   });
 
   final OpsObservabilityService observability;
   final AppAvailabilityService availability;
+  final FirebaseRemoteConfig? remoteConfig;
 
   @override
   Widget build(BuildContext context) {
+    final remoteConfig = this.remoteConfig;
     return MultiProvider(
       providers: [
         Provider<FlavorConfig>.value(value: FlavorConfig.instance),
@@ -871,7 +934,12 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(
           create: (_) {
             final service = PaymentGatewayService();
-            unawaited(_initializePaymentGateways(service));
+            unawaited(
+              _initializePaymentGateways(
+                service,
+                remoteConfig: remoteConfig,
+              ),
+            );
             return service;
           },
         ),
