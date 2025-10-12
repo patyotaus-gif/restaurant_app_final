@@ -8,6 +8,7 @@ import 'package:flutter/foundation.dart'
     show TargetPlatform, defaultTargetPlatform, kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -228,24 +229,41 @@ class _CheckoutPageState extends State<CheckoutPage> {
     _houseAccountSubscription = _houseAccountService
         .watchAccounts(tenantId: store.tenantId, storeId: store.id)
         .listen((accounts) {
-          if (!mounted) return;
-          final draftId = _draftHouseAccountId;
-          HouseAccount? selected = _selectedHouseAccount;
-          if (selected == null && draftId != null) {
-            selected = accounts.firstWhereOrNull(
-              (account) => account.id == draftId,
-            );
+          if (!mounted) {
+            return;
           }
-          setState(() {
-            _houseAccounts = accounts;
-            if (selected != null) {
-              _selectedHouseAccount =
-                  accounts.firstWhereOrNull(
-                    (account) => account.id == selected!.id,
-                  ) ??
-                  selected;
+
+          void applyUpdate() {
+            if (!mounted) {
+              return;
             }
-          });
+
+            final draftId = _draftHouseAccountId;
+            HouseAccount? selected = _selectedHouseAccount;
+            if (selected == null && draftId != null) {
+              selected = accounts.firstWhereOrNull(
+                (account) => account.id == draftId,
+              );
+            }
+
+            setState(() {
+              _houseAccounts = accounts;
+              if (selected != null) {
+                _selectedHouseAccount =
+                    accounts.firstWhereOrNull(
+                      (account) => account.id == selected!.id,
+                    ) ??
+                    selected;
+              }
+            });
+          }
+
+          if (SchedulerBinding.instance.schedulerPhase ==
+              SchedulerPhase.persistentCallbacks) {
+            SchedulerBinding.instance.addPostFrameCallback((_) => applyUpdate());
+          } else {
+            applyUpdate();
+          }
         });
   }
 
