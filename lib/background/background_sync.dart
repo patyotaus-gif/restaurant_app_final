@@ -16,7 +16,20 @@ import '../services/offline_queue_encryption.dart';
 import '../services/sync_queue_service.dart';
 
 typedef EnsureFn = void Function();
-EnsureFn ensureBackgroundPlugins = () {};
+
+/// Ensures that background isolates have all plugins registered. By default we
+/// rely on [DartPluginRegistrant.ensureInitialized] so that platform channels
+/// are wired up before any plugin is invoked from a background isolate. Tests
+/// can override this function with a no-op if desired.
+EnsureFn ensureBackgroundPlugins = DartPluginRegistrant.ensureInitialized;
+
+RootIsolateToken? _rootIsolateToken;
+
+/// Records the root isolate token so that it can be reused when the
+/// background isolate is launched by Workmanager.
+void configureBackgroundSync({RootIsolateToken? rootIsolateToken}) {
+  _rootIsolateToken = rootIsolateToken;
+}
 
 const String backgroundSyncTaskName = 'pos.offline.sync.queue';
 const String _periodicUniqueName = 'pos.offline.sync.periodic';
@@ -43,6 +56,10 @@ void backgroundSyncDispatcher() {
     }
     try {
       WidgetsFlutterBinding.ensureInitialized();
+      final token = _rootIsolateToken ?? ServicesBinding.rootIsolateToken;
+      if (token != null) {
+        BackgroundIsolateBinaryMessenger.ensureInitialized(token);
+      }
       if (!_supportsBackgroundSync) {
         return true;
       }
