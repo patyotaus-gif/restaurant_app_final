@@ -163,6 +163,20 @@ bool get _supportsRemoteConfig {
   }
 }
 
+bool get _supportsFirestore {
+  if (kIsWeb) {
+    return true;
+  }
+  switch (defaultTargetPlatform) {
+    case TargetPlatform.android:
+    case TargetPlatform.iOS:
+    case TargetPlatform.macOS:
+      return true;
+    default:
+      return false;
+  }
+}
+
 FirebaseRemoteConfig? _obtainRemoteConfigInstance() {
   if (!_supportsRemoteConfig) {
     debugPrint(
@@ -675,6 +689,15 @@ Future<void> main() async {
         options: DefaultFirebaseOptions.currentPlatform,
       );
 
+      if (!_supportsFirestore) {
+        debugPrint(
+          'Firebase Firestore is not supported on this platform; launching '
+          'fallback experience.',
+        );
+        runApp(const UnsupportedPlatformApp());
+        return;
+      }
+
       final remoteConfig = _obtainRemoteConfigInstance();
 
       // Note: the 'settings' setter was removed from newer cloud_firestore versions.
@@ -1100,6 +1123,44 @@ class MyApp extends StatelessWidget {
                 scaffoldMessengerKey: AppSnackBar.messengerKey,
               );
             },
+      ),
+    );
+  }
+}
+
+class UnsupportedPlatformApp extends StatelessWidget {
+  const UnsupportedPlatformApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: Scaffold(
+        body: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 360),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: const [
+                Icon(Icons.desktop_windows, size: 48),
+                SizedBox(height: 16),
+                Text(
+                  'This build of Restaurant App is not supported on the '
+                  'current platform.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                ),
+                SizedBox(height: 12),
+                Text(
+                  'Please use the Android, iOS, macOS, or web version to access '
+                  'the full experience.',
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
