@@ -171,6 +171,8 @@ bool get _supportsFirestore {
     case TargetPlatform.android:
     case TargetPlatform.iOS:
     case TargetPlatform.macOS:
+    case TargetPlatform.windows:
+    case TargetPlatform.linux:
       return true;
     default:
       return false;
