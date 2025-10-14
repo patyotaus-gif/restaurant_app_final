@@ -33,6 +33,7 @@ class _CartPageState extends State<CartPage> {
   bool _isCheckingGiftCard = false;
   String? _giftCardError;
   String? _storeCreditError;
+  bool _isCheckoutInProgress = false;
 
   String _formatNumber(double value) {
     var text = value.toStringAsFixed(2);
@@ -445,28 +446,36 @@ class _CartPageState extends State<CartPage> {
   }
 
   Future<void> _goToCheckout(CartProvider cart) async {
-    final orderData = _prepareOrderData(cart);
-    if (orderData == null) return;
-    final syncQueue = context.read<SyncQueueService>();
-
-    if (!syncQueue.isOnline) {
-      await syncQueue.enqueueAdd('orders', orderData);
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Offline mode: order queued. Checkout will be available once reconnected.',
-          ),
-        ),
-      );
-      cart.clear();
-      if (Navigator.of(context).canPop()) {
-        Navigator.of(context).pop();
-      }
+    if (_isCheckoutInProgress) {
       return;
     }
 
+    setState(() {
+      _isCheckoutInProgress = true;
+    });
+
     try {
+      final orderData = _prepareOrderData(cart);
+      if (orderData == null) return;
+      final syncQueue = context.read<SyncQueueService>();
+
+      if (!syncQueue.isOnline) {
+        await syncQueue.enqueueAdd('orders', orderData);
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Offline mode: order queued. Checkout will be available once reconnected.',
+            ),
+          ),
+        );
+        cart.clear();
+        if (Navigator.of(context).canPop()) {
+          Navigator.of(context).pop();
+        }
+        return;
+      }
+
       final result = await syncQueue.enqueueAdd('orders', orderData);
       if (!mounted) return;
       if (!result.isSynced || result.remoteDocumentId == null) {
@@ -485,7 +494,7 @@ class _CartPageState extends State<CartPage> {
       await _finalizeAppliedCredits(cart, orderData);
       cart.clear();
 
-      Navigator.of(context).push(
+      await Navigator.of(context).push(
         MaterialPageRoute(
           builder: (context) => CheckoutPage(
             orderId: orderIdForCheckout,
@@ -531,6 +540,12 @@ class _CartPageState extends State<CartPage> {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('Unable to start checkout: $e')));
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isCheckoutInProgress = false;
+        });
+      }
     }
   }
 
@@ -1241,13 +1256,34 @@ class _CartPageState extends State<CartPage> {
                         const SizedBox(width: 12),
                       Expanded(
                         child: ElevatedButton(
-                          onPressed: () => _goToCheckout(cart),
+                          onPressed:
+                              _isCheckoutInProgress ? null : () => _goToCheckout(cart),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.green,
                             foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(vertical: 12),
                           ),
-                          child: const Text('Go to Checkout'),
+                          child: _isCheckoutInProgress
+                              ? Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    SizedBox(
+                                      height: 20,
+                                      width: 20,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        valueColor:
+                                            const AlwaysStoppedAnimation<Color>(
+                                          Colors.white,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    const Text('Processing...'),
+                                  ],
+                                )
+                              : const Text('Go to Checkout'),
                         ),
                       ),
                     ],
