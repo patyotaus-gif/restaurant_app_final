@@ -32,6 +32,7 @@ values include:
 - `SYNTHETIC_MONITOR_TARGET` – URL probed by the synthetic monitor cron job
 - Optional `SYNTHETIC_MONITOR_BEARER_TOKEN` if the endpoint requires auth
 - Storage/BQ identifiers (`BACKUP_BUCKET`, `BIGQUERY_*`, `BUILD_METRICS_*`)
+- Omise credentials (`OMISE_PUBLIC_KEY`, `OMISE_SECRET_KEY`) for payment functions
 
 ## 3. Load variables locally
 

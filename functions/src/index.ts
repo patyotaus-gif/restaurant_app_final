@@ -17,6 +17,18 @@ import * as admin from "firebase-admin";
 import https from "node:https";
 import {Storage} from "@google-cloud/storage";
 import {
+  createOmiseChargesApi,
+  OmiseApiError,
+  type OmiseChargeResult,
+  type OmiseChargesApi,
+  type OmiseSourceChargeOptions,
+} from "./payments/omiseApi.js";
+import {
+  OmiseConfigurationError,
+  type OmiseClientConfig,
+  type OmiseRequestOptions,
+} from "./payments/omiseClient.js";
+import {
   type AnalyticsCustomerRecord,
   type AnalyticsOrderItem,
   type AnalyticsOrderRecord,
@@ -50,6 +62,9 @@ const AGGREGATE_COLLECTION_HOURLY = "analytics_hourly";
 const AGGREGATE_COLLECTION_DAILY = "analytics_daily";
 const ANALYTICS_SCHEMA_VERSION = 1;
 const PRIVACY_LOG_COLLECTION = "privacyOpsLogs";
+const OMISE_PUBLIC_KEY = process.env.OMISE_PUBLIC_KEY ?? "";
+const OMISE_SECRET_KEY = process.env.OMISE_SECRET_KEY ?? "";
+const OMISE_API_VERSION = process.env.OMISE_API_VERSION ?? "";
 
 type TtlFilter = {
   field: string;
@@ -237,6 +252,269 @@ export async function performSyntheticRequest(
     request.end();
   });
 }
+
+let cachedOmiseApi: OmiseChargesApi | null = null;
+
+function getOmiseChargesApi(): OmiseChargesApi {
+  if (cachedOmiseApi) {
+    return cachedOmiseApi;
+  }
+
+  const config = buildOmiseClientConfig();
+  const api = createOmiseChargesApi(config);
+  cachedOmiseApi = api;
+  return api;
+}
+
+function buildOmiseClientConfig(): OmiseClientConfig {
+  const publicKey = OMISE_PUBLIC_KEY.trim();
+  const secretKey = OMISE_SECRET_KEY.trim();
+
+  if (!publicKey || !secretKey) {
+    throw new HttpsError(
+      "failed-precondition",
+      "Omise API keys are not configured. Set OMISE_PUBLIC_KEY and OMISE_SECRET_KEY.",
+    );
+  }
+
+  const config: OmiseClientConfig = {publicKey, secretKey};
+  const apiVersion = OMISE_API_VERSION.trim();
+  if (apiVersion) {
+    config.omiseVersion = apiVersion;
+  }
+  return config;
+}
+
+function sanitizeOmiseChargeResult(
+  result: OmiseChargeResult
+): OmiseChargeResult {
+  const normalized: OmiseChargeResult = {
+    charge: {...(result.charge ?? {})},
+  };
+  if (result.source) {
+    normalized.source = {...result.source};
+  }
+  return normalized;
+}
+
+function ensureObject(
+  value: unknown,
+  context: string
+): Record<string, unknown> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new HttpsError(
+      "invalid-argument",
+      `${context} payload must be an object.`,
+    );
+  }
+  return value as Record<string, unknown>;
+}
+
+function extractNumber(
+  record: Record<string, unknown>,
+  field: string
+): number {
+  const value = record[field];
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    throw new HttpsError("invalid-argument", `${field} must be a number.`);
+  }
+  return value;
+}
+
+function extractString(
+  record: Record<string, unknown>,
+  field: string,
+  altField?: string
+): string {
+  const raw = record[field] ?? (altField ? record[altField] : undefined);
+  if (typeof raw !== "string") {
+    throw new HttpsError("invalid-argument", `${field} must be a string.`);
+  }
+  const trimmed = raw.trim();
+  if (!trimmed) {
+    throw new HttpsError("invalid-argument", `${field} must not be empty.`);
+  }
+  return trimmed;
+}
+
+function extractOptionalString(
+  record: Record<string, unknown>,
+  field: string,
+  altField?: string
+): string | undefined {
+  const raw = record[field] ?? (altField ? record[altField] : undefined);
+  if (raw === undefined || raw === null) {
+    return undefined;
+  }
+  if (typeof raw !== "string") {
+    throw new HttpsError("invalid-argument", `${field} must be a string.`);
+  }
+  const trimmed = raw.trim();
+  return trimmed ? trimmed : undefined;
+}
+
+function extractOptionalBoolean(
+  record: Record<string, unknown>,
+  field: string
+): boolean | undefined {
+  const value = record[field];
+  if (value === undefined || value === null) {
+    return undefined;
+  }
+  if (typeof value !== "boolean") {
+    throw new HttpsError("invalid-argument", `${field} must be a boolean.`);
+  }
+  return value;
+}
+
+function extractOptionalRecord(
+  record: Record<string, unknown>,
+  field: string
+): Record<string, unknown> | undefined {
+  const value = record[field];
+  if (value === undefined || value === null) {
+    return undefined;
+  }
+  if (typeof value !== "object" || Array.isArray(value)) {
+    throw new HttpsError("invalid-argument", `${field} must be an object.`);
+  }
+  return {...(value as Record<string, unknown>)};
+}
+
+function buildRequestOptions(
+  record: Record<string, unknown>,
+  field: string
+): OmiseRequestOptions | undefined {
+  const key = extractOptionalString(record, field);
+  if (!key) {
+    return undefined;
+  }
+  return {idempotencyKey: key};
+}
+
+function buildSourceChargeOptions(
+  record: Record<string, unknown>
+): OmiseSourceChargeOptions | undefined {
+  const sourceKey =
+    extractOptionalString(record, "sourceIdempotencyKey") ??
+    extractOptionalString(record, "source_idempotency_key");
+  const chargeKey =
+    extractOptionalString(record, "chargeIdempotencyKey") ??
+    extractOptionalString(record, "idempotencyKey") ??
+    extractOptionalString(record, "charge_idempotency_key");
+
+  const options: OmiseSourceChargeOptions = {};
+  if (sourceKey) {
+    options.source = {idempotencyKey: sourceKey};
+  }
+  if (chargeKey) {
+    options.charge = {idempotencyKey: chargeKey};
+  }
+
+  return options.source || options.charge ? options : undefined;
+}
+
+function handleOmiseError(error: unknown, action: string): never {
+  if (error instanceof HttpsError) {
+    throw error;
+  }
+  if (error instanceof OmiseApiError) {
+    throw new HttpsError("invalid-argument", error.message);
+  }
+  if (error instanceof OmiseConfigurationError) {
+    throw new HttpsError("failed-precondition", error.message);
+  }
+
+  if (error instanceof Error) {
+    logger.error(`Omise operation failed: ${action}`, {
+      error: error.stack ?? error.message,
+    });
+    throw new HttpsError("internal", `Failed to ${action}.`);
+  }
+
+  logger.error(`Omise operation failed: ${action}`, {error});
+  throw new HttpsError("internal", `Failed to ${action}.`);
+}
+
+export const createOmiseCardCharge3ds = onCall(async (request) => {
+  const payload = ensureObject(request.data, "createOmiseCardCharge3ds");
+  const api = getOmiseChargesApi();
+
+  try {
+    const result = await api.createCardCharge3ds(
+      {
+        amount: extractNumber(payload, "amount"),
+        currency: extractString(payload, "currency"),
+        cardToken: extractString(payload, "cardToken", "card_token"),
+        returnUri: extractString(payload, "returnUri", "return_uri"),
+        description: extractOptionalString(payload, "description"),
+        metadata: extractOptionalRecord(payload, "metadata"),
+        capture: extractOptionalBoolean(payload, "capture"),
+        customerId: extractOptionalString(payload, "customerId", "customer_id"),
+      },
+      buildRequestOptions(payload, "idempotencyKey"),
+    );
+
+    return sanitizeOmiseChargeResult(result);
+  } catch (error) {
+    handleOmiseError(error, "create Omise card charge");
+  }
+});
+
+export const createOmisePromptPayCharge = onCall(async (request) => {
+  const payload = ensureObject(request.data, "createOmisePromptPayCharge");
+  const api = getOmiseChargesApi();
+
+  try {
+    const result = await api.createPromptPayCharge(
+      {
+        amount: extractNumber(payload, "amount"),
+        currency: extractString(payload, "currency"),
+        description: extractOptionalString(payload, "description"),
+        metadata: extractOptionalRecord(payload, "metadata"),
+        sourceMetadata: extractOptionalRecord(payload, "sourceMetadata"),
+        sourceData: extractOptionalRecord(payload, "sourceData"),
+        email: extractOptionalString(payload, "email"),
+        name: extractOptionalString(payload, "name"),
+        phoneNumber: extractOptionalString(payload, "phoneNumber", "phone_number"),
+        capture: extractOptionalBoolean(payload, "capture"),
+        customerId: extractOptionalString(payload, "customerId", "customer_id"),
+      },
+      buildSourceChargeOptions(payload),
+    );
+
+    return sanitizeOmiseChargeResult(result);
+  } catch (error) {
+    handleOmiseError(error, "create Omise PromptPay charge");
+  }
+});
+
+export const createOmiseMobileBankingCharge = onCall(async (request) => {
+  const payload = ensureObject(request.data, "createOmiseMobileBankingCharge");
+  const api = getOmiseChargesApi();
+
+  try {
+    const result = await api.createMobileBankingCharge(
+      {
+        amount: extractNumber(payload, "amount"),
+        currency: extractString(payload, "currency"),
+        description: extractOptionalString(payload, "description"),
+        metadata: extractOptionalRecord(payload, "metadata"),
+        sourceMetadata: extractOptionalRecord(payload, "sourceMetadata"),
+        sourceData: extractOptionalRecord(payload, "sourceData"),
+        bank: extractOptionalString(payload, "bank"),
+        sourceType: extractOptionalString(payload, "sourceType", "source_type"),
+        capture: extractOptionalBoolean(payload, "capture"),
+        customerId: extractOptionalString(payload, "customerId", "customer_id"),
+      },
+      buildSourceChargeOptions(payload),
+    );
+
+    return sanitizeOmiseChargeResult(result);
+  } catch (error) {
+    handleOmiseError(error, "create Omise mobile banking charge");
+  }
+});
 
 // --- TIER UPGRADE CONFIGURATION ---
 const TIER_THRESHOLDS = {

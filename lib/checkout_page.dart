@@ -1674,7 +1674,10 @@ class _CheckoutPageState extends State<CheckoutPage> {
     required PaymentResult paymentResult,
     required PaymentGatewayType gatewayType,
   }) async {
-    final redirectUrl = paymentResult.receiptUrl;
+    final metadata = paymentResult.metadata;
+    final redirectUrl = paymentResult.receiptUrl?.isNotEmpty == true
+        ? paymentResult.receiptUrl
+        : metadata['authorizeUri'] as String?;
     if (redirectUrl == null || redirectUrl.isEmpty) {
       return;
     }
@@ -1684,7 +1687,6 @@ class _CheckoutPageState extends State<CheckoutPage> {
       return;
     }
 
-    final metadata = paymentResult.metadata;
     final status = (metadata['status'] as String?)?.toLowerCase();
     final authorized = metadata['authorized'];
     final isWaitingFor3ds = gatewayType == PaymentGatewayType.creditDebitCard &&
