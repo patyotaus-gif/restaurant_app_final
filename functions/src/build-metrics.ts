@@ -1,6 +1,51 @@
 import {CallableRequest, onCall} from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
-import {BigQuery} from "@google-cloud/bigquery";
+type BigQueryTable = {
+  insert: (
+    rows: unknown[],
+    options?: {ignoreUnknownValues?: boolean; skipInvalidRows?: boolean}
+  ) => Promise<unknown>;
+};
+
+type BigQueryDataset = {
+  table: (tableId: string) => BigQueryTable;
+};
+
+type BigQueryClient = {
+  dataset: (datasetId: string) => BigQueryDataset;
+};
+
+let bigQueryClientPromise: Promise<BigQueryClient> | undefined;
+
+async function getBigQueryClient(): Promise<BigQueryClient> {
+  if (!bigQueryClientPromise) {
+    bigQueryClientPromise = import("@google-cloud/bigquery")
+      .then((module) => {
+        const BigQueryCtor =
+          (module as {BigQuery?: new (...args: unknown[]) => BigQueryClient})
+            .BigQuery ??
+          (module as {default?: new (...args: unknown[]) => BigQueryClient})
+            .default;
+
+        if (!BigQueryCtor) {
+          throw new Error(
+            "The '@google-cloud/bigquery' module does not export a BigQuery constructor."
+          );
+        }
+
+        return new BigQueryCtor();
+      })
+      .catch((error) => {
+        logger.error(
+          "Failed to load BigQuery client. Ensure '@google-cloud/bigquery' is installed.",
+          error as Error
+        );
+        throw error;
+      });
+  }
+
+  return bigQueryClientPromise;
+}
 
 type FrameSummary = {
   average: number;
@@ -23,7 +68,6 @@ type MetricPayload = {
   isWeb?: boolean;
 };
 
-const bigquery = new BigQuery();
 const datasetId = process.env.BUILD_METRICS_DATASET ?? "ops_metrics";
 const tableId = process.env.BUILD_METRICS_TABLE ?? "frame_performance";
 
@@ -60,6 +104,7 @@ export const ingestBuildMetric = onCall(
     };
 
     try {
+      const bigquery = await getBigQueryClient();
       await bigquery.dataset(datasetId).table(tableId).insert([row], {
         ignoreUnknownValues: true,
         skipInvalidRows: true,

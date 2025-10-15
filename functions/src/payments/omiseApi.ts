@@ -166,7 +166,7 @@ export function createOmiseChargesApi(
       return client.captureCharge(id, options);
     },
 
-    refundCharge(chargeId, payload, options) {
+    async refundCharge(chargeId, payload, options) {
       const id = ensureNonEmptyString(chargeId, "chargeId");
       const normalized = normalizeRefundPayload(payload);
       return client.refundCharge(id, normalized, options);
