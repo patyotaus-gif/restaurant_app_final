@@ -153,6 +153,14 @@ class SyncQueueService extends ChangeNotifier {
   final Map<String, Completer<SyncResult>> _pendingCompleters = {};
   Future<void> Function({Duration? delay})? _backgroundSyncScheduler;
 
+  /// Exponential backoff state used to avoid hammering Firestore when
+  /// connectivity is flaky. Firestore resolves writes immediately even when
+  /// offline, so without throttling the queue can enqueue more than the maximum
+  /// number of pending writes which triggers
+  /// "Write stream exhausted maximum allowed queued writes" errors.
+  Duration _currentRetryDelay = Duration.zero;
+  Timer? _retryTimer;
+
   SharedPreferences? _prefs;
   StreamSubscription<List<ConnectivityResult>>? _connectivitySub;
   OpsObservabilityService? _observability;
@@ -246,6 +254,7 @@ class SyncQueueService extends ChangeNotifier {
       _safeNotifyListeners();
     }
     if (_isOnline) {
+      _clearRetryBackoff();
       unawaited(_processQueue());
     }
   }
@@ -285,7 +294,7 @@ class SyncQueueService extends ChangeNotifier {
   }
 
   Future<void> triggerSync() async {
-    await _processQueue();
+    await _processQueue(force: true);
   }
 
   void attachBackgroundSyncScheduler(
@@ -302,7 +311,14 @@ class SyncQueueService extends ChangeNotifier {
     unawaited(scheduler());
   }
 
-  Future<void> _processQueue() async {
+  Future<void> _processQueue({bool force = false}) async {
+    if (!force && _retryTimer != null) {
+      return;
+    }
+    if (force && _retryTimer != null) {
+      _retryTimer!.cancel();
+      _retryTimer = null;
+    }
     if (_isProcessing || !_isOnline || _queue.isEmpty) {
       return;
     }
@@ -328,6 +344,7 @@ class SyncQueueService extends ChangeNotifier {
         }
 
         _queue.removeAt(0);
+        _clearRetryBackoff();
         await _persistQueue();
         _lastSyncedAt = DateTime.now();
         _lastError = null;
@@ -359,7 +376,11 @@ class SyncQueueService extends ChangeNotifier {
         debugPrint(stackTrace.toString());
         _safeNotifyListeners();
 
-        _requestBackgroundSync();
+        if (_shouldBackoff(e)) {
+          _scheduleRetry();
+        } else {
+          _requestBackgroundSync();
+        }
 
         _recordObservability(
           'Failed to sync queued operation',
@@ -389,6 +410,7 @@ class SyncQueueService extends ChangeNotifier {
   @override
   void dispose() {
     _connectivitySub?.cancel();
+    _retryTimer?.cancel();
     _pendingCompleters.forEach((operationId, completer) {
       if (!completer.isCompleted) {
         completer.complete(
@@ -437,6 +459,77 @@ class SyncQueueService extends ChangeNotifier {
         stackTrace: stackTrace,
         sendRemote: sendRemote,
       ),
+    );
+  }
+
+  void _clearRetryBackoff() {
+    if (_currentRetryDelay == Duration.zero && _retryTimer == null) {
+      return;
+    }
+    _currentRetryDelay = Duration.zero;
+    _retryTimer?.cancel();
+    _retryTimer = null;
+  }
+
+  bool _shouldBackoff(Object error) {
+    if (error is FirebaseException && error.plugin == 'cloud_firestore') {
+      const backoffCodes = {
+        'resource-exhausted',
+        'unavailable',
+        'deadline-exceeded',
+        'internal',
+      };
+      if (backoffCodes.contains(error.code)) {
+        return true;
+      }
+      final message = error.message?.toLowerCase();
+      if (message != null &&
+          (message.contains('maximum allowed queued writes') ||
+              message.contains('connection reset') ||
+              message.contains('stream disconnected') ||
+              message.contains('failed to get document because the client is offline'))) {
+        return true;
+      }
+    }
+    if (error is TimeoutException) {
+      return true;
+    }
+    final errorString = error.toString().toLowerCase();
+    if (errorString.contains('connection reset') ||
+        errorString.contains('timed out') ||
+        errorString.contains('broken pipe')) {
+      return true;
+    }
+    return false;
+  }
+
+  void _scheduleRetry() {
+    final previous = _currentRetryDelay;
+    final nextDelay = previous == Duration.zero
+        ? const Duration(seconds: 2)
+        : Duration(
+            milliseconds: min(
+              previous.inMilliseconds * 2,
+              const Duration(minutes: 1).inMilliseconds,
+            ),
+          );
+    _currentRetryDelay = nextDelay;
+    _retryTimer?.cancel();
+    _retryTimer = Timer(nextDelay, () {
+      _retryTimer = null;
+      if (_isOnline && _queue.isNotEmpty) {
+        unawaited(_processQueue());
+      }
+    });
+
+    _recordObservability(
+      'Scheduled sync queue retry',
+      level: OpsLogLevel.debug,
+      context: {
+        'delayMs': nextDelay.inMilliseconds,
+        'pending': _queue.length,
+      },
+      sendRemote: false,
     );
   }
 
