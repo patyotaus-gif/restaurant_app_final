@@ -112,6 +112,14 @@ describe("createOmiseClient with omise-node", () => {
     );
   });
 
+  it("throws when the Omise SDK cannot be loaded", () => {
+    __setOmiseFactoryForTests(null);
+
+    expect(() =>
+      createOmiseClient({publicKey: "pkey_test", secretKey: "skey_test"})
+    ).toThrowError(OmiseConfigurationError);
+  });
+
   it("throws a configuration error when the secret key is missing", async () => {
     const instance: OmiseNodeInstance = {
       sources: {
