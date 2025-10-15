@@ -7,6 +7,10 @@ Firebase project.
 
 ## 1. Install dependencies
 
+> **Note:** The payment workflows now use the official Omise Node SDK.
+> Install dependencies with network access so that the `omise` package is available,
+> and provide both the public and secret keys via environment variables before running emulators or deploying.
+
 ```bash
 npm --prefix functions ci
 ```
