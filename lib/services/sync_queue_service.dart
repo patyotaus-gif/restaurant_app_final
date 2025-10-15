@@ -144,6 +144,8 @@ class SyncQueueService extends ChangeNotifier {
   }
 
   static const storageKey = 'sync_queue_operations_v1';
+  static const int _maxOperationsPerBatch = 20;
+  static const Duration _batchProcessingDelay = Duration(milliseconds: 200);
 
   final FirebaseFirestore _firestore;
   final Connectivity _connectivity;
@@ -160,6 +162,7 @@ class SyncQueueService extends ChangeNotifier {
   /// "Write stream exhausted maximum allowed queued writes" errors.
   Duration _currentRetryDelay = Duration.zero;
   Timer? _retryTimer;
+  Timer? _postBatchTimer;
 
   SharedPreferences? _prefs;
   StreamSubscription<List<ConnectivityResult>>? _connectivitySub;
@@ -312,20 +315,30 @@ class SyncQueueService extends ChangeNotifier {
   }
 
   Future<void> _processQueue({bool force = false}) async {
-    if (!force && _retryTimer != null) {
+    if (!force && (_retryTimer != null || _postBatchTimer != null)) {
       return;
     }
-    if (force && _retryTimer != null) {
-      _retryTimer!.cancel();
+    if (force) {
+      _retryTimer?.cancel();
       _retryTimer = null;
+      _postBatchTimer?.cancel();
+      _postBatchTimer = null;
     }
     if (_isProcessing || !_isOnline || _queue.isEmpty) {
       return;
     }
+
+    _postBatchTimer?.cancel();
+    _postBatchTimer = null;
+
     _isProcessing = true;
     _safeNotifyListeners();
 
-    while (_queue.isNotEmpty && _isOnline) {
+    var processed = 0;
+    var encounteredError = false;
+
+    while (_queue.isNotEmpty && _isOnline &&
+        processed < _maxOperationsPerBatch) {
       final operation = _queue.first;
       try {
         String? remoteId;
@@ -344,6 +357,7 @@ class SyncQueueService extends ChangeNotifier {
         }
 
         _queue.removeAt(0);
+        processed += 1;
         _clearRetryBackoff();
         await _persistQueue();
         _lastSyncedAt = DateTime.now();
@@ -371,6 +385,7 @@ class SyncQueueService extends ChangeNotifier {
           ),
         );
       } catch (e, stackTrace) {
+        encounteredError = true;
         _lastError = e.toString();
         debugPrint('SyncQueue error for ${operation.id}: $e');
         debugPrint(stackTrace.toString());
@@ -403,14 +418,25 @@ class SyncQueueService extends ChangeNotifier {
       }
     }
 
+    final hasMore = _queue.isNotEmpty && _isOnline;
     _isProcessing = false;
     _safeNotifyListeners();
+
+    if (hasMore && !encounteredError) {
+      _postBatchTimer = Timer(_batchProcessingDelay, () {
+        _postBatchTimer = null;
+        if (_isOnline && _queue.isNotEmpty) {
+          unawaited(_processQueue());
+        }
+      });
+    }
   }
 
   @override
   void dispose() {
     _connectivitySub?.cancel();
     _retryTimer?.cancel();
+    _postBatchTimer?.cancel();
     _pendingCompleters.forEach((operationId, completer) {
       if (!completer.isCompleted) {
         completer.complete(

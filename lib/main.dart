@@ -953,10 +953,14 @@ class MyApp extends StatelessWidget {
             final service =
                 previous ?? SyncQueueService(FirebaseFirestore.instance);
             service.attachObservability(observability);
-            service.attachBackgroundSyncScheduler(
-              ({Duration? delay}) => BackgroundSyncManager.instance
-                  .scheduleImmediateSync(delay: delay),
-            );
+            if (supportsBackgroundSync()) {
+              service.attachBackgroundSyncScheduler(
+                ({Duration? delay}) => BackgroundSyncManager.instance
+                    .scheduleImmediateSync(delay: delay),
+              );
+            } else {
+              service.attachBackgroundSyncScheduler(null);
+            }
             return service;
           },
         ),
