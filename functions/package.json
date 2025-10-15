@@ -14,7 +14,7 @@
     "seed:emulator": "node scripts/seed-emulator.mjs"
   },
   "engines": {
-    "node": "22"
+    "node": "18"
   },
   "main": "lib/index.js",
   "dependencies": {
