@@ -2,16 +2,12 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'dart:ui';
-
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:workmanager/workmanager.dart';
 
-import '../firebase_options.dart';
 import '../services/offline_queue_encryption.dart';
 import '../services/sync_queue_service.dart';
 
@@ -48,6 +44,8 @@ bool get _supportsBackgroundSync {
   }
 }
 
+bool supportsBackgroundSync() => _supportsBackgroundSync;
+
 @pragma('vm:entry-point')
 void backgroundSyncDispatcher() {
   Workmanager().executeTask((task, inputData) async {
@@ -66,14 +64,7 @@ void backgroundSyncDispatcher() {
       await BackgroundSyncManager.instance.ensureInitialized();
       ensureBackgroundPlugins();
 
-      await Firebase.initializeApp(
-        options: DefaultFirebaseOptions.currentPlatform,
-      );
-      final firestore = FirebaseFirestore.instance;
-      // The cloud_firestore package version in use doesn't expose a setter for
-      // `settings`. Rely on the package defaults for persistence/cache settings
-      // or configure them on the native side if required.
-      final executor = _BackgroundSyncExecutor(firestore: firestore);
+      final executor = _BackgroundSyncExecutor();
       final success = await executor.run();
       return success;
     } catch (error, stackTrace) {
@@ -159,13 +150,9 @@ class BackgroundSyncManager {
 }
 
 class _BackgroundSyncExecutor {
-  _BackgroundSyncExecutor({
-    required FirebaseFirestore firestore,
-    OfflineQueueEncryption? encryption,
-  }) : _firestore = firestore,
-       _encryption = encryption ?? OfflineQueueEncryption();
+  _BackgroundSyncExecutor({OfflineQueueEncryption? encryption})
+      : _encryption = encryption ?? OfflineQueueEncryption();
 
-  final FirebaseFirestore _firestore;
   final OfflineQueueEncryption _encryption;
 
   Future<bool> run() async {
@@ -175,6 +162,7 @@ class _BackgroundSyncExecutor {
     if (stored.isEmpty) {
       return true;
     }
+
     final operations = <QueuedOperation>[];
     bool mutated = false;
     for (final raw in stored) {
@@ -196,56 +184,18 @@ class _BackgroundSyncExecutor {
         mutated = true;
       }
     }
-    if (operations.isEmpty) {
-      if (mutated) {
-        await _persistQueue(prefs, const <QueuedOperation>[]);
-      }
+
+    if (!mutated) {
       return true;
     }
-    final remaining = <QueuedOperation>[];
-    var index = 0;
-    while (index < operations.length) {
-      final operation = operations[index];
-      try {
-        await _executeOperation(operation);
-        index++;
-      } catch (error, stackTrace) {
-        debugPrint(
-          'Background sync failed for ${operation.id}: $error\n$stackTrace',
-        );
-        remaining.addAll(operations.sublist(index));
-        break;
-      }
-    }
-    if (remaining.isEmpty && index == operations.length) {
-      await _persistQueue(prefs, const <QueuedOperation>[]);
-      return true;
-    }
-    await _persistQueue(prefs, remaining);
-    return false;
-  }
 
-  Future<void> _executeOperation(QueuedOperation operation) async {
-    switch (operation.type) {
-      case 'add':
-        final data = operation.toFirestoreData();
-        await _firestore.collection(operation.collectionPath).add(data);
-        return;
-      default:
-        throw UnsupportedError('Unsupported operation: ${operation.type}');
-    }
-  }
-
-  Future<void> _persistQueue(
-    SharedPreferences prefs,
-    List<QueuedOperation> queue,
-  ) async {
     final encoded = <String>[];
-    for (final op in queue) {
-      final encrypted = await _encryption.encryptPayload(op.toJson());
+    for (final operation in operations) {
+      final encrypted = await _encryption.encryptPayload(operation.toJson());
       encoded.add(encrypted);
     }
     await prefs.setStringList(SyncQueueService.storageKey, encoded);
+    return true;
   }
 }
 
