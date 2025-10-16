@@ -10,6 +10,7 @@ import 'package:restaurant_models/restaurant_models.dart';
 import '../../cart_provider.dart';
 import '../../checkout_page.dart';
 import '../../services/sync_queue_service.dart';
+import '../../table_selection_page.dart';
 import '../customer_header_widget.dart';
 class CartSummaryPanel extends StatefulWidget {
   const CartSummaryPanel({super.key});
@@ -432,6 +433,86 @@ class _CartSummaryPanelState extends State<CartSummaryPanel> {
     context.push('/cart');
   }
 
+  Future<void> _handleOrderTypeSelection(
+    OrderType type,
+    CartProvider cart,
+  ) async {
+    if (type == OrderType.dineIn) {
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => const TableSelectionPage(),
+        ),
+      );
+    } else if (type == OrderType.takeaway) {
+      await cart.selectTakeaway();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Switched to takeaway order.'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  Widget _buildOrderTypeSection(CartProvider cart) {
+    final theme = Theme.of(context);
+    final orderType = cart.orderType;
+    final orderIdentifier = cart.orderIdentifier;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Order Type',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 12,
+                children: [
+                  ChoiceChip(
+                    label: const Text('Dine-In'),
+                    selected: orderType == OrderType.dineIn,
+                    onSelected: (selected) async {
+                      if (!selected) return;
+                      await _handleOrderTypeSelection(OrderType.dineIn, cart);
+                    },
+                  ),
+                  ChoiceChip(
+                    label: const Text('Takeaway'),
+                    selected: orderType == OrderType.takeaway,
+                    onSelected: (selected) async {
+                      if (!selected) return;
+                      await _handleOrderTypeSelection(OrderType.takeaway, cart);
+                    },
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                orderIdentifier != null
+                    ? 'Current: $orderIdentifier'
+                    : 'No order type selected',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: Colors.grey.shade600,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const Divider(height: 1),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final cart = Provider.of<CartProvider>(context);
@@ -457,6 +538,7 @@ class _CartSummaryPanelState extends State<CartSummaryPanel> {
           Consumer<SyncQueueService>(
             builder: (context, syncQueue, child) => _buildSyncStatus(syncQueue),
           ),
+          _buildOrderTypeSection(cart),
           const CustomerHeaderWidget(),
           const Divider(height: 1),
           _buildPromotionSection(cart),
