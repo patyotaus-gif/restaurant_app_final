@@ -29,6 +29,7 @@ import 'stock_provider.dart';
 import 'store_provider.dart';
 import 'widgets/omise_card_tokenizer.dart';
 import 'widgets/payment_redirect_page.dart';
+
 class CheckoutPage extends StatefulWidget {
   final String orderId;
   final double totalAmount;
@@ -85,11 +86,6 @@ class CheckoutPage extends StatefulWidget {
   State<CheckoutPage> createState() => _CheckoutPageState();
 }
 
-/// Restores the legacy `module` accessor that older code paths rely on.
-extension _QrCodeModuleFallback on QrCode {
-  bool module(int row, int col) => isDark(row, col);
-}
-
 class _ReceiptQrImage extends StatelessWidget {
   const _ReceiptQrImage({
     required this.data,
@@ -113,9 +109,9 @@ class _ReceiptQrImage extends StatelessWidget {
       final moduleCount = qrCode.moduleCount;
       final modules = List<List<bool>>.generate(
         moduleCount,
-        (y) => List<bool>.generate(
+        (y) => List.generate(
           moduleCount,
-          (x) => qrCode.isDark(y, x),
+          (x) => qrCode.module(y, x) ?? false,
           growable: false,
         ),
         growable: false,
@@ -146,6 +142,10 @@ class _ReceiptQrImage extends StatelessWidget {
       );
     }
   }
+}
+
+extension on QrCode {
+  module(int y, int x) {}
 }
 
 class _QrMatrixPainter extends CustomPainter {
@@ -253,10 +253,7 @@ class _WindowsChargeEvaluation {
 }
 
 class _WindowsChargePollResult {
-  const _WindowsChargePollResult({
-    required this.charge,
-    this.metadata,
-  });
+  const _WindowsChargePollResult({required this.charge, this.metadata});
 
   final Map<String, dynamic> charge;
   final Map<String, dynamic>? metadata;
@@ -368,7 +365,9 @@ class _CheckoutPageState extends State<CheckoutPage> {
 
           if (SchedulerBinding.instance.schedulerPhase ==
               SchedulerPhase.persistentCallbacks) {
-            SchedulerBinding.instance.addPostFrameCallback((_) => applyUpdate());
+            SchedulerBinding.instance.addPostFrameCallback(
+              (_) => applyUpdate(),
+            );
           } else {
             applyUpdate();
           }
@@ -743,9 +742,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
                     );
                     if (!mounted) return;
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(l10n.checkoutCopyLinkSuccess),
-                      ),
+                      SnackBar(content: Text(l10n.checkoutCopyLinkSuccess)),
                     );
                   },
                   icon: const Icon(Icons.copy_all_outlined),
@@ -781,17 +778,17 @@ class _CheckoutPageState extends State<CheckoutPage> {
             const SizedBox(height: 8),
             ...widget.payments.map((payment) {
               final method = payment['method']?.toString();
-              final methodDisplay =
-                  (method == null || method.isEmpty)
-                      ? l10n.checkoutPaymentUnknownMethod
-                      : method;
+              final methodDisplay = (method == null || method.isEmpty)
+                  ? l10n.checkoutPaymentUnknownMethod
+                  : method;
               final amount = (payment['amount'] as num?)?.toDouble() ?? 0.0;
-              final baseAmount =
-                  (payment['baseAmount'] as num?)?.toDouble();
-              final currencyCode =
-                  (payment['currency'] as String?)?.toUpperCase();
-              final amountDisplay =
-                  currencyProvider.format(amount, currency: currencyCode);
+              final baseAmount = (payment['baseAmount'] as num?)?.toDouble();
+              final currencyCode = (payment['currency'] as String?)
+                  ?.toUpperCase();
+              final amountDisplay = currencyProvider.format(
+                amount,
+                currency: currencyCode,
+              );
               String? baseAmountDisplay;
               if (baseAmount != null &&
                   (currencyCode == null ||
@@ -824,9 +821,8 @@ class _CheckoutPageState extends State<CheckoutPage> {
                           if (baseAmountDisplay != null)
                             Text(
                               baseAmountDisplay,
-                              style: Theme.of(context)
-                                      .textTheme
-                                      .bodySmall
+                              style:
+                                  Theme.of(context).textTheme.bodySmall
                                       ?.copyWith(color: Colors.black54) ??
                                   const TextStyle(
                                     fontSize: 12,
@@ -966,23 +962,23 @@ class _CheckoutPageState extends State<CheckoutPage> {
       );
 
       await _orderRef.set({
-            'paymentStatus': 'invoiced',
-            'settlementType': 'houseAccount',
-            'invoiceToHouseAccount': true,
-            'houseAccountId': account.id,
-            'houseAccountChargeAmount': amount,
-            'houseAccount': {
-              'accountId': account.id,
-              'customerId': account.customerId,
-              'customerName': account.customerName,
-              'dueDate': Timestamp.fromDate(dueDate),
-              'statementDay': account.statementDay,
-              'paymentTermsDays': account.paymentTermsDays,
-            },
-            'outstandingBalance': 0.0,
-            'paidTotal': widget.totalAmount - amount,
-            'invoicedAt': Timestamp.now(),
-          }, SetOptions(merge: true));
+        'paymentStatus': 'invoiced',
+        'settlementType': 'houseAccount',
+        'invoiceToHouseAccount': true,
+        'houseAccountId': account.id,
+        'houseAccountChargeAmount': amount,
+        'houseAccount': {
+          'accountId': account.id,
+          'customerId': account.customerId,
+          'customerName': account.customerName,
+          'dueDate': Timestamp.fromDate(dueDate),
+          'statementDay': account.statementDay,
+          'paymentTermsDays': account.paymentTermsDays,
+        },
+        'outstandingBalance': 0.0,
+        'paidTotal': widget.totalAmount - amount,
+        'invoicedAt': Timestamp.now(),
+      }, SetOptions(merge: true));
 
       if (!mounted) return;
       setState(() {
@@ -1368,7 +1364,9 @@ class _CheckoutPageState extends State<CheckoutPage> {
           });
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Unable to process card payment: Omise public key is missing.'),
+              content: Text(
+                'Unable to process card payment: Omise public key is missing.',
+              ),
             ),
           );
         }
@@ -1382,8 +1380,9 @@ class _CheckoutPageState extends State<CheckoutPage> {
           });
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content:
-                  Text('Unable to process card payment: Omise secret key is missing.'),
+              content: Text(
+                'Unable to process card payment: Omise secret key is missing.',
+              ),
             ),
           );
         }
@@ -1436,9 +1435,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
       'displayCurrency': tenderCurrency,
       'baseAmount': outstanding,
       'displayAmount': convertedOutstanding,
-      'fxRate': outstanding == 0
-          ? 1.0
-          : convertedOutstanding / outstanding,
+      'fxRate': outstanding == 0 ? 1.0 : convertedOutstanding / outstanding,
     };
 
     final cardDetails = cardTokenResult?.card;
@@ -1505,9 +1502,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
         });
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(
-          SnackBar(content: Text('Payment failed: ${e.message}')),
-        );
+        ).showSnackBar(SnackBar(content: Text('Payment failed: ${e.message}')));
         return;
       } catch (e) {
         if (!mounted) return;
@@ -1535,9 +1530,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
         });
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(
-          SnackBar(content: Text('Payment failed: ${e.message}')),
-        );
+        ).showSnackBar(SnackBar(content: Text('Payment failed: ${e.message}')));
         return;
       } catch (e) {
         if (!mounted) return;
@@ -1589,9 +1582,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
           'currency': tenderCurrency,
           'baseAmount': outstanding,
           'baseCurrency': baseCurrency,
-          'fxRate': outstanding == 0
-              ? 1.0
-              : convertedOutstanding / outstanding,
+          'fxRate': outstanding == 0 ? 1.0 : convertedOutstanding / outstanding,
           'transactionId': paymentResult.transactionId,
           'processedAt': Timestamp.now(),
         },
@@ -1637,7 +1628,8 @@ class _CheckoutPageState extends State<CheckoutPage> {
 
     final status = (metadata['status'] as String?)?.toLowerCase();
     final authorized = metadata['authorized'];
-    final isWaitingFor3ds = gatewayType == PaymentGatewayType.creditDebitCard &&
+    final isWaitingFor3ds =
+        gatewayType == PaymentGatewayType.creditDebitCard &&
         (authorized == false ||
             (status != null &&
                 (status.contains('pending') ||
@@ -1645,7 +1637,8 @@ class _CheckoutPageState extends State<CheckoutPage> {
                     status.contains('await'))));
 
     final channel = (metadata['channel'] as String?)?.toLowerCase();
-    final isMobileBankingFlow = gatewayType == PaymentGatewayType.mobileBanking ||
+    final isMobileBankingFlow =
+        gatewayType == PaymentGatewayType.mobileBanking ||
         channel == 'app_transfer';
 
     if (!isWaitingFor3ds && !isMobileBankingFlow) {
@@ -1713,8 +1706,9 @@ class _CheckoutPageState extends State<CheckoutPage> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content:
-                  Text('กรุณายืนยันการชำระเงินในหน้าต่างธนาคารที่เปิดขึ้น'),
+              content: Text(
+                'กรุณายืนยันการชำระเงินในหน้าต่างธนาคารที่เปิดขึ้น',
+              ),
               duration: Duration(seconds: 5),
             ),
           );
@@ -1763,35 +1757,35 @@ class _CheckoutPageState extends State<CheckoutPage> {
       metadata['omiseMetadata'] = pollResult.metadata;
     }
 
-      final card = charge['card'];
-      Map<String, dynamic>? cardMap;
-      if (card is Map<String, dynamic>) {
-        cardMap = card;
-      } else if (card is Map) {
-        cardMap = Map<String, dynamic>.from(card);
+    final card = charge['card'];
+    Map<String, dynamic>? cardMap;
+    if (card is Map<String, dynamic>) {
+      cardMap = card;
+    } else if (card is Map) {
+      cardMap = Map<String, dynamic>.from(card);
+    }
+    if (cardMap != null) {
+      final brand = cardMap['brand'];
+      if (brand is String && brand.isNotEmpty) {
+        metadata['cardBrand'] = brand;
       }
-      if (cardMap != null) {
-        final brand = cardMap['brand'];
-        if (brand is String && brand.isNotEmpty) {
-          metadata['cardBrand'] = brand;
-        }
-        final lastDigits = cardMap['last_digits'];
-        if (lastDigits is String && lastDigits.isNotEmpty) {
-          metadata['cardLastDigits'] = lastDigits;
-        }
-        final holderName = cardMap['name'];
-        if (holderName is String && holderName.isNotEmpty) {
-          metadata['cardHolderName'] = holderName;
-        }
-        final expiryMonth = cardMap['expiration_month'];
-        if (expiryMonth is String && expiryMonth.isNotEmpty) {
-          metadata['cardExpiryMonth'] = expiryMonth;
-        }
-        final expiryYear = cardMap['expiration_year'];
-        if (expiryYear is String && expiryYear.isNotEmpty) {
-          metadata['cardExpiryYear'] = expiryYear;
-        }
+      final lastDigits = cardMap['last_digits'];
+      if (lastDigits is String && lastDigits.isNotEmpty) {
+        metadata['cardLastDigits'] = lastDigits;
       }
+      final holderName = cardMap['name'];
+      if (holderName is String && holderName.isNotEmpty) {
+        metadata['cardHolderName'] = holderName;
+      }
+      final expiryMonth = cardMap['expiration_month'];
+      if (expiryMonth is String && expiryMonth.isNotEmpty) {
+        metadata['cardExpiryMonth'] = expiryMonth;
+      }
+      final expiryYear = cardMap['expiration_year'];
+      if (expiryYear is String && expiryYear.isNotEmpty) {
+        metadata['cardExpiryYear'] = expiryYear;
+      }
+    }
 
     final receiptUrlValue = charge['receipt_url'];
     final receiptUrl = receiptUrlValue is String && receiptUrlValue.isNotEmpty
@@ -1809,8 +1803,9 @@ class _CheckoutPageState extends State<CheckoutPage> {
     String chargeId, {
     Duration timeout = const Duration(minutes: 5),
   }) async {
-    final docRef =
-        FirebaseFirestore.instance.collection('payments').doc(chargeId);
+    final docRef = FirebaseFirestore.instance
+        .collection('payments')
+        .doc(chargeId);
 
     final completer = Completer<_WindowsChargePollResult>();
     late final StreamSubscription<DocumentSnapshot<Map<String, dynamic>>> sub;
@@ -1910,9 +1905,8 @@ class _CheckoutPageState extends State<CheckoutPage> {
       normalizedCharge['refunded'] ?? normalizedCharge['refunded_amount'],
     );
     final reversed = _coerceToBool(normalizedCharge['reversed']);
-    final voided = _coerceToBool(
-          normalizedCharge['voided'] ?? normalizedCharge['void'],
-        ) ==
+    final voided =
+        _coerceToBool(normalizedCharge['voided'] ?? normalizedCharge['void']) ==
         true;
     final failureCode = normalizedCharge['failure_code'] ?? data['failureCode'];
     final failureMessage =
@@ -1941,18 +1935,19 @@ class _CheckoutPageState extends State<CheckoutPage> {
 
     final hasFailure =
         refunded == true ||
-            reversed == true ||
-            voided ||
-            failureCode != null ||
-            (status != null && failureStatuses.contains(status)) ||
-            (authorized == false && status != null &&
-                failureStatuses.contains(status));
+        reversed == true ||
+        voided ||
+        failureCode != null ||
+        (status != null && failureStatuses.contains(status)) ||
+        (authorized == false &&
+            status != null &&
+            failureStatuses.contains(status));
 
     if (hasFailure) {
       final message = (failureMessage is String && failureMessage.isNotEmpty)
           ? failureMessage
           : 'การยืนยัน 3-D Secure ไม่สำเร็จ'
-              ' (${(status ?? 'failed').toUpperCase()})';
+                ' (${(status ?? 'failed').toUpperCase()})';
       return _WindowsChargeEvaluation.failure(
         charge: normalizedCharge,
         metadata: metadata,
@@ -1960,7 +1955,8 @@ class _CheckoutPageState extends State<CheckoutPage> {
       );
     }
 
-    final hasSuccess = paid == true ||
+    final hasSuccess =
+        paid == true ||
         captured == true ||
         (authorized == true && failureCode == null) ||
         (status != null && successStatuses.contains(status));
@@ -2022,9 +2018,8 @@ class _CheckoutPageState extends State<CheckoutPage> {
     final paymentService = context.watch<PaymentGatewayService>();
     final currencyProvider = context.watch<CurrencyProvider>();
     final theme = Theme.of(context);
-    final labelStyle = theme.textTheme.titleMedium?.copyWith(
-          fontWeight: FontWeight.bold,
-        ) ??
+    final labelStyle =
+        theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold) ??
         const TextStyle(fontSize: 18, fontWeight: FontWeight.bold);
     final helperStyle = theme.textTheme.bodySmall;
     final config = paymentService.activeConfig;
@@ -2033,11 +2028,11 @@ class _CheckoutPageState extends State<CheckoutPage> {
     final secretKey = config?.secretKey ?? additional['secretKey'] as String?;
     final defaultSource = additional['defaultSourceType'] as String?;
     final tenderCurrency = currencyProvider.displayCurrency;
-    final tenderRate =
-        currencyProvider.quotedRates[tenderCurrency] ?? 1.0;
+    final tenderRate = currencyProvider.quotedRates[tenderCurrency] ?? 1.0;
     final lastSynced = currencyProvider.lastSynced;
-    final rateFormatter =
-        context.read<LocaleProvider>().decimalFormatter(decimalDigits: 4);
+    final rateFormatter = context.read<LocaleProvider>().decimalFormatter(
+      decimalDigits: 4,
+    );
 
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 12),
@@ -2099,6 +2094,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
       ),
     );
   }
+
   Widget _buildPrinterCard() {
     final labelStyle =
         Theme.of(
@@ -2230,10 +2226,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
   }) async {
     StockProvider? stockProvider;
     try {
-      stockProvider = Provider.of<StockProvider>(
-        context,
-        listen: false,
-      );
+      stockProvider = Provider.of<StockProvider>(context, listen: false);
     } catch (_) {
       stockProvider = null;
     }
@@ -2295,13 +2288,17 @@ class _CheckoutPageState extends State<CheckoutPage> {
             padding: const EdgeInsets.all(24.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
+              children: <Widget>[
                 Text(
                   'Secure Checkout',
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  style:
+                      Theme.of(context).textTheme.headlineSmall?.copyWith(
                         fontWeight: FontWeight.bold,
                       ) ??
-                      const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                      const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                      ),
                 ),
                 if (merchantName != null)
                   Padding(
@@ -2361,8 +2358,9 @@ class _CheckoutPageState extends State<CheckoutPage> {
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
                           : const Icon(Icons.print),
-                      label:
-                          Text(_isPrintingEscPos ? 'Printing...' : 'Print Receipt'),
+                      label: Text(
+                        _isPrintingEscPos ? 'Printing...' : 'Print Receipt',
+                      ),
                       style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 20,
@@ -2379,13 +2377,15 @@ class _CheckoutPageState extends State<CheckoutPage> {
                               height: 20,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
-                                valueColor:
-                                    AlwaysStoppedAnimation<Color>(Colors.white),
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  Colors.white,
+                                ),
                               ),
                             )
                           : const Icon(Icons.check_circle),
-                      label:
-                          Text(_isConfirming ? 'Processing...' : 'Confirm Payment'),
+                      label: Text(
+                        _isConfirming ? 'Processing...' : 'Confirm Payment',
+                      ),
                       style: ElevatedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 24,
@@ -2419,14 +2419,11 @@ class _CheckoutPageState extends State<CheckoutPage> {
                       ],
                     ),
                   ),
-                ],
-              ),
+              ],
             ),
           );
         },
       ),
     );
   }
-
-
 }
