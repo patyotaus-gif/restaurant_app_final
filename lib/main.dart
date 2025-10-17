@@ -1120,7 +1120,6 @@ class MyApp extends StatelessWidget {
                               : 1.0;
                       final scaledChild = MediaQuery(
                         data: mediaQuery.copyWith(
-                          textScaleFactor: safeScale,
                           textScaler: TextScaler.linear(safeScale),
                           boldText:
                               accessibility.highContrast || mediaQuery.boldText,
