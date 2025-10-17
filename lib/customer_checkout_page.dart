@@ -3,12 +3,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:qr_flutter/qr_flutter.dart';
 import 'package:restaurant_models/restaurant_models.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'cart_provider.dart';
 import 'services/sync_queue_service.dart';
-import 'utils/promptpay_qr_generator.dart';
 class CustomerCheckoutPage extends StatefulWidget {
   final String tableNumber;
   final Map<String, CartItem> cart;
@@ -78,15 +77,6 @@ class _CustomerCheckoutPageState extends State<CustomerCheckoutPage> {
           ),
         ],
       ),
-    );
-  }
-
-  String _generatePromptPayPayload(double amount) {
-    const promptPayId = '0812345678';
-    return PromptPayQrGenerator.generate(
-      promptPayId: promptPayId,
-      amount: amount,
-      merchantName: 'Self-Checkout',
     );
   }
 
@@ -179,7 +169,6 @@ class _CustomerCheckoutPageState extends State<CustomerCheckoutPage> {
 
   @override
   Widget build(BuildContext context) {
-    final qrData = _generatePromptPayPayload(widget.totalAmount);
     return Scaffold(
       appBar: AppBar(
         title: Text('Checkout for Table ${widget.tableNumber}'),
@@ -190,23 +179,58 @@ class _CustomerCheckoutPageState extends State<CustomerCheckoutPage> {
           return SingleChildScrollView(
             padding: const EdgeInsets.all(24.0),
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 _buildSyncBanner(syncQueue),
-                const Text(
-                  'Scan QR to Pay',
-                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 20),
                 Card(
-                  elevation: 8,
-                  child: QrImageView(
-                    data: qrData,
-                    version: QrVersions.auto,
-                    size: 250.0,
-                    backgroundColor: Colors.white,
+                  elevation: 0,
+                  color: Colors.green.shade50,
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Card payments powered by omise-node',
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ) ??
+                              const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Our staff will present a secure Omise terminal to complete your payment. Once the transaction succeeds, tap confirm to notify the system.',
+                          style: Theme.of(context).textTheme.bodyMedium,
+                        ),
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: TextButton.icon(
+                            onPressed: () async {
+                              final uri = Uri.parse('https://github.com/omise/omise-node');
+                              final launched = await launchUrl(
+                                uri,
+                                mode: LaunchMode.externalApplication,
+                              );
+                              if (!launched && mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Unable to open Omise documentation.'),
+                                  ),
+                                );
+                              }
+                            },
+                            icon: const Icon(Icons.open_in_new),
+                            label: const Text('Learn about omise-node'),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-                const SizedBox(height: 30),
+                const SizedBox(height: 20),
                 Text(
                   'Total Amount: ${widget.totalAmount.toStringAsFixed(2)} บาท',
                   style: const TextStyle(
@@ -214,7 +238,7 @@ class _CustomerCheckoutPageState extends State<CustomerCheckoutPage> {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                const SizedBox(height: 40),
+                const SizedBox(height: 24),
                 const Text('Enter your phone number for a digital receipt:'),
                 const SizedBox(height: 8),
                 TextField(
@@ -230,8 +254,17 @@ class _CustomerCheckoutPageState extends State<CustomerCheckoutPage> {
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton.icon(
-                    icon: const Icon(Icons.check_circle),
-                    label: const Text('I HAVE PAID - CONFIRM'),
+                    icon: _isLoading
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            ),
+                          )
+                        : const Icon(Icons.check_circle),
+                    label: Text(_isLoading ? 'Processing...' : 'Confirm Payment'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.green,
                       foregroundColor: Colors.white,
