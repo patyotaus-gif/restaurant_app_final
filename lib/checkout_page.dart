@@ -111,9 +111,9 @@ class _ReceiptQrImage extends StatelessWidget {
         errorCorrectLevel: QrErrorCorrectLevel.M,
       );
       final moduleCount = qrCode.moduleCount;
-      final modules = List.generate(
+      final modules = List<List<bool>>.generate(
         moduleCount,
-        (y) => List.generate(
+        (y) => List<bool>.generate(
           moduleCount,
           (x) => qrCode.isDark(y, x),
           growable: false,
