@@ -85,6 +85,11 @@ class CheckoutPage extends StatefulWidget {
   State<CheckoutPage> createState() => _CheckoutPageState();
 }
 
+/// Restores the legacy `module` accessor that older code paths rely on.
+extension _QrCodeModuleFallback on QrCode {
+  bool module(int row, int col) => isDark(row, col);
+}
+
 class _ReceiptQrImage extends StatelessWidget {
   const _ReceiptQrImage({
     required this.data,
