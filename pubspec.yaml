@@ -81,6 +81,7 @@ dependencies:
   restaurant_models:
     path: packages/restaurant_models
   package_info_plus: ^8.0.0
+  qr: ^3.0.2
 
 dev_dependencies:
   flutter_test:
