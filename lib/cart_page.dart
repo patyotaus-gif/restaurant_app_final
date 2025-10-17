@@ -450,6 +450,19 @@ class _CartPageState extends State<CartPage> {
       return;
     }
 
+    final syncQueue = context.read<SyncQueueService>();
+    if (syncQueue.pendingCount > 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Checkout unavailable while ${syncQueue.pendingCount} pending '
+            'order(s) finish syncing. Please wait or tap Retry.',
+          ),
+        ),
+      );
+      return;
+    }
+
     setState(() {
       _isCheckoutInProgress = true;
     });
@@ -457,8 +470,7 @@ class _CartPageState extends State<CartPage> {
     try {
       final orderData = _prepareOrderData(cart);
       if (orderData == null) return;
-      final syncQueue = context.read<SyncQueueService>();
-
+      
       if (!syncQueue.isOnline) {
         await syncQueue.enqueueAdd('orders', orderData);
         if (!mounted) return;
