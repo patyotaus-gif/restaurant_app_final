@@ -1111,9 +1111,17 @@ class MyApp extends StatelessWidget {
                       );
                     case AppAvailabilityStatus.available:
                       final mediaQuery = MediaQuery.of(context);
+                      final baseScale = mediaQuery.textScaler.scale(1.0);
+                      final targetScale =
+                          baseScale * accessibility.textScaleFactor;
+                      final safeScale =
+                          targetScale.isFinite && targetScale > 0.0
+                              ? targetScale
+                              : 1.0;
                       final scaledChild = MediaQuery(
                         data: mediaQuery.copyWith(
-                          textScaleFactor: accessibility.textScaleFactor,
+                          textScaleFactor: safeScale,
+                          textScaler: TextScaler.linear(safeScale),
                           boldText:
                               accessibility.highContrast || mediaQuery.boldText,
                         ),
