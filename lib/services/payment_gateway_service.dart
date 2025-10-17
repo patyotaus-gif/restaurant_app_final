@@ -735,7 +735,7 @@ class BillPaymentAdapter extends PaymentGatewayAdapter {
 /// them to the Flutter widget tree via Provider.
 class PaymentGatewayService with ChangeNotifier {
   PaymentGatewayService({
-    PaymentGatewayType initialGateway = PaymentGatewayType.stripe,
+    PaymentGatewayType initialGateway = PaymentGatewayType.creditDebitCard,
     Map<PaymentGatewayType, PaymentGatewayConfig>? configs,
     PaymentsService? paymentsService,
   })  : _configs = Map<PaymentGatewayType, PaymentGatewayConfig>.from(
@@ -753,7 +753,7 @@ class PaymentGatewayService with ChangeNotifier {
   PaymentGatewayConfig? get activeConfig => _configs[activeGateway];
 
   List<PaymentGatewayType> get supportedGateways =>
-      PaymentGatewayType.values.toList(growable: false);
+      const [PaymentGatewayType.creditDebitCard];
 
   Future<PaymentResult> processPayment(PaymentRequest request) async {
     final result = await _adapter.processPayment(request);
