@@ -47,7 +47,7 @@ class AppTheme {
     AppColorTokens colorTokens,
   ) {
     final scale = accessibility.largeText ? 1.08 : 1.0;
-    final textTheme = base.textTheme.apply(fontSizeFactor: scale);
+    final textTheme = _scaleTextTheme(base.textTheme, scale);
     const spacingTokens = AppSpacingTokens.regular;
     const radiusTokens = AppRadiusTokens.regular;
     const durationTokens = AppDurationTokens.regular;
@@ -98,6 +98,41 @@ class AppTheme {
         radiusTokens,
         durationTokens,
       ],
+    );
+  }
+
+  static TextTheme _scaleTextTheme(TextTheme base, double scale) {
+    if (scale == 1.0) {
+      return base;
+    }
+
+    TextStyle? scaleStyle(TextStyle? style) {
+      if (style == null) {
+        return null;
+      }
+      final fontSize = style.fontSize;
+      if (fontSize == null) {
+        return style;
+      }
+      return style.copyWith(fontSize: fontSize * scale);
+    }
+
+    return base.copyWith(
+      displayLarge: scaleStyle(base.displayLarge),
+      displayMedium: scaleStyle(base.displayMedium),
+      displaySmall: scaleStyle(base.displaySmall),
+      headlineLarge: scaleStyle(base.headlineLarge),
+      headlineMedium: scaleStyle(base.headlineMedium),
+      headlineSmall: scaleStyle(base.headlineSmall),
+      titleLarge: scaleStyle(base.titleLarge),
+      titleMedium: scaleStyle(base.titleMedium),
+      titleSmall: scaleStyle(base.titleSmall),
+      bodyLarge: scaleStyle(base.bodyLarge),
+      bodyMedium: scaleStyle(base.bodyMedium),
+      bodySmall: scaleStyle(base.bodySmall),
+      labelLarge: scaleStyle(base.labelLarge),
+      labelMedium: scaleStyle(base.labelMedium),
+      labelSmall: scaleStyle(base.labelSmall),
     );
   }
 
