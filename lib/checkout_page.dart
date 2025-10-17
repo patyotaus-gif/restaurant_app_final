@@ -12,6 +12,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:qr/qr.dart';
 import 'package:restaurant_models/restaurant_models.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -82,6 +83,117 @@ class CheckoutPage extends StatefulWidget {
 
   @override
   State<CheckoutPage> createState() => _CheckoutPageState();
+}
+
+class _ReceiptQrImage extends StatelessWidget {
+  const _ReceiptQrImage({
+    required this.data,
+    this.size = 180,
+    this.color = Colors.black,
+    this.backgroundColor = Colors.white,
+  });
+
+  final String data;
+  final double size;
+  final Color color;
+  final Color backgroundColor;
+
+  @override
+  Widget build(BuildContext context) {
+    try {
+      final qrCode = QrCode.fromData(
+        data: data,
+        errorCorrectLevel: QrErrorCorrectLevel.M,
+      );
+      final moduleCount = qrCode.moduleCount;
+      final modules = List.generate(
+        moduleCount,
+        (y) => List.generate(
+          moduleCount,
+          (x) => qrCode.isDark(y, x),
+          growable: false,
+        ),
+        growable: false,
+      );
+
+      return SizedBox(
+        width: size,
+        height: size,
+        child: CustomPaint(
+          painter: _QrMatrixPainter(
+            modules: modules,
+            color: color,
+            backgroundColor: backgroundColor,
+          ),
+        ),
+      );
+    } catch (_) {
+      return Container(
+        width: size,
+        height: size,
+        color: backgroundColor,
+        alignment: Alignment.center,
+        child: Text(
+          'ไม่สามารถสร้าง QR ได้',
+          style: Theme.of(context).textTheme.bodySmall,
+          textAlign: TextAlign.center,
+        ),
+      );
+    }
+  }
+}
+
+class _QrMatrixPainter extends CustomPainter {
+  const _QrMatrixPainter({
+    required this.modules,
+    required this.color,
+    required this.backgroundColor,
+  });
+
+  final List<List<bool>> modules;
+  final Color color;
+  final Color backgroundColor;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final backgroundPaint = Paint()..color = backgroundColor;
+    canvas.drawRect(Offset.zero & size, backgroundPaint);
+
+    final moduleCount = modules.length;
+    if (moduleCount == 0) {
+      return;
+    }
+
+    final modulePaint = Paint()..color = color;
+    final double dimension = size.shortestSide;
+    final double pixelSize = dimension / moduleCount;
+    final double qrExtent = pixelSize * moduleCount;
+    final double horizontalInset = (size.width - qrExtent) / 2;
+    final double verticalInset = (size.height - qrExtent) / 2;
+
+    for (var y = 0; y < moduleCount; y++) {
+      final row = modules[y];
+      for (var x = 0; x < moduleCount; x++) {
+        if (!row[x]) {
+          continue;
+        }
+        final rect = Rect.fromLTWH(
+          horizontalInset + x * pixelSize,
+          verticalInset + y * pixelSize,
+          pixelSize,
+          pixelSize,
+        );
+        canvas.drawRect(rect, modulePaint);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _QrMatrixPainter oldDelegate) {
+    return !identical(modules, oldDelegate.modules) ||
+        color != oldDelegate.color ||
+        backgroundColor != oldDelegate.backgroundColor;
+  }
 }
 
 enum _WindowsChargeState { pending, success, failure }
@@ -605,10 +717,10 @@ class _CheckoutPageState extends State<CheckoutPage> {
               ),
               const SizedBox(height: 12),
               Center(
-                child: QrImageView(
+                child: _ReceiptQrImage(
                   data: _generatedReceiptUrl!,
-                  version: QrVersions.auto,
                   size: 180,
+                  color: Colors.black,
                   backgroundColor: Colors.white,
                 ),
               ),
@@ -934,7 +1046,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
               )
             else
               DropdownButtonFormField<HouseAccount>(
-                value:
+                initialValue:
                     _selectedHouseAccount != null &&
                         _houseAccounts.any(
                           (acc) => acc.id == _selectedHouseAccount!.id,
@@ -1049,6 +1161,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
   }
 
   Future<void> _handleReceiptPreview() async {
+    final storeProvider = context.read<StoreProvider>();
     try {
       final orderDoc = await FirebaseFirestore.instance
           .collection('orders')
@@ -1057,7 +1170,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
       if (!orderDoc.exists) {
         throw Exception('Order not found!');
       }
-      final store = context.read<StoreProvider>().activeStore;
+      final store = storeProvider.activeStore;
       if (store == null) {
         throw Exception('Store information not available');
       }
@@ -1102,6 +1215,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
   }
 
   Future<void> _generateDigitalReceipt() async {
+    final storeProvider = context.read<StoreProvider>();
     if (_includeTaxInvoice && _customerNameController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('กรุณากรอกชื่อสำหรับใบกำกับภาษี')),
@@ -1131,7 +1245,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
         throw Exception('Order not found');
       }
 
-      final store = context.read<StoreProvider>().activeStore;
+      final store = storeProvider.activeStore;
       if (store == null) {
         throw Exception('Store information not available');
       }
@@ -1644,30 +1758,35 @@ class _CheckoutPageState extends State<CheckoutPage> {
       metadata['omiseMetadata'] = pollResult.metadata;
     }
 
-    final card = charge['card'];
-    if (card is Map) {
-      final cardMap = Map<String, dynamic>.from(card as Map);
-      final brand = cardMap['brand'];
-      if (brand is String && brand.isNotEmpty) {
-        metadata['cardBrand'] = brand;
+      final card = charge['card'];
+      Map<String, dynamic>? cardMap;
+      if (card is Map<String, dynamic>) {
+        cardMap = card;
+      } else if (card is Map) {
+        cardMap = Map<String, dynamic>.from(card);
       }
-      final lastDigits = cardMap['last_digits'];
-      if (lastDigits is String && lastDigits.isNotEmpty) {
-        metadata['cardLastDigits'] = lastDigits;
+      if (cardMap != null) {
+        final brand = cardMap['brand'];
+        if (brand is String && brand.isNotEmpty) {
+          metadata['cardBrand'] = brand;
+        }
+        final lastDigits = cardMap['last_digits'];
+        if (lastDigits is String && lastDigits.isNotEmpty) {
+          metadata['cardLastDigits'] = lastDigits;
+        }
+        final holderName = cardMap['name'];
+        if (holderName is String && holderName.isNotEmpty) {
+          metadata['cardHolderName'] = holderName;
+        }
+        final expiryMonth = cardMap['expiration_month'];
+        if (expiryMonth is String && expiryMonth.isNotEmpty) {
+          metadata['cardExpiryMonth'] = expiryMonth;
+        }
+        final expiryYear = cardMap['expiration_year'];
+        if (expiryYear is String && expiryYear.isNotEmpty) {
+          metadata['cardExpiryYear'] = expiryYear;
+        }
       }
-      final holderName = cardMap['name'];
-      if (holderName is String && holderName.isNotEmpty) {
-        metadata['cardHolderName'] = holderName;
-      }
-      final expiryMonth = cardMap['expiration_month'];
-      if (expiryMonth is String && expiryMonth.isNotEmpty) {
-        metadata['cardExpiryMonth'] = expiryMonth;
-      }
-      final expiryYear = cardMap['expiration_year'];
-      if (expiryYear is String && expiryYear.isNotEmpty) {
-        metadata['cardExpiryYear'] = expiryYear;
-      }
-    }
 
     final receiptUrlValue = charge['receipt_url'];
     final receiptUrl = receiptUrlValue is String && receiptUrlValue.isNotEmpty
@@ -1690,7 +1809,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
 
     final completer = Completer<_WindowsChargePollResult>();
     late final StreamSubscription<DocumentSnapshot<Map<String, dynamic>>> sub;
-    Timer? timer;
+    late final Timer timer;
 
     void resolvePending(DocumentSnapshot<Map<String, dynamic>> snapshot) {
       final data = snapshot.data();
@@ -1751,7 +1870,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
       return await completer.future;
     } finally {
       await sub.cancel();
-      timer?.cancel();
+      timer.cancel();
     }
   }
 
@@ -1763,15 +1882,19 @@ class _CheckoutPageState extends State<CheckoutPage> {
     if (rawCharge is Map<String, dynamic>) {
       charge = rawCharge;
     } else if (rawCharge is Map) {
-      charge = Map<String, dynamic>.from(rawCharge as Map);
+      charge = Map<String, dynamic>.from(rawCharge);
     }
 
     final normalizedCharge = charge != null
         ? Map<String, dynamic>.from(charge)
         : Map<String, dynamic>.from(data);
-    final metadata = data['metadata'] is Map
-        ? Map<String, dynamic>.from(data['metadata'] as Map)
-        : null;
+    Map<String, dynamic>? metadata;
+    final rawMetadata = data['metadata'];
+    if (rawMetadata is Map<String, dynamic>) {
+      metadata = rawMetadata;
+    } else if (rawMetadata is Map) {
+      metadata = Map<String, dynamic>.from(rawMetadata);
+    }
 
     final statusValue = normalizedCharge['status'] ?? data['status'];
     final status = statusValue is String ? statusValue.toLowerCase() : null;
@@ -1822,7 +1945,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
 
     if (hasFailure) {
       final message = (failureMessage is String && failureMessage.isNotEmpty)
-          ? failureMessage as String
+          ? failureMessage
           : 'การยืนยัน 3-D Secure ไม่สำเร็จ'
               ' (${(status ?? 'failed').toUpperCase()})';
       return _WindowsChargeEvaluation.failure(
@@ -2032,6 +2155,8 @@ class _CheckoutPageState extends State<CheckoutPage> {
   Future<void> _printViaEscPos() async {
     final printerIp = _printerIpController.text.trim();
     final printerPort = int.tryParse(_printerPortController.text.trim());
+    final storeProvider = context.read<StoreProvider>();
+    final spooler = context.read<PrintSpoolerService>();
 
     if (printerIp.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -2054,12 +2179,11 @@ class _CheckoutPageState extends State<CheckoutPage> {
         throw Exception('Order not found');
       }
 
-      final store = context.read<StoreProvider>().activeStore;
+      final store = storeProvider.activeStore;
       if (store == null) {
         throw Exception('Store information not available');
       }
 
-      final spooler = context.read<PrintSpoolerService>();
       await spooler.enqueueReceipt(
         host: printerIp,
         port: printerPort ?? 9100,
@@ -2099,6 +2223,16 @@ class _CheckoutPageState extends State<CheckoutPage> {
     DocumentReference<Map<String, dynamic>> orderRef, {
     required String successMessage,
   }) async {
+    StockProvider? stockProvider;
+    try {
+      stockProvider = Provider.of<StockProvider>(
+        context,
+        listen: false,
+      );
+    } catch (_) {
+      stockProvider = null;
+    }
+
     final orderSnapshot = await orderRef.get();
     final data = orderSnapshot.data();
 
@@ -2106,12 +2240,8 @@ class _CheckoutPageState extends State<CheckoutPage> {
       final usage = (data['ingredientUsage'] as List<dynamic>?) ?? [];
       final stockDeducted = data['stockDeducted'] == true;
 
-      if (usage.isNotEmpty && !stockDeducted) {
+      if (usage.isNotEmpty && !stockDeducted && stockProvider != null) {
         try {
-          final stockProvider = Provider.of<StockProvider>(
-            context,
-            listen: false,
-          );
           await stockProvider.deductIngredientsFromUsage(usage);
           await orderRef.update({'stockDeducted': true});
         } catch (e) {
@@ -2174,7 +2304,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
                     child: Text(
                       merchantCity != null
                           ? '$merchantName • $merchantCity'
-                          : merchantName!,
+                          : merchantName ?? '',
                       style: Theme.of(context).textTheme.bodyMedium,
                     ),
                   ),
