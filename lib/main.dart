@@ -19,6 +19,8 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
 import 'package:restaurant_models/restaurant_models.dart';
 import 'package:url_strategy/url_strategy.dart';
+import 'package:webview_flutter_platform_interface/webview_flutter_platform_interface.dart';
+import 'package:webview_flutter_windows/webview_flutter_windows.dart';
 
 import 'localization/app_localizations.dart';
 
@@ -685,6 +687,13 @@ Future<void> main() async {
       configureBackgroundSync(
         rootIsolateToken: ServicesBinding.rootIsolateToken,
       );
+      if (!kIsWeb && defaultTargetPlatform == TargetPlatform.windows) {
+        try {
+          WebViewPlatform.instance = WebViewWindows();
+        } catch (error) {
+          debugPrint('Failed to initialize Windows web view: $error');
+        }
+      }
       debugPrint('Launching Restaurant App (${FlavorConfig.flavorName})');
       ensureBackgroundPlugins = () {
         DartPluginRegistrant.ensureInitialized();
