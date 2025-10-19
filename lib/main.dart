@@ -226,21 +226,27 @@ Future<void> _initializePaymentGateways(
       defaultSourceType = OmiseKeys.defaultSourceType;
     }
 
-    if (publicKey.isEmpty || secretKey.isEmpty) {
+    if (publicKey.isEmpty) {
       debugPrint(
-        'Skipping Omise configuration because API credentials are missing.',
+        'Skipping Omise configuration because the public key is missing.',
       );
       return;
+    }
+
+    if (secretKey.isEmpty) {
+      debugPrint(
+        'Omise secret key was not provided; proceeding with public key only.',
+      );
     }
 
     service.updateConfig(
       PaymentGatewayType.omise,
       PaymentGatewayConfig(
         apiKey: publicKey,
-        secretKey: secretKey,
+        secretKey: secretKey.isNotEmpty ? secretKey : null,
         additionalData: <String, dynamic>{
           'publicKey': publicKey,
-          'secretKey': secretKey,
+          if (secretKey.isNotEmpty) 'secretKey': secretKey,
           if (defaultSourceType.isNotEmpty)
             'defaultSourceType': defaultSourceType,
         },
@@ -251,10 +257,10 @@ Future<void> _initializePaymentGateways(
       PaymentGatewayType.creditDebitCard,
       PaymentGatewayConfig(
         apiKey: publicKey,
-        secretKey: secretKey,
+        secretKey: secretKey.isNotEmpty ? secretKey : null,
         additionalData: <String, dynamic>{
           'publicKey': publicKey,
-          'secretKey': secretKey,
+          if (secretKey.isNotEmpty) 'secretKey': secretKey,
           'provider': 'omise',
           if (defaultSourceType.isNotEmpty)
             'defaultSourceType': defaultSourceType,
