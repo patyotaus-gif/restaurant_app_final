@@ -7,11 +7,11 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_remote_config/firebase_remote_config.dart';
-import 'package:flutter/src/widgets/binding.dart' show DartPluginRegistrant;
 import 'package:flutter/foundation.dart'
     show TargetPlatform, debugPrint, defaultTargetPlatform, kIsWeb;
 import 'package:flutter/services.dart' show ServicesBinding;
 import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart' show DartPluginRegistrant;
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -19,8 +19,6 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
 import 'package:restaurant_models/restaurant_models.dart';
 import 'package:url_strategy/url_strategy.dart';
-import 'package:webview_flutter_platform_interface/webview_flutter_platform_interface.dart';
-import 'package:webview_flutter_windows/webview_flutter_windows.dart';
 
 import 'localization/app_localizations.dart';
 
@@ -688,11 +686,10 @@ Future<void> main() async {
         rootIsolateToken: ServicesBinding.rootIsolateToken,
       );
       if (!kIsWeb && defaultTargetPlatform == TargetPlatform.windows) {
-        try {
-          WebViewPlatform.instance = WebViewWindows();
-        } catch (error) {
-          debugPrint('Failed to initialize Windows web view: $error');
-        }
+        debugPrint(
+          'Windows WebView initialization skipped because the platform '
+          'implementation is unavailable.',
+        );
       }
       debugPrint('Launching Restaurant App (${FlavorConfig.flavorName})');
       ensureBackgroundPlugins = () {
