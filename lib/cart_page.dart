@@ -10,6 +10,7 @@ import 'cart_provider.dart';
 import 'checkout_page.dart';
 import 'services/sync_queue_service.dart';
 import 'widgets/manager_approval_dialog.dart';
+
 class CartPage extends StatefulWidget {
   const CartPage({super.key});
 
@@ -399,7 +400,7 @@ class _CartPageState extends State<CartPage> {
                   Padding(
                     padding: const EdgeInsets.only(top: 4.0),
                     child: Text(
-                      details!,
+                      details,
                       style: const TextStyle(
                         fontSize: 12,
                         color: Colors.black54,
@@ -470,7 +471,7 @@ class _CartPageState extends State<CartPage> {
     try {
       final orderData = _prepareOrderData(cart);
       if (orderData == null) return;
-      
+
       if (!syncQueue.isOnline) {
         await syncQueue.enqueueAdd('orders', orderData);
         if (!mounted) return;
@@ -1103,7 +1104,9 @@ class _CartPageState extends State<CartPage> {
                                 ),
                                 trailing: Text(
                                   '+ ${cart.serviceChargeAmount.toStringAsFixed(2)} บาท',
-                                  style: const TextStyle(color: Colors.deepOrange),
+                                  style: const TextStyle(
+                                    color: Colors.deepOrange,
+                                  ),
                                 ),
                               ),
                             if (cart.tipAmount > 0)
@@ -1112,7 +1115,9 @@ class _CartPageState extends State<CartPage> {
                                 title: const Text('Tip'),
                                 trailing: Text(
                                   '+ ${cart.tipAmount.toStringAsFixed(2)} บาท',
-                                  style: const TextStyle(color: Colors.deepOrange),
+                                  style: const TextStyle(
+                                    color: Colors.deepOrange,
+                                  ),
                                 ),
                               ),
                             const Divider(),
@@ -1134,7 +1139,8 @@ class _CartPageState extends State<CartPage> {
                                 ),
                               ),
                             ),
-                            if (cart.giftCardAmount > 0 || cart.storeCreditAmount > 0)
+                            if (cart.giftCardAmount > 0 ||
+                                cart.storeCreditAmount > 0)
                               ListTile(
                                 contentPadding: EdgeInsets.zero,
                                 title: const Text('Paid so far'),
@@ -1152,7 +1158,9 @@ class _CartPageState extends State<CartPage> {
                                 ),
                                 trailing: Text(
                                   '${cart.amountDueAfterCredits.toStringAsFixed(2)} บาท',
-                                  style: const TextStyle(color: Colors.deepPurple),
+                                  style: const TextStyle(
+                                    color: Colors.deepPurple,
+                                  ),
                                 ),
                               ),
                           ],
@@ -1223,8 +1231,9 @@ class _CartPageState extends State<CartPage> {
                                         modifiers: cartItem.selectedModifiers,
                                       );
                                       if (!success) {
-                                        ScaffoldMessenger.of(context)
-                                            .showSnackBar(
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
                                           const SnackBar(
                                             content: Text(
                                               'สินค้าในสต็อกไม่เพียงพอ!',
@@ -1268,8 +1277,9 @@ class _CartPageState extends State<CartPage> {
                         const SizedBox(width: 12),
                       Expanded(
                         child: ElevatedButton(
-                          onPressed:
-                              _isCheckoutInProgress ? null : () => _goToCheckout(cart),
+                          onPressed: _isCheckoutInProgress
+                              ? null
+                              : () => _goToCheckout(cart),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.green,
                             foregroundColor: Colors.white,
@@ -1287,8 +1297,8 @@ class _CartPageState extends State<CartPage> {
                                         strokeWidth: 2,
                                         valueColor:
                                             const AlwaysStoppedAnimation<Color>(
-                                          Colors.white,
-                                        ),
+                                              Colors.white,
+                                            ),
                                       ),
                                     ),
                                     const SizedBox(width: 12),

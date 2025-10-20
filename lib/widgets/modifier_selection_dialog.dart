@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:restaurant_models/restaurant_models.dart';
 
 import '../admin/modifier_management_page.dart';
+
 class ModifierSelectionDialog extends StatefulWidget {
   final Product product;
 
@@ -224,11 +225,12 @@ class _ModifierSelectionDialogState extends State<ModifierSelectionDialog> {
         FutureBuilder<List<ModifierGroup>>(
           future: _modifierGroupsFuture,
           builder: (context, snapshot) {
-            if (!snapshot.hasData)
+            if (!snapshot.hasData) {
               return const ElevatedButton(
                 onPressed: null,
                 child: Text('Add to Cart'),
               );
+            }
             return ElevatedButton(
               onPressed: () => _confirmAndAddToCart(snapshot.data!),
               child: const Text('Add to Cart'),

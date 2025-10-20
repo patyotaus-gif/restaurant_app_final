@@ -3,9 +3,10 @@ import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'gift_card_model.dart';
+
 class GiftCardService {
   GiftCardService({FirebaseFirestore? firestore})
-    : _firestore = firestore ?? FirebaseFirestore.instance;
+      : _firestore = firestore ?? FirebaseFirestore.instance;
 
   final FirebaseFirestore _firestore;
   final _random = Random.secure();
@@ -16,10 +17,8 @@ class GiftCardService {
   Future<GiftCard?> findByCode(String code) async {
     if (code.isEmpty) return null;
     final normalized = code.toUpperCase().trim();
-    final result = await _collection
-        .where('code', isEqualTo: normalized)
-        .limit(1)
-        .get();
+    final result =
+        await _collection.where('code', isEqualTo: normalized).limit(1).get();
     if (result.docs.isEmpty) return null;
     return GiftCard.fromFirestore(result.docs.first);
   }
@@ -53,7 +52,7 @@ class GiftCardService {
       if (!snapshot.exists) {
         throw Exception('Gift card not found');
       }
-      final data = snapshot.data() as Map<String, dynamic>? ?? {};
+      final data = snapshot.data() ?? {};
       final balance = (data['balance'] as num?)?.toDouble() ?? 0.0;
       if (sanitized > balance + 0.001) {
         throw Exception('Insufficient gift card balance');
@@ -82,7 +81,7 @@ class GiftCardService {
         await _firestore.runTransaction((transaction) async {
           final docRef = _collection.doc(existing.id);
           final snapshot = await transaction.get(docRef);
-          final data = snapshot.data() as Map<String, dynamic>? ?? {};
+          final data = snapshot.data() ?? {};
           final balance = (data['balance'] as num?)?.toDouble() ?? 0.0;
           transaction.update(docRef, {
             'balance': balance + sanitized,

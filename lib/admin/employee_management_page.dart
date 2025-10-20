@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:restaurant_models/restaurant_models.dart';
+
 class EmployeeManagementPage extends StatefulWidget {
   const EmployeeManagementPage({super.key});
 
@@ -89,11 +90,12 @@ class _EmployeeManagementPageState extends State<EmployeeManagementPage> {
 
                   if (isNew) {
                     _firestore.collection('employees').add(employeeData);
-                  } else
+                  } else {
                     _firestore
                         .collection('employees')
                         .doc(employee.id)
                         .update(employeeData);
+                  }
 
                   Navigator.of(context).pop();
                 }

@@ -13,6 +13,7 @@ import 'admin/modifier_management_page.dart';
 import 'barcode_scanner_page.dart';
 
 import 'services/firestore_converters.dart';
+
 class EditProductPage extends StatefulWidget {
   final Product? product;
 
@@ -258,7 +259,7 @@ class _EditProductPageState extends State<EditProductPage> {
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
-                value: _selectedCategory,
+                initialValue: _selectedCategory,
                 decoration: const InputDecoration(
                   labelText: 'Category',
                   border: OutlineInputBorder(),
@@ -370,7 +371,7 @@ class _EditProductPageState extends State<EditProductPage> {
               const SizedBox(height: 24),
               _buildSectionHeader('Inventory & Type'),
               DropdownButtonFormField<ProductType>(
-                value: _productType,
+                initialValue: _productType,
                 decoration: const InputDecoration(
                   labelText: 'Product Type',
                   border: OutlineInputBorder(),
@@ -585,7 +586,7 @@ class _EditProductPageState extends State<EditProductPage> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   DropdownButtonFormField<String>(
-                    value: selectedIngredientId,
+                    initialValue: selectedIngredientId,
                     decoration: const InputDecoration(labelText: 'Ingredient'),
                     items: _availableIngredients
                         .map(

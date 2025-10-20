@@ -93,8 +93,9 @@ class _ObservabilityPageState extends State<ObservabilityPage> {
                             }
                           });
                         },
-                        selectedColor:
-                            Theme.of(context).colorScheme.primaryContainer,
+                        selectedColor: Theme.of(
+                          context,
+                        ).colorScheme.primaryContainer,
                       ),
                   ],
                 ),
@@ -208,10 +209,9 @@ class _OverviewCard extends StatelessWidget {
                 Expanded(
                   child: Text(
                     'Live log stream',
-                    style: Theme.of(context)
-                        .textTheme
-                        .titleMedium
-                        ?.copyWith(fontWeight: FontWeight.bold),
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
                 Text('Total: $total entries'),
@@ -293,9 +293,7 @@ class _LogList extends StatelessWidget {
                       child: Text(
                         '[${entry.level.name.toUpperCase()}] '
                         '${entry.timestamp.toIso8601String()}',
-                        style: Theme.of(context)
-                            .textTheme
-                            .labelMedium
+                        style: Theme.of(context).textTheme.labelMedium
                             ?.copyWith(fontWeight: FontWeight.bold),
                       ),
                     ),
@@ -312,10 +310,9 @@ class _LogList extends StatelessWidget {
                   const SizedBox(height: 8),
                   Text(
                     entry.error!,
-                    style: Theme.of(context)
-                        .textTheme
-                        .bodyMedium
-                        ?.copyWith(color: Theme.of(context).colorScheme.error),
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Theme.of(context).colorScheme.error,
+                    ),
                   ),
                 ],
                 if (entry.context != null) ...[
@@ -328,16 +325,16 @@ class _LogList extends StatelessWidget {
                     width: double.infinity,
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color:
-                          Theme.of(context).colorScheme.surfaceVariant,
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.surfaceContainerHighest,
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
                       entry.stackTrace!,
-                      style: Theme.of(context)
-                          .textTheme
-                          .bodySmall
-                          ?.copyWith(fontFamily: 'monospace'),
+                      style: Theme.of(
+                        context,
+                      ).textTheme.bodySmall?.copyWith(fontFamily: 'monospace'),
                     ),
                   ),
                 ],
@@ -362,7 +359,7 @@ class _ContextViewer extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceVariant,
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(8),
       ),
       child: Column(
@@ -370,16 +367,16 @@ class _ContextViewer extends StatelessWidget {
         children: [
           Text(
             'Context',
-            style: Theme.of(context)
-                .textTheme
-                .labelMedium
-                ?.copyWith(fontWeight: FontWeight.bold),
+            style: Theme.of(
+              context,
+            ).textTheme.labelMedium?.copyWith(fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 4),
           Text(
             encoder.convert(contextMap),
-            style:
-                Theme.of(context).textTheme.bodySmall?.copyWith(fontFamily: 'monospace'),
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(fontFamily: 'monospace'),
           ),
         ],
       ),

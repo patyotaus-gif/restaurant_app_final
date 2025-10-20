@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 import '../widgets/form_field_row.dart';
+
 // --- Data Models (Helper classes for this page) ---
 class ModifierOption {
   String optionName;
@@ -109,7 +110,7 @@ class _ModifierManagementPageState extends State<ModifierManagementPage> {
                       onChanged: (value) => group.groupName = value,
                     ),
                     DropdownButtonFormField<String>(
-                      value: group.selectionType,
+                      initialValue: group.selectionType,
                       decoration: const InputDecoration(
                         labelText: 'Selection Type',
                       ),
@@ -168,14 +169,12 @@ class _ModifierManagementPageState extends State<ModifierManagementPage> {
                           ),
                           onPressed: () {
                             if (group.options.length > 1) {
-                              stfSetState(
-                                () => group.options.removeAt(index),
-                              );
+                              stfSetState(() => group.options.removeAt(index));
                             }
                           },
                         ),
                       );
-                    }).toList(),
+                    }),
                     TextButton.icon(
                       icon: const Icon(Icons.add),
                       label: const Text('Add Option'),

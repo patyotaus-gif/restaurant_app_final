@@ -7,6 +7,7 @@ import 'package:restaurant_models/restaurant_models.dart';
 
 import 'auth_service.dart';
 import 'stock_provider.dart';
+
 class RefundableItem {
   final Map<String, dynamic> originalItem;
   int refundQuantity = 0;
@@ -397,7 +398,7 @@ class _ItemRefundPageState extends State<ItemRefundPage> {
             ),
             const SizedBox(height: 8),
             DropdownButtonFormField<String>(
-              value: _refundMethod,
+              initialValue: _refundMethod,
               items: [
                 const DropdownMenuItem(
                   value: 'cash',
@@ -412,7 +413,7 @@ class _ItemRefundPageState extends State<ItemRefundPage> {
                   enabled: hasCustomer,
                   child: Text(
                     hasCustomer
-                        ? 'Store Credit (${customerName})'
+                        ? 'Store Credit ($customerName)'
                         : 'Store Credit (customer required)',
                   ),
                 ),
@@ -466,7 +467,7 @@ class _ItemRefundPageState extends State<ItemRefundPage> {
               Padding(
                 padding: const EdgeInsets.only(top: 12.0),
                 child: Text(
-                  'Refund will be added to ${customerName}\'s store credit.',
+                  'Refund will be added to $customerName\'s store credit.',
                   style: const TextStyle(fontSize: 12, color: Colors.black54),
                 ),
               ),

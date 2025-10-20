@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'services/tax_service.dart';
 import 'stock_provider.dart';
+
 enum OrderType { dineIn, takeaway, retail }
 
 class CartItem {
@@ -92,9 +93,7 @@ class CartProvider with ChangeNotifier {
   HouseAccount? get selectedHouseAccount => _selectedHouseAccount;
   DateTime? get houseAccountDueDate =>
       _customHouseAccountDueDate ??
-      (_selectedHouseAccount != null
-          ? _selectedHouseAccount!.calculateDueDate(DateTime.now())
-          : null);
+      (_selectedHouseAccount?.calculateDueDate(DateTime.now()));
 
   double get prepTimeSlaMinutes {
     double maxPrep = 0;
@@ -229,9 +228,6 @@ class CartProvider with ChangeNotifier {
       if (cartItem.recipe.isEmpty) continue;
 
       for (final recipeEntry in cartItem.recipe) {
-        if (recipeEntry is! Map<String, dynamic>) {
-          continue;
-        }
         final ingredientId = recipeEntry['ingredientId'] as String?;
         if (ingredientId == null || ingredientId.isEmpty) {
           continue;
@@ -534,8 +530,9 @@ class CartProvider with ChangeNotifier {
   }
 
   Future<String> redeemPunchCardReward(PunchCardCampaign campaign) async {
-    if (_discountType != 'none')
+    if (_discountType != 'none') {
       return "Cannot redeem reward while another discount is active.";
+    }
     if (_customer == null) return "No customer selected.";
 
     CartItem? itemToDiscount;
@@ -593,9 +590,7 @@ class CartProvider with ChangeNotifier {
 
   void setServiceChargeRate(double rate) {
     final normalizedRate = rate.clamp(0.0, 1.0);
-    final normalizedDouble = normalizedRate is double
-        ? normalizedRate
-        : (normalizedRate as num).toDouble();
+    final normalizedDouble = normalizedRate;
     if (_serviceChargeRate == normalizedDouble) return;
     _serviceChargeRate = normalizedDouble;
     notifyListeners();

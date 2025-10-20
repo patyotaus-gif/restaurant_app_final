@@ -14,6 +14,7 @@ import '../stock_provider.dart';
 import '../store_provider.dart';
 import '../widgets/permission_gate.dart';
 import 'plugins/plugin_provider.dart';
+
 class StoreManagementPage extends StatefulWidget {
   const StoreManagementPage({super.key});
 
@@ -432,7 +433,7 @@ class _StoreManagementPageState extends State<StoreManagementPage> {
                                     ).colorScheme.primaryContainer
                                   : Theme.of(
                                       context,
-                                    ).colorScheme.surfaceVariant,
+                                    ).colorScheme.surfaceContainerHighest,
                             ),
                           );
                         },
@@ -526,7 +527,7 @@ class _StoreManagementPageState extends State<StoreManagementPage> {
                       ),
                       const SizedBox(height: 4),
                       DropdownButtonFormField<String>(
-                        value: baseCurrency,
+                        initialValue: baseCurrency,
                         items: baseOptions
                             .map(
                               (code) => DropdownMenuItem<String>(
@@ -567,7 +568,7 @@ class _StoreManagementPageState extends State<StoreManagementPage> {
                       ),
                       const SizedBox(height: 4),
                       DropdownButtonFormField<String>(
-                        value: displayCurrency,
+                        initialValue: displayCurrency,
                         items: supported
                             .map(
                               (code) => DropdownMenuItem<String>(
@@ -786,7 +787,7 @@ class _StoreManagementPageState extends State<StoreManagementPage> {
                   children: [
                     if (available.isNotEmpty)
                       DropdownButtonFormField<String>(
-                        value: selected,
+                        initialValue: selected,
                         decoration: const InputDecoration(
                           labelText: 'Common currencies',
                         ),

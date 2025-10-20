@@ -8,6 +8,7 @@ import 'package:intl/intl.dart';
 import 'package:restaurant_models/restaurant_models.dart';
 
 import 'services/query_edge_filter.dart';
+
 class KitchenDisplayPage extends StatefulWidget {
   const KitchenDisplayPage({super.key, this.initialStationId});
 
@@ -30,8 +31,10 @@ class _KitchenDisplayPageState extends State<KitchenDisplayPage> {
   void initState() {
     super.initState();
     _selectedStationId = widget.initialStationId;
-    _edgeRefreshTimer =
-        Timer.periodic(const Duration(minutes: 5), (_) => _refreshEdge());
+    _edgeRefreshTimer = Timer.periodic(
+      const Duration(minutes: 5),
+      (_) => _refreshEdge(),
+    );
   }
 
   @override
@@ -69,10 +72,7 @@ class _KitchenDisplayPageState extends State<KitchenDisplayPage> {
     return FirebaseFirestore.instance
         .collection('orders')
         .where('status', isEqualTo: 'preparing')
-        .edgeFilter(
-          field: 'timestamp',
-          startAt: lowerBound,
-        )
+        .edgeFilter(field: 'timestamp', startAt: lowerBound)
         .orderBy('timestamp', descending: false)
         .limit(_kdsDisplayLimit);
   }
@@ -418,26 +418,26 @@ class _OrderCardState extends State<_OrderCard> {
                 child: ListView.builder(
                   itemCount: filteredItems.length,
                   itemBuilder: (context, index) {
-                  final item = filteredItems[index] as Map<String, dynamic>;
-                  final bool isComplete = item['isComplete'] ?? false;
-                  final List<dynamic> modifiers =
-                      item['selectedModifiers'] ?? const [];
-                  final modifierWidgets = modifiers.map((mod) {
-                    return Padding(
-                      padding: const EdgeInsets.only(left: 24.0, top: 2.0),
-                      child: Text(
-                        "- ${mod['optionName']}",
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: isComplete ? Colors.white38 : Colors.white70,
-                          fontStyle: FontStyle.italic,
-                          decoration: isComplete
-                              ? TextDecoration.lineThrough
-                              : TextDecoration.none,
+                    final item = filteredItems[index];
+                    final bool isComplete = item['isComplete'] ?? false;
+                    final List<dynamic> modifiers =
+                        item['selectedModifiers'] ?? const [];
+                    final modifierWidgets = modifiers.map((mod) {
+                      return Padding(
+                        padding: const EdgeInsets.only(left: 24.0, top: 2.0),
+                        child: Text(
+                          "- ${mod['optionName']}",
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: isComplete ? Colors.white38 : Colors.white70,
+                            fontStyle: FontStyle.italic,
+                            decoration: isComplete
+                                ? TextDecoration.lineThrough
+                                : TextDecoration.none,
+                          ),
                         ),
-                      ),
-                    );
-                  }).toList();
+                      );
+                    }).toList();
 
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -665,9 +665,7 @@ class _StationSelectorSkeleton extends StatelessWidget {
         children: [
           _SkeletonBox(width: 28, height: 28, borderRadius: 14),
           SizedBox(width: 12),
-          Expanded(
-            child: _SkeletonBox(height: 36, borderRadius: 12),
-          ),
+          Expanded(child: _SkeletonBox(height: 36, borderRadius: 12)),
           SizedBox(width: 12),
           _SkeletonBox(width: 80, height: 14),
         ],
@@ -677,11 +675,7 @@ class _StationSelectorSkeleton extends StatelessWidget {
 }
 
 class _SkeletonBox extends StatelessWidget {
-  const _SkeletonBox({
-    this.height = 16,
-    this.width,
-    this.borderRadius = 8,
-  });
+  const _SkeletonBox({this.height = 16, this.width, this.borderRadius = 8});
 
   final double height;
   final double? width;

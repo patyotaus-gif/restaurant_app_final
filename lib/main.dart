@@ -11,7 +11,6 @@ import 'package:flutter/foundation.dart'
     show TargetPlatform, debugPrint, defaultTargetPlatform, kIsWeb;
 import 'package:flutter/services.dart' show ServicesBinding;
 import 'package:flutter/material.dart';
-import 'package:flutter/widgets.dart' show DartPluginRegistrant;
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -116,16 +115,17 @@ CustomTransitionPage<void> _buildTransitionPage({required Widget child}) {
         reverseCurve: Curves.easeInCubic,
       );
 
-      final slideAnimation = Tween<Offset>(
-        begin: const Offset(0.05, 0.02),
-        end: Offset.zero,
-      ).animate(
-        CurvedAnimation(
-          parent: animation,
-          curve: Curves.easeOutCubic,
-          reverseCurve: Curves.easeInCubic,
-        ),
-      );
+      final slideAnimation =
+          Tween<Offset>(
+            begin: const Offset(0.05, 0.02),
+            end: Offset.zero,
+          ).animate(
+            CurvedAnimation(
+              parent: animation,
+              curve: Curves.easeOutCubic,
+              reverseCurve: Curves.easeInCubic,
+            ),
+          );
 
       final scaleAnimation = Tween<double>(begin: 0.98, end: 1).animate(
         CurvedAnimation(
@@ -139,10 +139,7 @@ CustomTransitionPage<void> _buildTransitionPage({required Widget child}) {
         opacity: fadeAnimation,
         child: SlideTransition(
           position: slideAnimation,
-          child: ScaleTransition(
-            scale: scaleAnimation,
-            child: child,
-          ),
+          child: ScaleTransition(scale: scaleAnimation, child: child),
         ),
       );
     },
@@ -212,8 +209,7 @@ Future<void> _initializePaymentGateways(
 
       publicKey = remoteConfig.getString('omise_public_key');
       secretKey = remoteConfig.getString('omise_secret_key');
-      defaultSourceType =
-          remoteConfig.getString('omise_default_source_type');
+      defaultSourceType = remoteConfig.getString('omise_default_source_type');
     }
 
     if (publicKey.isEmpty) {
@@ -980,10 +976,7 @@ class MyApp extends StatelessWidget {
           create: (_) {
             final service = PaymentGatewayService();
             unawaited(
-              _initializePaymentGateways(
-                service,
-                remoteConfig: remoteConfig,
-              ),
+              _initializePaymentGateways(service, remoteConfig: remoteConfig),
             );
             return service;
           },
@@ -1128,8 +1121,8 @@ class MyApp extends StatelessWidget {
                           baseScale * accessibility.textScaleFactor;
                       final safeScale =
                           targetScale.isFinite && targetScale > 0.0
-                              ? targetScale
-                              : 1.0;
+                          ? targetScale
+                          : 1.0;
                       final scaledChild = MediaQuery(
                         data: mediaQuery.copyWith(
                           textScaler: TextScaler.linear(safeScale),

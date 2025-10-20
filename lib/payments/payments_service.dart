@@ -5,7 +5,7 @@ import 'package:cloud_functions/cloud_functions.dart';
 /// smallest unit (for example, satang for THB).
 class PaymentsService {
   PaymentsService({FirebaseFunctions? functions})
-      : _functions = functions ?? FirebaseFunctions.instance;
+    : _functions = functions ?? FirebaseFunctions.instance;
 
   static const Duration _defaultTimeout = Duration(seconds: 30);
 
@@ -96,8 +96,10 @@ class PaymentsService {
       if (customerId != null) 'customerId': customerId,
     };
 
-    final data =
-        await _invokeFunction('createOmiseMobileBankingCharge', payload);
+    final data = await _invokeFunction(
+      'createOmiseMobileBankingCharge',
+      payload,
+    );
     return PaymentsChargeResult.fromJson(data);
   }
 
@@ -112,12 +114,10 @@ class PaymentsService {
       );
       final result = await callable.call<Map<String, dynamic>>(payload);
       final data = result.data;
-      if (data == null) {
-        throw const PaymentsServiceException('Cloud Functions returned null.');
-      }
       return Map<String, dynamic>.from(data);
     } on FirebaseFunctionsException catch (error) {
-      final message = error.message ??
+      final message =
+          error.message ??
           'Cloud Functions request "$name" failed with code ${error.code}';
       throw PaymentsServiceException(message, details: error.details);
     } catch (error) {
@@ -131,10 +131,7 @@ class PaymentsService {
 /// Data transfer object that wraps the Omise charge (and optional source)
 /// returned by payment Cloud Functions.
 class PaymentsChargeResult {
-  const PaymentsChargeResult({
-    required this.charge,
-    this.source,
-  });
+  const PaymentsChargeResult({required this.charge, this.source});
 
   factory PaymentsChargeResult.fromJson(Map<String, dynamic> json) {
     final charge = json['charge'];
@@ -146,10 +143,8 @@ class PaymentsChargeResult {
 
     final source = json['source'];
     return PaymentsChargeResult(
-      charge: Map<String, dynamic>.from(charge as Map),
-      source: source is Map
-          ? Map<String, dynamic>.from(source as Map)
-          : null,
+      charge: Map<String, dynamic>.from(charge),
+      source: source is Map ? Map<String, dynamic>.from(source) : null,
     );
   }
 
@@ -168,5 +163,6 @@ class PaymentsServiceException implements Exception {
   final Object? details;
 
   @override
-  String toString() => 'PaymentsServiceException(message: $message, details: $details)';
+  String toString() =>
+      'PaymentsServiceException(message: $message, details: $details)';
 }

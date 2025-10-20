@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import 'package:restaurant_models/restaurant_models.dart';
 
 import 'widgets/app_snack_bar.dart';
+
 class ClockInOutPage extends StatefulWidget {
   const ClockInOutPage({super.key});
 
@@ -102,8 +103,9 @@ class _ClockInOutPageState extends State<ClockInOutPage> {
       body: StreamBuilder<QuerySnapshot>(
         stream: _firestore.collection('employees').orderBy('name').snapshots(),
         builder: (context, snapshot) {
-          if (!snapshot.hasData)
+          if (!snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
+          }
 
           final employees = snapshot.data!.docs
               .map((doc) => Employee.fromFirestore(doc))
@@ -141,7 +143,7 @@ class _ClockInOutPageState extends State<ClockInOutPage> {
                     title: Text(employee.name),
                     subtitle: Text(
                       isClockedIn
-                          ? 'Clocked in at ${DateFormat('HH:mm').format(latestRecord!.clockInTime.toDate())}'
+                          ? 'Clocked in at ${DateFormat('HH:mm').format(latestRecord.clockInTime.toDate())}'
                           : 'Clocked Out',
                       style: TextStyle(
                         color: isClockedIn

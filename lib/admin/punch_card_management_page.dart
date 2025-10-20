@@ -3,6 +3,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:restaurant_models/restaurant_models.dart';
+
 class PunchCardManagementPage extends StatefulWidget {
   const PunchCardManagementPage({super.key});
 
@@ -98,7 +99,7 @@ class _PunchCardManagementPageState extends State<PunchCardManagementPage> {
                   } else {
                     _firestore
                         .collection('punch_card_campaigns')
-                        .doc(campaign!.id)
+                        .doc(campaign.id)
                         .update(data);
                   }
                   Navigator.of(context).pop();
@@ -122,10 +123,12 @@ class _PunchCardManagementPageState extends State<PunchCardManagementPage> {
             .orderBy('name')
             .snapshots(),
         builder: (context, snapshot) {
-          if (!snapshot.hasData)
+          if (!snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
-          if (snapshot.data!.docs.isEmpty)
+          }
+          if (snapshot.data!.docs.isEmpty) {
             return const Center(child: Text('No campaigns found.'));
+          }
 
           final campaigns = snapshot.data!.docs
               .map((doc) => PunchCardCampaign.fromFirestore(doc))

@@ -55,18 +55,14 @@ class PaymentRedirectLauncher {
       );
       if (!launched && context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('ไม่สามารถเปิดลิงก์ ${uri.toString()} ได้'),
-          ),
+          SnackBar(content: Text('ไม่สามารถเปิดลิงก์ ${uri.toString()} ได้')),
         );
       }
       return launched;
     } catch (error) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('เกิดข้อผิดพลาดในการเปิดลิงก์: $error'),
-          ),
+          SnackBar(content: Text('เกิดข้อผิดพลาดในการเปิดลิงก์: $error')),
         );
       }
       return false;
@@ -129,8 +125,7 @@ class _PaymentRedirectPageState extends State<_PaymentRedirectPage> {
             },
             onNavigationRequest: (request) {
               final uri = Uri.tryParse(request.url);
-              if (uri != null &&
-                  !PaymentRedirectLauncher._isHttpScheme(uri)) {
+              if (uri != null && !PaymentRedirectLauncher._isHttpScheme(uri)) {
                 // Launch non-http(s) URLs using the platform handler to support
                 // app redirects (e.g. SCB Easy deep links).
                 unawaited(
@@ -169,10 +164,7 @@ class _PaymentRedirectPageState extends State<_PaymentRedirectPage> {
           return;
         }
         unawaited(
-          PaymentRedirectLauncher._launchExternal(
-            context,
-            widget.initialUrl,
-          ),
+          PaymentRedirectLauncher._launchExternal(context, widget.initialUrl),
         );
       });
     }
@@ -298,11 +290,7 @@ class _WebViewUnavailableMessage extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(
-              Icons.open_in_new,
-              size: 48,
-              color: Colors.blueAccent,
-            ),
+            const Icon(Icons.open_in_new, size: 48, color: Colors.blueAccent),
             const SizedBox(height: 16),
             Text(
               'เปิดหน้ายืนยันการชำระเงินในเบราว์เซอร์ภายนอก',
@@ -319,7 +307,7 @@ class _WebViewUnavailableMessage extends StatelessWidget {
             if (initializationError != null) ...[
               const SizedBox(height: 12),
               Text(
-                'รายละเอียด: ${initializationError}',
+                'รายละเอียด: $initializationError',
                 style: theme.textTheme.bodySmall,
                 textAlign: TextAlign.center,
               ),
@@ -328,10 +316,7 @@ class _WebViewUnavailableMessage extends StatelessWidget {
             FilledButton.icon(
               onPressed: () {
                 unawaited(
-                  PaymentRedirectLauncher._launchExternal(
-                    context,
-                    initialUrl,
-                  ),
+                  PaymentRedirectLauncher._launchExternal(context, initialUrl),
                 );
               },
               icon: const Icon(Icons.open_in_new),

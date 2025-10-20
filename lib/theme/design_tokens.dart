@@ -195,17 +195,17 @@ class AppSpacingTokens extends ThemeExtension<AppSpacingTokens> {
       return this;
     }
 
-    double _lerp(double a, double b) => a + (b - a) * t;
+    double lerp(double a, double b) => a + (b - a) * t;
 
     return AppSpacingTokens(
-      xxxs: _lerp(xxxs, other.xxxs),
-      xxs: _lerp(xxs, other.xxs),
-      xs: _lerp(xs, other.xs),
-      s: _lerp(s, other.s),
-      m: _lerp(m, other.m),
-      l: _lerp(l, other.l),
-      xl: _lerp(xl, other.xl),
-      xxl: _lerp(xxl, other.xxl),
+      xxxs: lerp(xxxs, other.xxxs),
+      xxs: lerp(xxs, other.xxs),
+      xs: lerp(xs, other.xs),
+      s: lerp(s, other.s),
+      m: lerp(m, other.m),
+      l: lerp(l, other.l),
+      xl: lerp(xl, other.xl),
+      xxl: lerp(xxl, other.xxl),
     );
   }
 }
@@ -260,13 +260,13 @@ class AppRadiusTokens extends ThemeExtension<AppRadiusTokens> {
       return this;
     }
 
-    double _lerp(double a, double b) => a + (b - a) * t;
+    double lerp(double a, double b) => a + (b - a) * t;
 
     return AppRadiusTokens(
-      small: _lerp(small, other.small),
-      medium: _lerp(medium, other.medium),
-      large: _lerp(large, other.large),
-      extraLarge: _lerp(extraLarge, other.extraLarge),
+      small: lerp(small, other.small),
+      medium: lerp(medium, other.medium),
+      large: lerp(large, other.large),
+      extraLarge: lerp(extraLarge, other.extraLarge),
     );
   }
 }
@@ -316,7 +316,7 @@ class AppDurationTokens extends ThemeExtension<AppDurationTokens> {
       return this;
     }
 
-    Duration _lerp(Duration a, Duration b) {
+    Duration lerp(Duration a, Duration b) {
       final microseconds =
           (a.inMicroseconds + (b.inMicroseconds - a.inMicroseconds) * t)
               .round();
@@ -324,10 +324,10 @@ class AppDurationTokens extends ThemeExtension<AppDurationTokens> {
     }
 
     return AppDurationTokens(
-      instant: _lerp(instant, other.instant),
-      short: _lerp(short, other.short),
-      medium: _lerp(medium, other.medium),
-      long: _lerp(long, other.long),
+      instant: lerp(instant, other.instant),
+      short: lerp(short, other.short),
+      medium: lerp(medium, other.medium),
+      long: lerp(long, other.long),
     );
   }
 }
@@ -336,8 +336,7 @@ extension ThemeDesignTokens on BuildContext {
   AppColorTokens get colors =>
       Theme.of(this).extension<AppColorTokens>() ?? AppColorTokens.light;
   AppSpacingTokens get spacing =>
-      Theme.of(this).extension<AppSpacingTokens>() ??
-      AppSpacingTokens.regular;
+      Theme.of(this).extension<AppSpacingTokens>() ?? AppSpacingTokens.regular;
   AppRadiusTokens get radii =>
       Theme.of(this).extension<AppRadiusTokens>() ?? AppRadiusTokens.regular;
   AppDurationTokens get durations =>

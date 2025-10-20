@@ -542,7 +542,7 @@ class QaPlaybook {
     List<String> tags = const <String>[],
     required this.revisions,
   }) : _manualTags = List.unmodifiable(tags),
-       assert(revisions.length > 0, 'QaPlaybook must have at least 1 revision');
+       assert(revisions.isNotEmpty, 'QaPlaybook must have at least 1 revision');
 
   final String title;
   final String owner;

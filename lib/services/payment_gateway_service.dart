@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import '../payments/payments_service.dart';
+
 /// Supported payment gateways for the POS checkout flow.
 enum PaymentGatewayType {
   stripe,
@@ -117,7 +118,7 @@ abstract class PaymentGatewayAdapter {
 }
 
 class StripePaymentAdapter extends PaymentGatewayAdapter {
-  StripePaymentAdapter(PaymentGatewayConfig? config) : super(config);
+  StripePaymentAdapter(super.config);
 
   @override
   PaymentGatewayType get type => PaymentGatewayType.stripe;
@@ -151,7 +152,7 @@ class StripePaymentAdapter extends PaymentGatewayAdapter {
 }
 
 class SquarePaymentAdapter extends PaymentGatewayAdapter {
-  SquarePaymentAdapter(PaymentGatewayConfig? config) : super(config);
+  SquarePaymentAdapter(super.config);
 
   @override
   PaymentGatewayType get type => PaymentGatewayType.square;
@@ -185,7 +186,7 @@ class SquarePaymentAdapter extends PaymentGatewayAdapter {
 }
 
 class AdyenPaymentAdapter extends PaymentGatewayAdapter {
-  AdyenPaymentAdapter(PaymentGatewayConfig? config) : super(config);
+  AdyenPaymentAdapter(super.config);
 
   @override
   PaymentGatewayType get type => PaymentGatewayType.adyen;
@@ -220,10 +221,7 @@ class AdyenPaymentAdapter extends PaymentGatewayAdapter {
 }
 
 class CreditDebitCardPaymentAdapter extends PaymentGatewayAdapter {
-  CreditDebitCardPaymentAdapter(
-    PaymentGatewayConfig? config,
-    this._paymentsService,
-  ) : super(config);
+  CreditDebitCardPaymentAdapter(super.config, this._paymentsService);
 
   static const String _fallbackReturnUri =
       'https://restaurant-pos.web.app/payments/omise-return';
@@ -275,7 +273,8 @@ class CreditDebitCardPaymentAdapter extends PaymentGatewayAdapter {
       );
 
       final chargeData = chargeResult.charge;
-      final transactionId = chargeResult.chargeId ?? chargeData['id'] as String?;
+      final transactionId =
+          chargeResult.chargeId ?? chargeData['id'] as String?;
       if (transactionId == null || transactionId.isEmpty) {
         throw PaymentGatewayException(
           'Omise card charge is missing a transaction identifier.',
@@ -314,7 +313,8 @@ class CreditDebitCardPaymentAdapter extends PaymentGatewayAdapter {
       }
 
       final authorizeUri =
-          chargeResult.authorizeUri ?? _stringOrNull(chargeData['authorize_uri']);
+          chargeResult.authorizeUri ??
+          _stringOrNull(chargeData['authorize_uri']);
       if (authorizeUri != null) {
         metadata['authorizeUri'] = authorizeUri;
       }
@@ -382,10 +382,7 @@ class CreditDebitCardPaymentAdapter extends PaymentGatewayAdapter {
 }
 
 class PromptPayPaymentAdapter extends PaymentGatewayAdapter {
-  PromptPayPaymentAdapter(
-    PaymentGatewayConfig? config,
-    this._paymentsService,
-  ) : super(config);
+  PromptPayPaymentAdapter(super.config, this._paymentsService);
 
   final PaymentsService _paymentsService;
 
@@ -464,8 +461,7 @@ class PromptPayPaymentAdapter extends PaymentGatewayAdapter {
         metadata['sourceType'] = source['type'];
       }
 
-      final receiptUrl =
-          _stringOrNull(charge['receipt_url']) ?? authorizeUri;
+      final receiptUrl = _stringOrNull(charge['receipt_url']) ?? authorizeUri;
 
       return PaymentResult.success(
         transactionId: transactionId,
@@ -490,10 +486,7 @@ class PromptPayPaymentAdapter extends PaymentGatewayAdapter {
 }
 
 class MobileBankingPaymentAdapter extends PaymentGatewayAdapter {
-  MobileBankingPaymentAdapter(
-    PaymentGatewayConfig? config,
-    this._paymentsService,
-  ) : super(config);
+  MobileBankingPaymentAdapter(super.config, this._paymentsService);
 
   final PaymentsService _paymentsService;
 
@@ -562,8 +555,7 @@ class MobileBankingPaymentAdapter extends PaymentGatewayAdapter {
         metadata['sourceType'] = source['type'];
       }
 
-      final receiptUrl =
-          _stringOrNull(charge['receipt_url']) ?? authorizeUri;
+      final receiptUrl = _stringOrNull(charge['receipt_url']) ?? authorizeUri;
 
       return PaymentResult.success(
         transactionId: transactionId,
@@ -588,7 +580,7 @@ class MobileBankingPaymentAdapter extends PaymentGatewayAdapter {
 }
 
 class TrueMoneyWalletPaymentAdapter extends PaymentGatewayAdapter {
-  TrueMoneyWalletPaymentAdapter(PaymentGatewayConfig? config) : super(config);
+  TrueMoneyWalletPaymentAdapter(super.config);
 
   @override
   PaymentGatewayType get type => PaymentGatewayType.trueMoneyWallet;
@@ -611,8 +603,7 @@ class TrueMoneyWalletPaymentAdapter extends PaymentGatewayAdapter {
     };
     return PaymentResult.success(
       transactionId: transactionId,
-      receiptUrl:
-          'https://merchant-portal.example/truemoney/$transactionId',
+      receiptUrl: 'https://merchant-portal.example/truemoney/$transactionId',
       metadata: metadata,
     );
   }
@@ -624,7 +615,7 @@ class TrueMoneyWalletPaymentAdapter extends PaymentGatewayAdapter {
 }
 
 class RabbitLinePayPaymentAdapter extends PaymentGatewayAdapter {
-  RabbitLinePayPaymentAdapter(PaymentGatewayConfig? config) : super(config);
+  RabbitLinePayPaymentAdapter(super.config);
 
   @override
   PaymentGatewayType get type => PaymentGatewayType.rabbitLinePay;
@@ -660,7 +651,7 @@ class RabbitLinePayPaymentAdapter extends PaymentGatewayAdapter {
 }
 
 class WeChatPayPaymentAdapter extends PaymentGatewayAdapter {
-  WeChatPayPaymentAdapter(PaymentGatewayConfig? config) : super(config);
+  WeChatPayPaymentAdapter(super.config);
 
   @override
   PaymentGatewayType get type => PaymentGatewayType.weChatPay;
@@ -683,8 +674,7 @@ class WeChatPayPaymentAdapter extends PaymentGatewayAdapter {
     };
     return PaymentResult.success(
       transactionId: transactionId,
-      receiptUrl:
-          'https://merchant-portal.example/wechatpay/$transactionId',
+      receiptUrl: 'https://merchant-portal.example/wechatpay/$transactionId',
       metadata: metadata,
     );
   }
@@ -696,7 +686,7 @@ class WeChatPayPaymentAdapter extends PaymentGatewayAdapter {
 }
 
 class BillPaymentAdapter extends PaymentGatewayAdapter {
-  BillPaymentAdapter(PaymentGatewayConfig? config) : super(config);
+  BillPaymentAdapter(super.config);
 
   @override
   PaymentGatewayType get type => PaymentGatewayType.billPayment;
@@ -719,8 +709,7 @@ class BillPaymentAdapter extends PaymentGatewayAdapter {
     };
     return PaymentResult.success(
       transactionId: transactionId,
-      receiptUrl:
-          'https://merchant-portal.example/billpayment/$transactionId',
+      receiptUrl: 'https://merchant-portal.example/billpayment/$transactionId',
       metadata: metadata,
     );
   }
@@ -738,10 +727,10 @@ class PaymentGatewayService with ChangeNotifier {
     PaymentGatewayType initialGateway = PaymentGatewayType.creditDebitCard,
     Map<PaymentGatewayType, PaymentGatewayConfig>? configs,
     PaymentsService? paymentsService,
-  })  : _configs = Map<PaymentGatewayType, PaymentGatewayConfig>.from(
-          configs ?? const <PaymentGatewayType, PaymentGatewayConfig>{},
-        ),
-        _paymentsService = paymentsService ?? PaymentsService() {
+  }) : _configs = Map<PaymentGatewayType, PaymentGatewayConfig>.from(
+         configs ?? const <PaymentGatewayType, PaymentGatewayConfig>{},
+       ),
+       _paymentsService = paymentsService ?? PaymentsService() {
     _adapter = _createAdapterFor(initialGateway);
   }
 
@@ -752,8 +741,9 @@ class PaymentGatewayService with ChangeNotifier {
   PaymentGatewayType get activeGateway => _adapter.type;
   PaymentGatewayConfig? get activeConfig => _configs[activeGateway];
 
-  List<PaymentGatewayType> get supportedGateways =>
-      const [PaymentGatewayType.creditDebitCard];
+  List<PaymentGatewayType> get supportedGateways => const [
+    PaymentGatewayType.creditDebitCard,
+  ];
 
   Future<PaymentResult> processPayment(PaymentRequest request) async {
     final result = await _adapter.processPayment(request);
@@ -843,10 +833,7 @@ class PaymentGatewayService with ChangeNotifier {
 }
 
 class OmisePaymentAdapter extends PaymentGatewayAdapter {
-  OmisePaymentAdapter(
-    PaymentGatewayConfig? config,
-    this._paymentsService,
-  ) : super(config);
+  OmisePaymentAdapter(super.config, this._paymentsService);
 
   final PaymentsService _paymentsService;
 
@@ -865,8 +852,10 @@ class OmisePaymentAdapter extends PaymentGatewayAdapter {
     }
 
     final config = this.config;
-    final sourceType = (request.metadata['sourceType'] ??
-        config?.additionalData['defaultSourceType']) as String?;
+    final sourceType =
+        (request.metadata['sourceType'] ??
+                config?.additionalData['defaultSourceType'])
+            as String?;
     if (sourceType == null || sourceType.isEmpty) {
       throw PaymentGatewayException(
         'Omise source type is not configured. Provide it in request metadata or configuration.',
@@ -922,9 +911,7 @@ class OmisePaymentAdapter extends PaymentGatewayAdapter {
     } on PaymentsServiceException catch (error) {
       throw PaymentGatewayException(error.message);
     } catch (error) {
-      throw PaymentGatewayException(
-        'Unexpected Omise payment error: $error',
-      );
+      throw PaymentGatewayException('Unexpected Omise payment error: $error');
     }
   }
 
@@ -985,8 +972,7 @@ class OmisePaymentAdapter extends PaymentGatewayAdapter {
       metadata['sourceType'] = source['type'];
     }
 
-    final receiptUrl =
-        _stringOrNull(charge['receipt_url']) ?? authorizeUri;
+    final receiptUrl = _stringOrNull(charge['receipt_url']) ?? authorizeUri;
 
     return PaymentResult.success(
       transactionId: transactionId,
@@ -1034,7 +1020,7 @@ Map<String, dynamic>? _extractNestedMap(
     return Map<String, dynamic>.from(value);
   }
   if (value is Map) {
-    return Map<String, dynamic>.from(value as Map);
+    return Map<String, dynamic>.from(value);
   }
   return null;
 }

@@ -50,8 +50,9 @@ class _BackofficeSchemaPageState extends State<BackofficeSchemaPage> {
     if (newValue == null) {
       return;
     }
-    final nextSchema =
-        _schemas.firstWhereOrNull((schema) => schema.id == newValue);
+    final nextSchema = _schemas.firstWhereOrNull(
+      (schema) => schema.id == newValue,
+    );
     if (nextSchema == null) {
       return;
     }
@@ -88,11 +89,7 @@ class _BackofficeSchemaPageState extends State<BackofficeSchemaPage> {
               child: Chip(
                 avatar: const Icon(Icons.check_circle, color: Colors.white),
                 label: Text(
-                  'Saved ${MaterialLocalizations.of(context).formatTimeOfDay(
-                    TimeOfDay.fromDateTime(
-                      _lastSubmissionTimestamp ?? DateTime.now(),
-                    ),
-                  )}',
+                  'Saved ${MaterialLocalizations.of(context).formatTimeOfDay(TimeOfDay.fromDateTime(_lastSubmissionTimestamp ?? DateTime.now()))}',
                   style: const TextStyle(color: Colors.white),
                 ),
                 backgroundColor: theme.colorScheme.primary,
@@ -120,11 +117,7 @@ class _BackofficeSchemaPageState extends State<BackofficeSchemaPage> {
           }
           return ListView(
             padding: const EdgeInsets.all(24),
-            children: [
-              form,
-              const SizedBox(height: 24),
-              preview,
-            ],
+            children: [form, const SizedBox(height: 24), preview],
           );
         },
       ),
@@ -159,11 +152,9 @@ class _BackofficeSchemaPageState extends State<BackofficeSchemaPage> {
                   return titleSection;
                 }
                 final dropdown = DropdownButtonFormField<String>(
-                  value: _activeSchema.id,
+                  initialValue: _activeSchema.id,
                   isExpanded: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Blueprint',
-                  ),
+                  decoration: const InputDecoration(labelText: 'Blueprint'),
                   onChanged: _handleSchemaChanged,
                   items: [
                     for (final schema in _schemas)
@@ -218,17 +209,12 @@ class _BackofficeSchemaPageState extends State<BackofficeSchemaPage> {
 
         return Card(
           elevation: 4,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           child: hasBoundedHeight
-              ? SingleChildScrollView(
-                  padding: padding,
-                  child: formContent,
-                )
-              : Padding(
-                  padding: padding,
-                  child: formContent,
-                ),
+              ? SingleChildScrollView(padding: padding, child: formContent)
+              : Padding(padding: padding, child: formContent),
         );
       },
     );
@@ -238,7 +224,9 @@ class _BackofficeSchemaPageState extends State<BackofficeSchemaPage> {
     final encoder = const JsonEncoder.withIndent('  ');
     final effectiveValues = _lastSubmission ?? _liveValues;
     final preview = encoder.convert(
-      effectiveValues.map((key, value) => MapEntry(key, _serialiseValue(value))),
+      effectiveValues.map(
+        (key, value) => MapEntry(key, _serialiseValue(value)),
+      ),
     );
     return Card(
       elevation: 2,
@@ -270,7 +258,9 @@ class _BackofficeSchemaPageState extends State<BackofficeSchemaPage> {
               width: double.infinity,
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: theme.colorScheme.surfaceVariant.withOpacity(0.4),
+                color: theme.colorScheme.surfaceContainerHighest.withOpacity(
+                  0.4,
+                ),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: SingleChildScrollView(

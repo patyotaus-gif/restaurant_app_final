@@ -2,11 +2,11 @@
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:restaurant_models/restaurant_models.dart';
 
 import 'widgets/app_snack_bar.dart';
 import 'widgets/form_field_row.dart';
+
 // Helper class for a line item in the PO
 class PurchaseOrderItem {
   Ingredient ingredient;
@@ -88,7 +88,9 @@ class _AddPurchaseOrderPageState extends State<AddPurchaseOrderPage> {
   // Notice context is now passed into this function
   Future<void> _savePurchaseOrder(BuildContext scaffoldContext) async {
     if (_supplierController.text.isEmpty || _poItems.isEmpty) {
-      AppSnackBar.showError('Please fill in supplier and add at least one item.');
+      AppSnackBar.showError(
+        'Please fill in supplier and add at least one item.',
+      );
       return;
     }
 
@@ -103,7 +105,9 @@ class _AddPurchaseOrderPageState extends State<AddPurchaseOrderPage> {
       final quantity = double.tryParse(item.quantityController.text) ?? 0;
       final cost = double.tryParse(item.costController.text) ?? 0;
       if (quantity <= 0 || cost <= 0) {
-        AppSnackBar.showError('Please enter valid quantity and cost for all items.');
+        AppSnackBar.showError(
+          'Please enter valid quantity and cost for all items.',
+        );
         setState(() {
           _isLoading = false;
         });

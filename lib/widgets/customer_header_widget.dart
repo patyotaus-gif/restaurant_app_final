@@ -7,6 +7,7 @@ import 'package:restaurant_models/restaurant_models.dart';
 
 import '../cart_provider.dart';
 import '../customer_lookup_page.dart';
+
 class CustomerHeaderWidget extends StatelessWidget {
   const CustomerHeaderWidget({super.key});
 
@@ -121,7 +122,7 @@ class CustomerHeaderWidget extends StatelessWidget {
               progress: progress,
               cart: cart, // Pass the cart provider
             );
-          }).toList(),
+          }),
         ],
       ),
     );

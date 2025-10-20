@@ -60,9 +60,7 @@ class AppTheme {
           color: base.colorScheme.onInverseSurface,
         ),
         actionTextColor: base.colorScheme.inversePrimary,
-        shape: RoundedRectangleBorder(
-          borderRadius: radiusTokens.largeRadius,
-        ),
+        shape: RoundedRectangleBorder(borderRadius: radiusTokens.largeRadius),
         showCloseIcon: true,
       ),
       appBarTheme: base.appBarTheme.copyWith(
@@ -78,9 +76,7 @@ class AppTheme {
       ),
       cardTheme: base.cardTheme.copyWith(
         margin: EdgeInsets.all(spacingTokens.m),
-        shape: RoundedRectangleBorder(
-          borderRadius: radiusTokens.mediumRadius,
-        ),
+        shape: RoundedRectangleBorder(borderRadius: radiusTokens.mediumRadius),
         elevation: 3,
       ),
       tooltipTheme: base.tooltipTheme.copyWith(
@@ -147,8 +143,6 @@ class AppTheme {
       onSecondary: colors.onSecondary,
       surface: colors.surface,
       onSurface: colors.onSurface,
-      background: colors.background,
-      onBackground: colors.onBackground,
       error: colors.error,
       onError: colors.onError,
     );

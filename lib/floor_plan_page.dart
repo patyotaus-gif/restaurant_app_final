@@ -9,7 +9,7 @@ import 'package:restaurant_models/restaurant_models.dart';
 import 'auth_service.dart';
 import 'cart_provider.dart'; // <-- Import CartProvider
 import 'order_dashboard_page.dart';
-import 'order_type_selection_page.dart';
+
 class FloorPlanPage extends StatelessWidget {
   const FloorPlanPage({super.key});
   final int tableCount = 30;

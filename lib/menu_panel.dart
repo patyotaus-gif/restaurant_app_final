@@ -2,13 +2,13 @@
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:restaurant_models/restaurant_models.dart';
 
 import 'cart_provider.dart';
 import 'localization/app_localizations.dart';
 import 'services/menu_cache_provider.dart';
 import 'stock_provider.dart';
 import 'widgets/app_snack_bar.dart';
+
 class MenuPanel extends StatefulWidget {
   const MenuPanel({super.key});
 
@@ -131,7 +131,9 @@ class _MenuPanelState extends State<MenuPanel> {
                             ? () {
                                 final success = cart.addItem(product);
                                 if (!success) {
-                                  AppSnackBar.showError('สินค้าในสต็อกไม่เพียงพอ!');
+                                  AppSnackBar.showError(
+                                    'สินค้าในสต็อกไม่เพียงพอ!',
+                                  );
                                 }
                               }
                             : null,
@@ -191,10 +193,7 @@ class _MenuPanelState extends State<MenuPanel> {
     );
   }
 
-  String _categoryLabel(
-    AppLocalizations localizations,
-    String categoryKey,
-  ) {
+  String _categoryLabel(AppLocalizations localizations, String categoryKey) {
     switch (categoryKey) {
       case 'soft_drinks':
         return localizations.menuCategorySoftDrinks;

@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:restaurant_models/restaurant_models.dart';
 
 import '../widgets/form_field_row.dart';
+
 class PromotionManagementPage extends StatefulWidget {
   const PromotionManagementPage({super.key});
 
@@ -62,7 +63,7 @@ class _PromotionManagementPageState extends State<PromotionManagementPage> {
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setStateDialog) {
-            TimeOfDay? _parseTime(String? value) {
+            TimeOfDay? parseTime(String? value) {
               if (value == null || value.isEmpty) return null;
               final parts = value.split(':');
               if (parts.length != 2) return null;
@@ -75,14 +76,14 @@ class _PromotionManagementPageState extends State<PromotionManagementPage> {
               return TimeOfDay(hour: hour, minute: minute);
             }
 
-            String _formatTime(TimeOfDay time) {
+            String formatTime(TimeOfDay time) {
               final hour = time.hour.toString().padLeft(2, '0');
               final minute = time.minute.toString().padLeft(2, '0');
               return '$hour:$minute';
             }
 
-            TimeOfDay? selectedStartTime = _parseTime(startTimeController.text);
-            TimeOfDay? selectedEndTime = _parseTime(endTimeController.text);
+            TimeOfDay? selectedStartTime = parseTime(startTimeController.text);
+            TimeOfDay? selectedEndTime = parseTime(endTimeController.text);
 
             Future<void> pickDate({required bool isStart}) async {
               final initialDate = isStart
@@ -127,10 +128,10 @@ class _PromotionManagementPageState extends State<PromotionManagementPage> {
               setStateDialog(() {
                 if (isStart) {
                   selectedStartTime = picked;
-                  startTimeController.text = _formatTime(picked);
+                  startTimeController.text = formatTime(picked);
                 } else {
                   selectedEndTime = picked;
-                  endTimeController.text = _formatTime(picked);
+                  endTimeController.text = formatTime(picked);
                 }
               });
             }
@@ -257,7 +258,7 @@ class _PromotionManagementPageState extends State<PromotionManagementPage> {
                             : null,
                       ),
                       DropdownButtonFormField<String>(
-                        value: selectedType,
+                        initialValue: selectedType,
                         decoration: const InputDecoration(
                           labelText: 'Discount Type',
                         ),
@@ -437,14 +438,14 @@ class _PromotionManagementPageState extends State<PromotionManagementPage> {
                 ElevatedButton(
                   onPressed: () {
                     if (formKey.currentState!.validate()) {
-                      double? _parseDouble(String text) =>
+                      double? parseDouble(String text) =>
                           text.isEmpty ? null : double.tryParse(text);
-                      int? _parseInt(String text) =>
+                      int? parseInt(String text) =>
                           text.isEmpty ? null : int.tryParse(text);
 
                       final rulesModel = PromotionRules(
-                        minSubtotal: _parseDouble(minSubtotalController.text),
-                        minQuantity: _parseInt(minQuantityController.text),
+                        minSubtotal: parseDouble(minSubtotalController.text),
+                        minQuantity: parseInt(minQuantityController.text),
                         requiredCategories: categoryController.text
                             .split(',')
                             .map((e) => e.trim())

@@ -66,8 +66,7 @@ class _DynamicFormState extends State<DynamicForm>
           (field) => MapEntry(
             field.id,
             TextEditingController(
-              text: (_values[field.id] ?? field.defaultValue ?? '')
-                  .toString(),
+              text: (_values[field.id] ?? field.defaultValue ?? '').toString(),
             ),
           ),
         ),
@@ -77,8 +76,7 @@ class _DynamicFormState extends State<DynamicForm>
           (field) => MapEntry(
             field.id,
             TextEditingController(
-              text: (_values[field.id] ?? field.defaultValue ?? '')
-                  .toString(),
+              text: (_values[field.id] ?? field.defaultValue ?? '').toString(),
             ),
           ),
         ),
@@ -144,9 +142,7 @@ class _DynamicFormState extends State<DynamicForm>
       formState.save();
       widget.onSubmit?.call(Map<String, dynamic>.from(_values));
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('${widget.schema.title} saved successfully'),
-        ),
+        SnackBar(content: Text('${widget.schema.title} saved successfully')),
       );
     }
   }
@@ -246,7 +242,7 @@ class _DynamicFormState extends State<DynamicForm>
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: DropdownButtonFormField<String>(
-        value: field.options.any((option) => option.value == current)
+        initialValue: field.options.any((option) => option.value == current)
             ? current
             : null,
         isExpanded: true,
@@ -318,9 +314,7 @@ class _DynamicFormState extends State<DynamicForm>
                   state.didChange(changed);
                   _handleChanged(field.id, changed);
                 },
-                secondary: Icon(
-                  value ? Icons.toggle_on : Icons.toggle_off,
-                ),
+                secondary: Icon(value ? Icons.toggle_on : Icons.toggle_off),
               ),
               if (error != null)
                 Padding(
@@ -356,8 +350,9 @@ class _DynamicFormState extends State<DynamicForm>
                 title: Text(field.label),
                 subtitle: Text(
                   value != null
-                      ? MaterialLocalizations.of(context)
-                          .formatMediumDate(value)
+                      ? MaterialLocalizations.of(
+                          context,
+                        ).formatMediumDate(value)
                       : (field.hint ?? 'Tap to choose a date'),
                 ),
                 trailing: const Icon(Icons.calendar_today),

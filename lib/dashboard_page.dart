@@ -9,6 +9,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import 'currency_provider.dart';
+
 // NOTE: This model is a local helper, not from a file, so it's okay.
 class _ProfitData {
   String name;
@@ -197,7 +198,7 @@ class _DashboardPageState extends State<DashboardPage> {
     bool showComparison = previousValue != null;
 
     if (showComparison) {
-      final difference = currentValue - previousValue!;
+      final difference = currentValue - previousValue;
       percentageChange = (previousValue.abs() < 0.01)
           ? 0.0
           : (difference / previousValue) * 100;
@@ -411,33 +412,36 @@ class _DashboardPageState extends State<DashboardPage> {
                 label: const Text('Today'),
                 selected: _selectedFilter == TimeFilter.today,
                 onSelected: (selected) {
-                  if (selected)
+                  if (selected) {
                     setState(() {
                       _selectedFilter = TimeFilter.today;
                       _fetchDataForSelectedRange();
                     });
+                  }
                 },
               ),
               FilterChip(
                 label: const Text('This Week'),
                 selected: _selectedFilter == TimeFilter.thisWeek,
                 onSelected: (selected) {
-                  if (selected)
+                  if (selected) {
                     setState(() {
                       _selectedFilter = TimeFilter.thisWeek;
                       _fetchDataForSelectedRange();
                     });
+                  }
                 },
               ),
               FilterChip(
                 label: const Text('This Month'),
                 selected: _selectedFilter == TimeFilter.thisMonth,
                 onSelected: (selected) {
-                  if (selected)
+                  if (selected) {
                     setState(() {
                       _selectedFilter = TimeFilter.thisMonth;
                       _fetchDataForSelectedRange();
                     });
+                  }
                 },
               ),
             ],

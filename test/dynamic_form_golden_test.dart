@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
@@ -21,8 +20,7 @@ void main() {
       await tester.binding.setSurfaceSize(const Size(1024, 900));
       addTearDown(() => tester.binding.setSurfaceSize(null));
 
-      final schema =
-          BackofficeSchemaRegistry.instance.schemaById('menu_item')!;
+      final schema = BackofficeSchemaRegistry.instance.schemaById('menu_item')!;
 
       await tester.pumpWidget(
         MaterialApp(

@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 import 'admin/pdf_receipt_page.dart';
 import 'checkout_page.dart';
 import 'item_refund_page.dart';
+
 // 1. Convert to StatefulWidget
 class AllOrdersPage extends StatefulWidget {
   const AllOrdersPage({super.key});
@@ -372,7 +373,7 @@ class _AllOrdersPageState extends State<AllOrdersPage> {
                               trailing: Text('${item['quantity']} x'),
                               dense: true,
                             );
-                          }).toList(),
+                          }),
                           Padding(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 8.0,

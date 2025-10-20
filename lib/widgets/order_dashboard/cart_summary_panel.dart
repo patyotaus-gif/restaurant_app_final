@@ -2,16 +2,14 @@
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import 'package:restaurant_models/restaurant_models.dart';
 
 import '../../cart_provider.dart';
-import '../../checkout_page.dart';
 import '../../services/sync_queue_service.dart';
 import '../../table_selection_page.dart';
 import '../customer_header_widget.dart';
+
 class CartSummaryPanel extends StatefulWidget {
   const CartSummaryPanel({super.key});
 
@@ -439,9 +437,7 @@ class _CartSummaryPanelState extends State<CartSummaryPanel> {
   ) async {
     if (type == OrderType.dineIn) {
       await Navigator.of(context).push(
-        MaterialPageRoute<void>(
-          builder: (_) => const TableSelectionPage(),
-        ),
+        MaterialPageRoute<void>(builder: (_) => const TableSelectionPage()),
       );
     } else if (type == OrderType.takeaway) {
       await cart.selectTakeaway();
@@ -662,7 +658,9 @@ class _CartSummaryPanelState extends State<CartSummaryPanel> {
                               ),
                               Text(
                                 '+ ${cart.serviceChargeAmount.toStringAsFixed(2)} บาท',
-                                style: const TextStyle(color: Colors.deepOrange),
+                                style: const TextStyle(
+                                  color: Colors.deepOrange,
+                                ),
                               ),
                             ],
                           ),
@@ -676,7 +674,9 @@ class _CartSummaryPanelState extends State<CartSummaryPanel> {
                               const Text('Tip'),
                               Text(
                                 '+ ${cart.tipAmount.toStringAsFixed(2)} บาท',
-                                style: const TextStyle(color: Colors.deepOrange),
+                                style: const TextStyle(
+                                  color: Colors.deepOrange,
+                                ),
                               ),
                             ],
                           ),
@@ -702,7 +702,8 @@ class _CartSummaryPanelState extends State<CartSummaryPanel> {
                           ),
                         ],
                       ),
-                      if (cart.orderType == OrderType.dineIn && cart.splitCount > 1)
+                      if (cart.orderType == OrderType.dineIn &&
+                          cart.splitCount > 1)
                         Padding(
                           padding: const EdgeInsets.only(top: 8.0),
                           child: Text(
@@ -716,7 +717,9 @@ class _CartSummaryPanelState extends State<CartSummaryPanel> {
                           Expanded(
                             child: OutlinedButton(
                               style: OutlinedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(vertical: 15),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 15,
+                                ),
                               ),
                               onPressed: () => _sendOrderToKitchen(cart),
                               child: const Text('Send to Kitchen'),
@@ -728,7 +731,9 @@ class _CartSummaryPanelState extends State<CartSummaryPanel> {
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.green,
                                 foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(vertical: 15),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 15,
+                                ),
                               ),
                               onPressed: () => _navigateToCheckout(cart),
                               child: const Text('Payment'),

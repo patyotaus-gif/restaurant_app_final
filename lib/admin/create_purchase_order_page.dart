@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:restaurant_models/restaurant_models.dart';
+
 class CreatePurchaseOrderPage extends StatefulWidget {
   const CreatePurchaseOrderPage({super.key});
 
@@ -150,7 +151,7 @@ class _CreatePurchaseOrderPageState extends State<CreatePurchaseOrderPage> {
                     .toList();
                 return DropdownButtonFormField<Supplier>(
                   hint: const Text('Select Supplier'),
-                  value: _selectedSupplier,
+                  initialValue: _selectedSupplier,
                   items: suppliers
                       .map(
                         (s) => DropdownMenuItem(value: s, child: Text(s.name)),

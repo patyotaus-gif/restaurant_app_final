@@ -10,6 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'offline_queue_encryption.dart';
 import 'ops_observability_service.dart';
+
 class SyncResult {
   final String operationId;
   final bool isSynced;
@@ -138,8 +139,8 @@ class SyncQueueService extends ChangeNotifier {
     this._firestore, {
     Connectivity? connectivity,
     OpsObservabilityService? observability,
-  })  : _connectivity = connectivity ?? Connectivity(),
-        _observability = observability {
+  }) : _connectivity = connectivity ?? Connectivity(),
+       _observability = observability {
     _init();
   }
 
@@ -337,7 +338,8 @@ class SyncQueueService extends ChangeNotifier {
     var processed = 0;
     var encounteredError = false;
 
-    while (_queue.isNotEmpty && _isOnline &&
+    while (_queue.isNotEmpty &&
+        _isOnline &&
         processed < _maxOperationsPerBatch) {
       final operation = _queue.first;
       try {
@@ -450,10 +452,6 @@ class SyncQueueService extends ChangeNotifier {
 
   void _safeNotifyListeners() {
     final scheduler = SchedulerBinding.instance;
-    if (scheduler == null) {
-      notifyListeners();
-      return;
-    }
 
     final phase = scheduler.schedulerPhase;
     if (phase == SchedulerPhase.idle ||
@@ -513,7 +511,9 @@ class SyncQueueService extends ChangeNotifier {
           (message.contains('maximum allowed queued writes') ||
               message.contains('connection reset') ||
               message.contains('stream disconnected') ||
-              message.contains('failed to get document because the client is offline'))) {
+              message.contains(
+                'failed to get document because the client is offline',
+              ))) {
         return true;
       }
     }
@@ -551,10 +551,7 @@ class SyncQueueService extends ChangeNotifier {
     _recordObservability(
       'Scheduled sync queue retry',
       level: OpsLogLevel.debug,
-      context: {
-        'delayMs': nextDelay.inMilliseconds,
-        'pending': _queue.length,
-      },
+      context: {'delayMs': nextDelay.inMilliseconds, 'pending': _queue.length},
       sendRemote: false,
     );
   }
