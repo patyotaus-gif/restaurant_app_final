@@ -171,10 +171,11 @@ bool get _supportsFirestore {
     case TargetPlatform.android:
     case TargetPlatform.iOS:
     case TargetPlatform.macOS:
-    case TargetPlatform.windows:
-    case TargetPlatform.linux:
       return true;
     default:
+      // Firestore does not yet have stable desktop implementations for
+      // Windows or Linux, so fall back to the unsupported experience on those
+      // platforms instead of crashing with MissingPluginException errors.
       return false;
   }
 }
