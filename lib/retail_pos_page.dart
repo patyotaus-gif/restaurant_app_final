@@ -4,6 +4,7 @@ import 'dart:async';
 
 import 'package:audioplayers/audioplayers.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
@@ -23,14 +24,28 @@ class RetailPosPage extends StatefulWidget {
 }
 
 class _RetailPosPageState extends State<RetailPosPage> {
-  final MobileScannerController _scannerController = MobileScannerController();
+  MobileScannerController? _scannerController;
   final AudioPlayer _audioPlayer = AudioPlayer();
   final _barcodeStreamController = StreamController<String>();
   StreamSubscription<String>? _barcodeSubscription;
 
+  bool get _isMobileScannerSupported {
+    if (kIsWeb) return false;
+    switch (defaultTargetPlatform) {
+      case TargetPlatform.android:
+      case TargetPlatform.iOS:
+        return true;
+      default:
+        return false;
+    }
+  }
+
   @override
   void initState() {
     super.initState();
+    if (_isMobileScannerSupported) {
+      _scannerController = MobileScannerController();
+    }
     _listenToBarcodeStream();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -112,25 +127,35 @@ class _RetailPosPageState extends State<RetailPosPage> {
         children: [
           SizedBox(
             height: 250,
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                MobileScanner(
-                  controller: _scannerController,
-                  onDetect: _onBarcodeDetected,
-                ),
-                MobileScannerOverlay(
-                  overlayColour: Colors.black.withOpacity(0.2),
-                  borderColor: Colors.white,
-                  borderRadius: 10,
-                  borderStrokeWidth: 3,
-                  cutOutSize: Size(
-                    MediaQuery.of(context).size.width * 0.8,
-                    120,
+            child: _isMobileScannerSupported
+                ? Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      MobileScanner(
+                        controller: _scannerController,
+                        onDetect: _onBarcodeDetected,
+                      ),
+                      MobileScannerOverlay(
+                        overlayColour: Colors.black.withOpacity(0.2),
+                        borderColor: Colors.white,
+                        borderRadius: 10,
+                        borderStrokeWidth: 3,
+                        cutOutSize: Size(
+                          MediaQuery.of(context).size.width * 0.8,
+                          120,
+                        ),
+                      ),
+                    ],
+                  )
+                : const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(16.0),
+                      child: Text(
+                        'Barcode scanning is only available on Android and iOS devices.',
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
                   ),
-                ),
-              ],
-            ),
           ),
 
           Expanded(
@@ -208,7 +233,7 @@ class _RetailPosPageState extends State<RetailPosPage> {
 
   @override
   void dispose() {
-    _scannerController.dispose();
+    _scannerController?.dispose();
     _audioPlayer.dispose();
     _barcodeStreamController.close();
     _barcodeSubscription?.cancel();
