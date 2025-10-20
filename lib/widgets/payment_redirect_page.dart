@@ -24,7 +24,7 @@ class PaymentRedirectLauncher {
       return false;
     }
 
-    if (!_isHttpScheme(url)) {
+    if (!_supportsInAppWebView() || !_isHttpScheme(url)) {
       return _launchExternal(context, url);
     }
 
@@ -45,6 +45,23 @@ class PaymentRedirectLauncher {
   static bool _isHttpScheme(Uri uri) {
     final scheme = uri.scheme.toLowerCase();
     return scheme == 'http' || scheme == 'https';
+  }
+
+  static bool _supportsInAppWebView() {
+    if (kIsWeb) {
+      return false;
+    }
+
+    switch (defaultTargetPlatform) {
+      case TargetPlatform.android:
+      case TargetPlatform.iOS:
+      case TargetPlatform.macOS:
+        return true;
+      case TargetPlatform.windows:
+      case TargetPlatform.linux:
+      case TargetPlatform.fuchsia:
+        return false;
+    }
   }
 
   static Future<bool> _launchExternal(BuildContext context, Uri uri) async {
