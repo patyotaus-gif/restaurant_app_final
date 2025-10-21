@@ -7,7 +7,8 @@
       "type": "dart",
       "flutterMode": "debug",
       "args": [
-        "--dart-define=OMISE_PUBLIC_KEY=pkey_test_64n6n1ijr0hyb2sawod"
+        "--dart-define=OMISE_PUBLIC_KEY=pkey_test_64n6n1ijr0hyb2sawod",
+        "--dart-define=OMISE_SECRET_KEY=skey_test_64n6n1j23laxtf9letd"
       ]
     }
   ]
