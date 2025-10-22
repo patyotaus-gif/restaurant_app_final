@@ -38,8 +38,6 @@ void main() {
       await tester.pump(const Duration(milliseconds: 16));
     }
 
-    tester.binding.removeTimingsCallback(collectTimings);
-
     expect(timings, isNotEmpty, reason: 'No frame timings were collected');
 
     double computeRate(Duration Function(FrameTiming) selector) {
