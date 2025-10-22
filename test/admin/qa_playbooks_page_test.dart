@@ -33,7 +33,16 @@ void main() {
 
   testWidgets('Selecting older revision updates checklist and metadata',
       (tester) async {
-    await tester.pumpWidget(const MaterialApp(home: QaPlaybooksPage()));
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            height: 800,
+            child: QaPlaybooksPage(),
+          ),
+        ),
+      ),
+    );
     await tester.pumpAndSettle();
 
     expect(find.text('Updated Mar 12, 2024'), findsOneWidget);
@@ -65,7 +74,16 @@ void main() {
 
   testWidgets('Tag filtering works with automatically generated tags',
       (tester) async {
-    await tester.pumpWidget(const MaterialApp(home: QaPlaybooksPage()));
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            height: 800,
+            child: QaPlaybooksPage(),
+          ),
+        ),
+      ),
+    );
     await tester.pumpAndSettle();
 
     final paymentsChip = find.widgetWithText(FilterChip, 'payments');
