@@ -18,6 +18,9 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
 import 'package:restaurant_models/restaurant_models.dart';
 import 'package:url_strategy/url_strategy.dart';
+import 'package:webview_flutter/webview_flutter.dart';
+import 'package:webview_flutter_wkwebview/webview_flutter_wkwebview.dart';
+import 'package:webview_flutter_windows/webview_flutter_windows.dart';
 
 import 'localization/app_localizations.dart';
 
@@ -682,11 +685,20 @@ Future<void> main() async {
       configureBackgroundSync(
         rootIsolateToken: ServicesBinding.rootIsolateToken,
       );
-      if (!kIsWeb && defaultTargetPlatform == TargetPlatform.windows) {
-        debugPrint(
-          'Windows WebView initialization skipped because the platform '
-          'implementation is unavailable.',
-        );
+      if (!kIsWeb) {
+        if (defaultTargetPlatform == TargetPlatform.windows) {
+          try {
+            WebView.platform = WindowsWebView();
+          } catch (e) {
+            debugPrint('Failed to initialize Windows WebView: $e');
+          }
+        } else if (defaultTargetPlatform == TargetPlatform.macOS) {
+          try {
+            WebView.platform = WebKitWebView();
+          } catch (e) {
+            debugPrint('Failed to initialize macOS WebView: $e');
+          }
+        }
       }
       debugPrint('Launching Restaurant App (${FlavorConfig.flavorName})');
       ensureBackgroundPlugins = () {
