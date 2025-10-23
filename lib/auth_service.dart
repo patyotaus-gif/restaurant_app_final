@@ -81,21 +81,11 @@ class AuthService with ChangeNotifier {
       final hashedPin = base64Url.encode(hashedPinBytes.bytes);
 
       // 2. Query Firestore for the hashed PIN
-      var querySnapshot = await _firestore
+      final querySnapshot = await _firestore
           .collection('employees')
           .where('hashedPin', isEqualTo: hashedPin)
           .limit(1)
           .get();
-
-      // --- TEMPORARY BACKDOOR FOR UNHASHED PIN ---
-      if (querySnapshot.docs.isEmpty) {
-        querySnapshot = await _firestore
-            .collection('employees')
-            .where('pin', isEqualTo: pin)
-            .limit(1)
-            .get();
-      }
-      // --- END TEMPORARY BACKDOOR ---
 
       if (querySnapshot.docs.isNotEmpty) {
         _loggedInEmployee = Employee.fromFirestore(querySnapshot.docs.first);
