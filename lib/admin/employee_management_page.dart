@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'package:cryptography/cryptography.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -13,14 +15,14 @@ class EmployeeManagementPage extends StatefulWidget {
 class _EmployeeManagementPageState extends State<EmployeeManagementPage> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  void _showEmployeeDialog({Employee? employee}) {
+  Future<void> _showEmployeeDialog({Employee? employee}) async {
     final isNew = employee == null;
     final nameController = TextEditingController(text: employee?.name);
-    final pinController = TextEditingController(text: employee?.pin);
+    final pinController = TextEditingController(); // PIN is not pre-filled for security
     String selectedRole = employee?.role ?? 'Employee';
     final formKey = GlobalKey<FormState>();
 
-    showDialog(
+    await showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
@@ -42,8 +44,7 @@ class _EmployeeManagementPageState extends State<EmployeeManagementPage> {
                     },
                   ),
                   DropdownButtonFormField<String>(
-                    initialValue:
-                        selectedRole, // FIX: Changed 'value' to 'initialValue'
+                    value: selectedRole, // Corrected from initialValue
                     decoration: const InputDecoration(labelText: 'Role'),
                     items: ['Owner', 'Manager', 'Employee', 'Intern']
                         .map(
@@ -53,19 +54,26 @@ class _EmployeeManagementPageState extends State<EmployeeManagementPage> {
                         .toList(),
                     onChanged: (value) {
                       if (value != null) {
-                        selectedRole = value;
+                        setState(() {
+                          selectedRole = value;
+                        });
                       }
                     },
                   ),
                   TextFormField(
                     controller: pinController,
-                    decoration: const InputDecoration(labelText: '4-Digit PIN'),
+                    decoration: InputDecoration(
+                      labelText: isNew ? '4-Digit PIN' : 'New 4-Digit PIN (optional)',
+                    ),
                     keyboardType: TextInputType.number,
                     inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                     maxLength: 4,
                     validator: (value) {
-                      if (value == null || value.length < 4) {
-                        return 'PIN must be 4 digits';
+                      if (isNew && (value == null || value.length < 4)) {
+                        return 'A 4-digit PIN is required for new employees';
+                      }
+                      if (!isNew && value != null && value.isNotEmpty && value.length < 4) {
+                        return 'PIN must be 4 digits if you want to change it';
                       }
                       return null;
                     },
@@ -80,18 +88,24 @@ class _EmployeeManagementPageState extends State<EmployeeManagementPage> {
               child: const Text('Cancel'),
             ),
             ElevatedButton(
-              onPressed: () {
+              onPressed: () async {
                 if (formKey.currentState?.validate() ?? false) {
-                  final employeeData = {
+                  final employeeData = <String, dynamic>{
                     'name': nameController.text,
                     'role': selectedRole,
-                    'pin': pinController.text,
                   };
 
+                  final pin = pinController.text;
+                  if (pin.isNotEmpty) {
+                    final algorithm = Sha256();
+                    final hashedPinBytes = await algorithm.hash(utf8.encode(pin));
+                    employeeData['hashedPin'] = base64Url.encode(hashedPinBytes.bytes);
+                  }
+
                   if (isNew) {
-                    _firestore.collection('employees').add(employeeData);
+                    await _firestore.collection('employees').add(employeeData);
                   } else {
-                    _firestore
+                    await _firestore
                         .collection('employees')
                         .doc(employee.id)
                         .update(employeeData);

@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'package:cryptography/cryptography.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:restaurant_models/restaurant_models.dart';
@@ -7,6 +9,10 @@ enum UserRole { owner, manager, employee, intern }
 class AuthService with ChangeNotifier {
   Employee? _loggedInEmployee; // <-- 2. Store the full employee object
   String? _activeStoreId;
+  final FirebaseFirestore _firestore;
+
+  AuthService({FirebaseFirestore? firestore})
+      : _firestore = firestore ?? FirebaseFirestore.instance;
 
   Employee? get loggedInEmployee => _loggedInEmployee;
   String? get activeStoreId => _activeStoreId;
@@ -68,9 +74,15 @@ class AuthService with ChangeNotifier {
   // --- 3. NEW: Login method using PIN ---
   Future<bool> loginWithPin(String pin) async {
     try {
-      final querySnapshot = await FirebaseFirestore.instance
+      // 1. Hash the input PIN
+      final algorithm = Sha256();
+      final hashedPinBytes = await algorithm.hash(utf8.encode(pin));
+      final hashedPin = base64Url.encode(hashedPinBytes.bytes);
+
+      // 2. Query Firestore for the hashed PIN
+      final querySnapshot = await _firestore
           .collection('employees')
-          .where('pin', isEqualTo: pin)
+          .where('hashedPin', isEqualTo: hashedPin)
           .limit(1)
           .get();
 
