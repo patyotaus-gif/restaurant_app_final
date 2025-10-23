@@ -19,8 +19,12 @@ import 'package:provider/provider.dart';
 import 'package:restaurant_models/restaurant_models.dart';
 import 'package:url_strategy/url_strategy.dart';
 import 'package:webview_flutter/webview_flutter.dart';
-import 'package:webview_flutter_wkwebview/webview_flutter_wkwebview.dart';
-import 'package:webview_flutter_windows/webview_flutter_windows.dart';
+import 'webview_fallback.dart'
+    if (dart.library.io) 'package:webview_flutter_windows/webview_flutter_windows.dart'
+    if (dart.library.html) 'webview_fallback.dart';
+import 'webview_fallback.dart'
+    if (dart.library.io) 'package:webview_flutter_wkwebview/webview_flutter_wkwebview.dart'
+    if (dart.library.html) 'webview_fallback.dart';
 
 import 'localization/app_localizations.dart';
 
