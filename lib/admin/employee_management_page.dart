@@ -6,14 +6,22 @@ import 'package:flutter/services.dart';
 import 'package:restaurant_models/restaurant_models.dart';
 
 class EmployeeManagementPage extends StatefulWidget {
-  const EmployeeManagementPage({super.key});
+  final FirebaseFirestore? firestore;
+
+  const EmployeeManagementPage({super.key, this.firestore});
 
   @override
   State<EmployeeManagementPage> createState() => _EmployeeManagementPageState();
 }
 
 class _EmployeeManagementPageState extends State<EmployeeManagementPage> {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  late final FirebaseFirestore _firestore;
+
+  @override
+  void initState() {
+    super.initState();
+    _firestore = widget.firestore ?? FirebaseFirestore.instance;
+  }
 
   Future<void> _showEmployeeDialog({Employee? employee}) async {
     final isNew = employee == null;
