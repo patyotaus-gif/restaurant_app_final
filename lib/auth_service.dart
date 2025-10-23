@@ -3,6 +3,7 @@ import 'package:cryptography/cryptography.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:restaurant_models/restaurant_models.dart';
+
 // Defines the available user roles
 enum UserRole { owner, manager, employee, intern }
 
@@ -12,7 +13,7 @@ class AuthService with ChangeNotifier {
   final FirebaseFirestore _firestore;
 
   AuthService({FirebaseFirestore? firestore})
-      : _firestore = firestore ?? FirebaseFirestore.instance;
+    : _firestore = firestore ?? FirebaseFirestore.instance;
 
   Employee? get loggedInEmployee => _loggedInEmployee;
   String? get activeStoreId => _activeStoreId;
@@ -80,11 +81,21 @@ class AuthService with ChangeNotifier {
       final hashedPin = base64Url.encode(hashedPinBytes.bytes);
 
       // 2. Query Firestore for the hashed PIN
-      final querySnapshot = await _firestore
+      var querySnapshot = await _firestore
           .collection('employees')
           .where('hashedPin', isEqualTo: hashedPin)
           .limit(1)
           .get();
+
+      // --- TEMPORARY BACKDOOR FOR UNHASHED PIN ---
+      if (querySnapshot.docs.isEmpty) {
+        querySnapshot = await _firestore
+            .collection('employees')
+            .where('pin', isEqualTo: pin)
+            .limit(1)
+            .get();
+      }
+      // --- END TEMPORARY BACKDOOR ---
 
       if (querySnapshot.docs.isNotEmpty) {
         _loggedInEmployee = Employee.fromFirestore(querySnapshot.docs.first);
