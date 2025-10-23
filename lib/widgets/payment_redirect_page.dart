@@ -56,8 +56,8 @@ class PaymentRedirectLauncher {
       case TargetPlatform.android:
       case TargetPlatform.iOS:
       case TargetPlatform.macOS:
-        return true;
       case TargetPlatform.windows:
+        return true;
       case TargetPlatform.linux:
       case TargetPlatform.fuchsia:
         return false;
