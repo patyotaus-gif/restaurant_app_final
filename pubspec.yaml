@@ -65,6 +65,8 @@ dependencies:
   workmanager:
     path: packages/workmanager_patched
   webview_flutter: ^4.7.0
+  webview_flutter_wkwebview: ^3.23.1
+  webview_windows: ^0.4.0
 
   
   # The following adds the Cupertino Icons font to your application.
@@ -94,7 +96,6 @@ dev_dependencies:
   # activated in the `analysis_options.yaml` file located at the root of your
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
-  fake_cloud_firestore: ^3.1.0
   flutter_lints: ^5.0.0
 
 # For information on the generic Dart part of this file, see the
