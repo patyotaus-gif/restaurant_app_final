@@ -11,9 +11,11 @@ list(APPEND FLUTTER_PLUGIN_LIST
   firebase_core
   firebase_storage
   flutter_thermal_printer
+  fullscreen_window
   printing
   universal_ble
   url_launcher_windows
+  webview_win_floating
   webview_windows
 )
 
