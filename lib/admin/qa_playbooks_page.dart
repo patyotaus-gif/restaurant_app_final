@@ -82,6 +82,7 @@ class _QaPlaybooksPageState extends State<QaPlaybooksPage> {
             onTagToggled: _toggleTag,
             onSelect: _focusPlaybook,
             focused: focused,
+            isExpanded: isWide,
           );
 
           final detail = focused == null
@@ -122,6 +123,7 @@ class _PlaybookSidebar extends StatelessWidget {
     required this.onTagToggled,
     required this.onSelect,
     required this.focused,
+    this.isExpanded = false,
   });
 
   final TextEditingController controller;
@@ -132,9 +134,52 @@ class _PlaybookSidebar extends StatelessWidget {
   final void Function(String tag, bool selected) onTagToggled;
   final ValueChanged<QaPlaybook> onSelect;
   final QaPlaybook? focused;
+  final bool isExpanded;
 
   @override
   Widget build(BuildContext context) {
+    final list = playbooks.isEmpty
+        ? const Center(
+            child: Padding(
+              padding: EdgeInsets.all(24),
+              child: Text('No playbooks match the current filters.'),
+            ),
+          )
+        : ListView.separated(
+            shrinkWrap: !isExpanded,
+            physics: isExpanded ? null : const NeverScrollableScrollPhysics(),
+            itemCount: playbooks.length,
+            separatorBuilder: (_, __) => const Divider(height: 1),
+            itemBuilder: (context, index) {
+              final playbook = playbooks[index];
+              final isSelected = playbook == focused;
+              return ListTile(
+                selected: isSelected,
+                selectedTileColor: Theme.of(
+                  context,
+                ).colorScheme.primaryContainer,
+                title: Text(playbook.title),
+                subtitle: Text(playbook.summary),
+                onTap: () => onSelect(playbook),
+                trailing: Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      playbook.owner,
+                      style: Theme.of(context).textTheme.labelSmall,
+                    ),
+                    if (playbook.lastUpdated != null)
+                      Text(
+                        DateFormat.yMMMd().format(playbook.lastUpdated!),
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                  ],
+                ),
+              );
+            },
+          );
+
     return Card(
       clipBehavior: Clip.antiAlias,
       child: Column(
@@ -187,49 +232,7 @@ class _PlaybookSidebar extends StatelessWidget {
             ),
           ),
           const Divider(height: 1),
-          Expanded(
-            child: playbooks.isEmpty
-                ? const Center(
-                    child: Padding(
-                      padding: EdgeInsets.all(24),
-                      child: Text('No playbooks match the current filters.'),
-                    ),
-                  )
-                : ListView.separated(
-                    itemCount: playbooks.length,
-                    separatorBuilder: (_, __) => const Divider(height: 1),
-                    itemBuilder: (context, index) {
-                      final playbook = playbooks[index];
-                      final isSelected = playbook == focused;
-                      return ListTile(
-                        selected: isSelected,
-                        selectedTileColor: Theme.of(
-                          context,
-                        ).colorScheme.primaryContainer,
-                        title: Text(playbook.title),
-                        subtitle: Text(playbook.summary),
-                        onTap: () => onSelect(playbook),
-                        trailing: Column(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              playbook.owner,
-                              style: Theme.of(context).textTheme.labelSmall,
-                            ),
-                            if (playbook.lastUpdated != null)
-                              Text(
-                                DateFormat.yMMMd().format(
-                                  playbook.lastUpdated!,
-                                ),
-                                style: Theme.of(context).textTheme.bodySmall,
-                              ),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
-          ),
+          if (isExpanded) Expanded(child: list) else list,
         ],
       ),
     );

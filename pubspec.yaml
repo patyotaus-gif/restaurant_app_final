@@ -1,4 +1,5 @@
 name: restaurant_app_final
+resolution: workspace
 description: "A new Flutter project."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
@@ -20,6 +21,10 @@ version: 1.0.0+1
 
 environment:
   sdk: ^3.9.0
+workspace:
+  - packages/helper
+  - packages/client_package
+  - packages/server_package
 # Flavor entry points:
 #   flutter run --flavor dev --target lib/main_dev.dart
 #   flutter run --flavor stg --target lib/main_stg.dart
@@ -91,6 +96,7 @@ dev_dependencies:
     sdk: flutter
   integration_test:
     sdk: flutter
+  melos: ^7.0.0
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
@@ -99,6 +105,8 @@ dev_dependencies:
   # rules and activating additional ones.
   flutter_lints: ^5.0.0
 
+melos:
+  useRootAsPackage: true
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
 
