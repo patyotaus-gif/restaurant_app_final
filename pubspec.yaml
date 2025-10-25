@@ -1,5 +1,4 @@
 name: restaurant_app_final
-resolution: workspace
 description: "A new Flutter project."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
@@ -21,10 +20,7 @@ version: 1.0.0+1
 
 environment:
   sdk: ^3.9.0
-<<<<<<< HEAD
-  flutter: ">=3.7.0"
-=======
->>>>>>> 977d61e6cb6a02a841f28dfd7ee8d1c04d43c5b7
+
 # Flavor entry points:
 #   flutter run --flavor dev --target lib/main_dev.dart
 #   flutter run --flavor stg --target lib/main_stg.dart
