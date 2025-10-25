@@ -21,10 +21,6 @@ version: 1.0.0+1
 
 environment:
   sdk: ^3.9.0
-workspace:
-  - packages/helper
-  - packages/client_package
-  - packages/server_package
 # Flavor entry points:
 #   flutter run --flavor dev --target lib/main_dev.dart
 #   flutter run --flavor stg --target lib/main_stg.dart
