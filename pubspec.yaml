@@ -87,6 +87,7 @@ dependencies:
   qr: ^3.0.2
 
 dev_dependencies:
+  fake_cloud_firestore: ^2.5.1
   flutter_test:
     sdk: flutter
   integration_test:

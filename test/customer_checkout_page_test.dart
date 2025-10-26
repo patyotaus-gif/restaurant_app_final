@@ -73,21 +73,14 @@ void main() {
 
     await tester.pumpAndSettle();
 
-    final recordedErrors = <FlutterError>[];
-    final previousOnError = FlutterError.onError;
-    FlutterError.onError = (details) {
-      final exception = details.exception;
-      if (exception is FlutterError) {
-        recordedErrors.add(exception);
-      }
-    };
+    await tester.runAsync(() async {
+      await tester.tap(find.text('I HAVE PAID - CONFIRM'));
+      await tester.pumpAndSettle();
+    });
 
-    await tester.tap(find.text('I HAVE PAID - CONFIRM'));
-    await tester.pumpAndSettle();
+    final exception = tester.takeException();
+    expect(exception, isNull);
 
-    FlutterError.onError = previousOnError;
-
-    expect(recordedErrors, isEmpty);
     expect(find.text('Payment Confirmed!'), findsOneWidget);
   });
 }
