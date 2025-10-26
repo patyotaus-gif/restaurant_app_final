@@ -28,8 +28,6 @@ void main() {
         home: BackofficeSchemaPage(),
       ),
     );
-
-    // Allow layout animations to complete.
     await tester.pumpAndSettle();
 
     // Drive a handful of frames with different durations to simulate user input
@@ -37,6 +35,7 @@ void main() {
     for (int i = 0; i < 8; i++) {
       await tester.pump(const Duration(milliseconds: 16));
     }
+    await tester.pumpAndSettle();
 
     expect(timings, isNotEmpty, reason: 'No frame timings were collected');
 

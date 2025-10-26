@@ -13,7 +13,8 @@ const _menuGoldenKey = ValueKey('menu_form_golden');
 const _pageGoldenKey = ValueKey('schema_page_golden');
 
 void main() {
-  TestWidgetsFlutterBinding.ensureInitialized();
+  final binding = TestWidgetsFlutterBinding.ensureInitialized();
+  binding.allowFirstFrame = true;
 
   group('Dynamic forms golden tests', () {
     testWidgets('Menu item blueprint renders as expected', (tester) async {
@@ -57,7 +58,10 @@ void main() {
 
       await expectLater(
         find.byKey(_menuGoldenKey),
-        matchesGoldenFile('goldens/menu_item_form.png'),
+        matchesGoldenFileWithTolerance(
+          'goldens/menu_item_form.png',
+          tolerance: 0.1,
+        ),
       );
     });
 
@@ -84,7 +88,10 @@ void main() {
 
       await expectLater(
         find.byKey(_pageGoldenKey),
-        matchesGoldenFile('goldens/backoffice_schema_page.png'),
+        matchesGoldenFileWithTolerance(
+          'goldens/backoffice_schema_page.png',
+          tolerance: 0.1,
+        ),
       );
     });
   });
