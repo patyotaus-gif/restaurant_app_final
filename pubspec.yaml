@@ -20,7 +20,6 @@ version: 1.0.0+1
 
 environment:
   sdk: ^3.9.0
-
 # Flavor entry points:
 #   flutter run --flavor dev --target lib/main_dev.dart
 #   flutter run --flavor stg --target lib/main_stg.dart
