@@ -19,9 +19,9 @@ import 'package:provider/provider.dart';
 import 'package:restaurant_models/restaurant_models.dart';
 import 'package:url_strategy/url_strategy.dart';
 import 'package:webview_flutter/webview_flutter.dart';
-import 'package:webview_windows/webview_windows.dart';
 
 import 'localization/app_localizations.dart';
+import 'webview_initializer.dart';
 
 import 'admin/accounting_export_page.dart';
 import 'admin/admin_page.dart';
@@ -690,10 +690,8 @@ Future<void> main() async {
       };
       if (kIsWeb) {
         setPathUrlStrategy();
-      } else if (defaultTargetPlatform == TargetPlatform.windows) {
-        await WebviewWindow.initialize();
-      } else if (defaultTargetPlatform == TargetPlatform.macOS) {
-        // TODO: Handle macOS webview initialization if needed.
+      } else {
+        await initializeWebview();
       }
       PluginRegistry.registerDefaults();
       await Firebase.initializeApp(
