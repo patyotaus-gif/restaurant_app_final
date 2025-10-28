@@ -242,7 +242,7 @@ class _DynamicFormState extends State<DynamicForm>
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: DropdownButtonFormField<String>(
-        initialValue: field.options.any((option) => option.value == current)
+        value: field.options.any((option) => option.value == current)
             ? current
             : null,
         isExpanded: true,
@@ -285,7 +285,7 @@ class _DynamicFormState extends State<DynamicForm>
                 value
                     ? (field.trueLabel ?? 'Enabled')
                     : (field.falseLabel ?? 'Disabled'),
-                style: theme.textTheme.bodySmall?.copyWith(
+                style: theme.textTheme.labelSmall?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
@@ -379,7 +379,7 @@ class _DynamicFormState extends State<DynamicForm>
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: Text(
                     error,
-                    style: theme.textTheme.bodySmall?.copyWith(
+                    style: theme.textTheme.labelSmall?.copyWith(
                       color: theme.colorScheme.error,
                     ),
                   ),

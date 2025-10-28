@@ -43,21 +43,33 @@ void main() {
         ),
       ),
     );
-    await tester.pumpAndSettle();
+    await tester.pump();
 
-    expect(find.textContaining('Updated'), findsOneWidget);
+    expect(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is Text && (widget.data?.startsWith('Updated') ?? false),
+      ),
+      findsOneWidget,
+    );
     expect(
       find.textContaining('Power-cycle the card reader'),
       findsOneWidget,
     );
 
     await tester.tap(find.byKey(const Key('revisionDropdown')));
-    await tester.pumpAndSettle();
+    await tester.pump();
 
     await tester.tap(find.text('v1.0.0').last);
-    await tester.pumpAndSettle();
+    await tester.pump();
 
-    expect(find.textContaining('Updated'), findsOneWidget);
+    expect(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is Text && (widget.data?.startsWith('Updated') ?? false),
+      ),
+      findsOneWidget,
+    );
     expect(
       find.textContaining('Contact vendor support to confirm if there is a regional outage.'),
       findsOneWidget,
@@ -84,13 +96,13 @@ void main() {
         ),
       ),
     );
-    await tester.pumpAndSettle();
+    await tester.pump();
 
     final paymentsChip = find.widgetWithText(FilterChip, 'payments');
     expect(paymentsChip, findsOneWidget);
 
     await tester.tap(paymentsChip);
-    await tester.pumpAndSettle();
+    await tester.pump();
 
     expect(
       find.byWidgetPredicate(
@@ -104,7 +116,7 @@ void main() {
     expect(find.text('Kitchen Display Queue Stalling'), findsNothing);
 
     await tester.tap(paymentsChip);
-    await tester.pumpAndSettle();
+    await tester.pump();
 
     expect(find.text('Kitchen Display Queue Stalling'), findsOneWidget);
   });

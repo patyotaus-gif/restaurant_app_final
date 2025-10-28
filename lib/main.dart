@@ -181,7 +181,8 @@ bool get _supportsFirestore {
 
 FirebaseRemoteConfig? _obtainRemoteConfigInstance() {
   if (!_supportsRemoteConfig) {
-    debugPrint(
+    // ignore: avoid_print
+    print(
       'Firebase Remote Config is not supported on this platform; using defaults.',
     );
     return null;
@@ -189,7 +190,8 @@ FirebaseRemoteConfig? _obtainRemoteConfigInstance() {
   try {
     return FirebaseRemoteConfig.instance;
   } catch (error) {
-    debugPrint('Unable to access Firebase Remote Config: $error');
+    // ignore: avoid_print
+    print('Unable to access Firebase Remote Config: $error');
     return null;
   }
 }
@@ -207,7 +209,8 @@ Future<void> _initializePaymentGateways(
       try {
         await remoteConfig.fetchAndActivate();
       } catch (error) {
-        debugPrint('Failed to refresh Remote Config for Omise: $error');
+        // ignore: avoid_print
+        print('Failed to refresh Remote Config for Omise: $error');
       }
 
       publicKey = remoteConfig.getString('omise_public_key');
@@ -226,14 +229,16 @@ Future<void> _initializePaymentGateways(
     }
 
     if (publicKey.isEmpty) {
-      debugPrint(
+      // ignore: avoid_print
+      print(
         'Skipping Omise configuration because the public key is missing.',
       );
       return;
     }
 
     if (secretKey.isEmpty) {
-      debugPrint(
+      // ignore: avoid_print
+      print(
         'Omise secret key was not provided; proceeding with public key only.',
       );
     }
@@ -267,7 +272,8 @@ Future<void> _initializePaymentGateways(
       ),
     );
   } catch (error) {
-    debugPrint('Unable to initialize Omise payment gateway: $error');
+    // ignore: avoid_print
+    print('Unable to initialize Omise payment gateway: $error');
   }
 }
 
@@ -684,7 +690,8 @@ Future<void> main() async {
       configureBackgroundSync(
         rootIsolateToken: ServicesBinding.rootIsolateToken,
       );
-      debugPrint('Launching Restaurant App (${FlavorConfig.flavorName})');
+      // ignore: avoid_print
+      print('Launching Restaurant App (${FlavorConfig.flavorName})');
       ensureBackgroundPlugins = () {
         DartPluginRegistrant.ensureInitialized();
       };
@@ -699,7 +706,8 @@ Future<void> main() async {
       );
 
       if (!_supportsFirestore) {
-        debugPrint(
+        // ignore: avoid_print
+        print(
           'Firebase Firestore is not supported on this platform; launching '
           'fallback experience.',
         );

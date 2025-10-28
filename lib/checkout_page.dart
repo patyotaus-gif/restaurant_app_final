@@ -111,7 +111,7 @@ class _ReceiptQrImage extends StatelessWidget {
         moduleCount,
         (y) => List.generate(
           moduleCount,
-          (x) => qrCode.module(y, x) ?? false,
+          (x) => qrCode.modules[y][x],
           growable: false,
         ),
         growable: false,
@@ -414,7 +414,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
               if (baseBreakdown != null)
                 Text(
                   baseBreakdown,
-                  style: Theme.of(context).textTheme.bodySmall,
+                  style: Theme.of(context).textTheme.labelSmall,
                 ),
             ],
           ),
@@ -592,7 +592,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
         ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold) ??
         const TextStyle(fontSize: 18, fontWeight: FontWeight.bold);
 
-    final helperStyle = Theme.of(context).textTheme.bodySmall;
+    final helperStyle = Theme.of(context).textTheme.labelSmall;
 
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 12),
@@ -817,7 +817,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
                             Text(
                               baseAmountDisplay,
                               style:
-                                  Theme.of(context).textTheme.bodySmall
+                                  Theme.of(context).textTheme.labelSmall
                                       ?.copyWith(color: Colors.black54) ??
                                   const TextStyle(
                                     fontSize: 12,
@@ -1997,7 +1997,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
     final labelStyle =
         theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold) ??
         const TextStyle(fontSize: 18, fontWeight: FontWeight.bold);
-    final helperStyle = theme.textTheme.bodySmall;
+    final helperStyle = theme.textTheme.labelSmall;
     final config = paymentService.activeConfig;
     final additional = config?.additionalData ?? const <String, dynamic>{};
     final publicKey = config?.apiKey ?? additional['publicKey'] as String?;
@@ -2077,7 +2077,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
           context,
         ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold) ??
         const TextStyle(fontSize: 18, fontWeight: FontWeight.bold);
-    final helperStyle = Theme.of(context).textTheme.bodySmall;
+    final helperStyle = Theme.of(context).textTheme.labelSmall;
 
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 12),
