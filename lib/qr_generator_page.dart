@@ -1,6 +1,7 @@
 // lib/qr_generator_page.dart
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+
 class QrGeneratorPage extends StatefulWidget {
   const QrGeneratorPage({super.key});
 
@@ -28,7 +29,8 @@ class _QrGeneratorPageState extends State<QrGeneratorPage> {
                   children: [
                     Text(
                       'QR codes are no longer required',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      style:
+                          Theme.of(context).textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.bold,
                           ) ??
                           const TextStyle(
@@ -45,15 +47,19 @@ class _QrGeneratorPageState extends State<QrGeneratorPage> {
                       alignment: Alignment.centerLeft,
                       child: TextButton.icon(
                         onPressed: () async {
-                          final uri = Uri.parse('https://github.com/omise/omise-node');
+                          final uri = Uri.parse(
+                            'https://github.com/omise/omise-node',
+                          );
                           final launched = await launchUrl(
                             uri,
                             mode: LaunchMode.externalApplication,
                           );
-                          if (!launched && mounted) {
+                          if (!launched && context.mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
-                                content: Text('Unable to open Omise documentation.'),
+                                content: Text(
+                                  'Unable to open Omise documentation.',
+                                ),
                               ),
                             );
                           }

@@ -266,9 +266,11 @@ class _ItemRefundPageState extends State<ItemRefundPage> {
           ),
         );
       }
-      setState(() {
-        _isProcessing = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isProcessing = false;
+        });
+      }
     }
   }
 

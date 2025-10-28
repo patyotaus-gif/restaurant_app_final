@@ -7,6 +7,7 @@ import '../barcode_scanner_page.dart';
 import '../services/stocktake_service.dart';
 import '../stock_provider.dart';
 import '../store_provider.dart';
+
 class StocktakePage extends StatefulWidget {
   const StocktakePage({super.key});
 
@@ -78,6 +79,7 @@ class _StocktakePageState extends State<StocktakePage> {
                     const SizedBox(width: 12),
                     ElevatedButton.icon(
                       onPressed: () async {
+                        if (!context.mounted) return;
                         final scannedCode = await Navigator.of(context)
                             .push<String>(
                               MaterialPageRoute(
@@ -439,6 +441,7 @@ class _StocktakePageState extends State<StocktakePage> {
       },
     );
 
+    if (!context.mounted) return;
     if (action == _StocktakeAction.partial) {
       await _handlePartialAdjustment(
         context,

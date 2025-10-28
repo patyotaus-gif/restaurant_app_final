@@ -6,6 +6,7 @@ import '../auth_service.dart';
 import '../security/permission_policy.dart';
 import '../store_provider.dart';
 import '../unauthorized_page.dart';
+
 class RoutePermissionGuard extends StatefulWidget {
   const RoutePermissionGuard({
     super.key,
@@ -35,7 +36,7 @@ class _RoutePermissionGuardState extends State<RoutePermissionGuard> {
     }
     _redirectScheduled = true;
     Future.microtask(() {
-      if (!mounted) {
+      if (!context.mounted) {
         return;
       }
       context.go('/login');
@@ -72,9 +73,7 @@ class _RoutePermissionGuardState extends State<RoutePermissionGuard> {
           if (widget.unauthorizedBuilder != null) {
             return widget.unauthorizedBuilder!(context);
           }
-          return UnauthorizedPage(
-            attemptedRoute: widget.state.uri.toString(),
-          );
+          return UnauthorizedPage(attemptedRoute: widget.state.uri.toString());
         }
 
         return widget.builder(context, widget.state);

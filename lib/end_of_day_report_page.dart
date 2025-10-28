@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import 'cart_provider.dart';
+
 class EndOfDayReportPage extends StatefulWidget {
   const EndOfDayReportPage({super.key});
 
@@ -53,27 +54,28 @@ class _EndOfDayReportPageState extends State<EndOfDayReportPage> {
         .get();
 
     final Map<String, dynamic> payload = {
-      'orders': ordersSnapshot.docs
-          .map((doc) {
-            final data = doc.data();
-            final rawItems =
-                (data['items'] as List<dynamic>? ?? <dynamic>[]).whereType<Map<String, dynamic>>();
-            return {
-              'orderType': data['orderType']?.toString() ?? '',
-              'total': (data['total'] as num?)?.toDouble() ?? 0.0,
-              'items': rawItems
-                  .map(
-                    (item) => {
-                      'name': item['name']?.toString() ?? 'Item',
-                      'quantity': (item['quantity'] as num?)?.toDouble() ?? 0.0,
-                    },
-                  )
-                  .toList(),
-            };
-          })
-          .toList(),
+      'orders': ordersSnapshot.docs.map((doc) {
+        final data = doc.data();
+        final rawItems = (data['items'] as List<dynamic>? ?? <dynamic>[])
+            .whereType<Map<String, dynamic>>();
+        return {
+          'orderType': data['orderType']?.toString() ?? '',
+          'total': (data['total'] as num?)?.toDouble() ?? 0.0,
+          'items': rawItems
+              .map(
+                (item) => {
+                  'name': item['name']?.toString() ?? 'Item',
+                  'quantity': (item['quantity'] as num?)?.toDouble() ?? 0.0,
+                },
+              )
+              .toList(),
+        };
+      }).toList(),
       'refunds': refundsSnapshot.docs
-          .map((doc) => (doc.data()['totalRefundAmount'] as num?)?.toDouble() ?? 0.0)
+          .map(
+            (doc) =>
+                (doc.data()['totalRefundAmount'] as num?)?.toDouble() ?? 0.0,
+          )
           .toList(),
       'expenses': expensesSnapshot.docs
           .map((doc) => (doc.data()['amount'] as num?)?.toDouble() ?? 0.0)
@@ -354,13 +356,13 @@ class _EndOfDayReportPageState extends State<EndOfDayReportPage> {
                         'notes': noteController.text.trim(),
                         'recordedAt': Timestamp.now(),
                       });
-                  if (!mounted) return;
+                  if (!dialogContext.mounted) return;
                   Navigator.of(dialogContext).pop();
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Cash reconciliation saved.')),
                   );
                 } catch (e) {
-                  if (!mounted) return;
+                  if (!context.mounted) return;
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text(
@@ -571,7 +573,7 @@ class _EndOfDayReportPageState extends State<EndOfDayReportPage> {
         'itemSummary': Map.fromEntries(sortedItems),
       });
 
-      if (!mounted) return;
+      if (!context.mounted) return;
 
       final timeFormat = DateFormat('HH:mm');
       await showDialog(
@@ -635,8 +637,7 @@ class _EndOfDayReportPageState extends State<EndOfDayReportPage> {
   }
 }
 
-Map<String, dynamic> _aggregateEndOfDayReport(
-    Map<String, dynamic> payload) {
+Map<String, dynamic> _aggregateEndOfDayReport(Map<String, dynamic> payload) {
   final List<dynamic> ordersRaw = payload['orders'] as List<dynamic>? ?? [];
   final List<dynamic> refundsRaw = payload['refunds'] as List<dynamic>? ?? [];
   final List<dynamic> expensesRaw = payload['expenses'] as List<dynamic>? ?? [];
@@ -650,7 +651,8 @@ Map<String, dynamic> _aggregateEndOfDayReport(
     if (entry is! Map<String, dynamic>) {
       continue;
     }
-    final String orderType = (entry['orderType'] as String? ?? '').toLowerCase();
+    final String orderType = (entry['orderType'] as String? ?? '')
+        .toLowerCase();
     final double total = (entry['total'] as num?)?.toDouble() ?? 0.0;
     totalRevenue += total;
 

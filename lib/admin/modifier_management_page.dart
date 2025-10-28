@@ -195,6 +195,7 @@ class _ModifierManagementPageState extends State<ModifierManagementPage> {
                     group.groupName = groupNameController.text;
                     if (group.groupName.isEmpty ||
                         group.options.any((o) => o.optionName.isEmpty)) {
+                      if (!mounted) return;
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
                           content: Text(
