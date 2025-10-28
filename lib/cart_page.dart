@@ -1032,11 +1032,8 @@ class _CartPageState extends State<CartPage> {
   void _applyPromo(CartProvider cart) async {
     final code = _promoCodeController.text;
     final result = await cart.applyPromotionCode(code);
-    if (mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(result)));
-    }
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(result)));
     _promoCodeController.clear();
   }
 

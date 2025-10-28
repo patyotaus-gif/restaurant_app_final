@@ -1172,11 +1172,12 @@ class _StoreManagementPageState extends State<StoreManagementPage> {
             : timezoneController.text.trim(),
       );
       await storeService.saveStore(store);
-      if (!mounted) return;
+      if (!context.mounted) return;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('Store "${store.name}" created.')));
     } catch (error) {
+      if (!context.mounted) return;
       setState(() {
         _errorMessage = 'Failed to create store: $error';
       });
@@ -1306,37 +1307,34 @@ class _StoreManagementPageState extends State<StoreManagementPage> {
             ? terminalId
             : null,
       );
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Flag "$flagKey" ${_flagValue ? 'enabled' : 'disabled'} at ${_selectedScope.name} scope.',
-            ),
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Flag "$flagKey" ${_flagValue ? 'enabled' : 'disabled'} at ${_selectedScope.name} scope.',
           ),
         );
         _flagNameController.clear();
       }
     } catch (error) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to update feature flag: $error'),
-            backgroundColor: Theme.of(context).colorScheme.error,
-          ),
-        );
-      }
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to update feature flag: $error'),
+          backgroundColor: Theme.of(context).colorScheme.error,
+        ),
+      );
     }
   }
 
   Future<void> _persistTerminalId(BuildContext context) async {
     final terminalProvider = context.read<TerminalProvider>();
     await terminalProvider.setTerminalId(_terminalIdController.text.trim());
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Terminal identifier saved for this device.'),
-        ),
-      );
-    }
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Terminal identifier saved for this device.'),
+      ),
+    );
   }
 }

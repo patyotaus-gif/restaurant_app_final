@@ -16,6 +16,7 @@ import 'cart_provider.dart';
 import 'services/firestore_converters.dart';
 import 'services/menu_cache_provider.dart';
 import 'widgets/customer_header_widget.dart';
+
 class RetailPosPage extends StatefulWidget {
   const RetailPosPage({super.key});
 
@@ -76,8 +77,7 @@ class _RetailPosPageState extends State<RetailPosPage> {
       Product? product = menuCache.productByBarcode(code);
 
       if (product == null) {
-        final productQuery = await FirebaseFirestore.instance
-            .menuItemsRef
+        final productQuery = await FirebaseFirestore.instance.menuItemsRef
             .where('barcode', isEqualTo: code)
             .limit(1)
             .get();
