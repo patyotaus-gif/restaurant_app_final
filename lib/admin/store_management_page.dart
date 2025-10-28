@@ -1313,9 +1313,9 @@ class _StoreManagementPageState extends State<StoreManagementPage> {
           content: Text(
             'Flag "$flagKey" ${_flagValue ? 'enabled' : 'disabled'} at ${_selectedScope.name} scope.',
           ),
-        ),
-      );
-      _flagNameController.clear();
+        );
+        _flagNameController.clear();
+      }
     } catch (error) {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

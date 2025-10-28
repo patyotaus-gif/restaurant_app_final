@@ -201,8 +201,8 @@ class _ModifierManagementPageState extends State<ModifierManagementPage> {
                           content: Text(
                             'Group Name and all Option Names are required.',
                           ),
-                        ),
-                      );
+                        );
+                      }
                       return;
                     }
 

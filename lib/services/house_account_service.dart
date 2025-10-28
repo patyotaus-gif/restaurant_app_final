@@ -101,7 +101,7 @@ class HouseAccountService {
 
     final totalCharges = charges.fold<double>(
       0,
-      (sum, charge) => sum + charge.amount,
+      (total, charge) => total + charge.amount,
     );
 
     // Payments can be stored under a "payments" subcollection if implemented later.
@@ -114,7 +114,7 @@ class HouseAccountService {
 
     final payments = paymentsSnapshot.docs.fold<double>(
       0,
-      (sum, doc) => sum + ((doc.data()['amount'] as num?)?.toDouble() ?? 0.0),
+      (total, doc) => total + ((doc.data()['amount'] as num?)?.toDouble() ?? 0.0),
     );
 
     final periodStart = DateTime(period.year, period.month, 1);

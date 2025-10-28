@@ -461,10 +461,9 @@ class PrintSpoolerService extends ChangeNotifier {
 }
 
 class _PrintJob {
-  _PrintJob.receipt(ReceiptPrintJobPayload payload)
+  _PrintJob.receipt(this.payload)
       : id = _generateId(),
         type = PrintJobType.receipt,
-        payload = payload,
         createdAt = DateTime.now(),
         nextRunAt = DateTime.now();
 

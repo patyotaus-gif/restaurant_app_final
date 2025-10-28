@@ -21,6 +21,7 @@ import 'package:url_strategy/url_strategy.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
 import 'localization/app_localizations.dart';
+import 'webview_initializer.dart';
 
 import 'admin/accounting_export_page.dart';
 import 'admin/admin_page.dart';

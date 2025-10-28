@@ -131,7 +131,7 @@ class MenuGridPanel extends StatelessWidget {
                           Container(
                             alignment: Alignment.center,
                             decoration: BoxDecoration(
-                              color: Colors.black.withOpacity(0.5),
+                              color: Colors.black.withAlpha(128),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: const Text(

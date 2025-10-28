@@ -47,8 +47,6 @@ class _EditProductPageState extends State<EditProductPage> {
   List<Map<String, dynamic>> _recipeData = [];
 
   final ImagePicker _picker = ImagePicker();
-  bool _isUploading = false;
-  String? _imageFilePath;
 
   @override
   void initState() {
@@ -148,36 +146,6 @@ class _EditProductPageState extends State<EditProductPage> {
     if (result != null && result.isNotEmpty) {
       setState(() {
         _barcodeController.text = result;
-      });
-    }
-  }
-
-  Future<void> _pickAndUploadImage() async {
-    // This function will now be used by the image picker button
-    final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
-    if (image == null) return;
-
-    setState(() {
-      _isUploading = true;
-      _imageFilePath = image.path;
-    });
-
-    try {
-      final file = File(image.path);
-      final fileName =
-          'product_images/${DateTime.now().millisecondsSinceEpoch}_${image.name}';
-      final ref = FirebaseStorage.instance.ref().child(fileName);
-      final snapshot = await ref.putFile(file);
-      final downloadUrl = await snapshot.ref.getDownloadURL();
-
-      setState(() {
-        _imageUrlController.text = downloadUrl;
-        _isUploading = false;
-      });
-    } catch (e) {
-      setState(() {
-        _isUploading = false;
-        _imageFilePath = null;
       });
     }
   }

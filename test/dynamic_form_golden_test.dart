@@ -14,8 +14,7 @@ const _menuGoldenKey = ValueKey('menu_form_golden');
 const _pageGoldenKey = ValueKey('schema_page_golden');
 
 void main() {
-  final binding = TestWidgetsFlutterBinding.ensureInitialized();
-  binding.allowFirstFrame = true;
+  TestWidgetsFlutterBinding.ensureInitialized();
 
   group('Dynamic forms golden tests', () {
     setUpAll(() {

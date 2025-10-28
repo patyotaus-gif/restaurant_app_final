@@ -274,7 +274,7 @@ class PrintingService {
       ];
     }).toList();
 
-    return pw.Table.fromTextArray(
+    return pw.TableHelper.fromTextArray(
       headers: headers,
       data: dataRows,
       headerStyle: pw.TextStyle(
@@ -325,7 +325,7 @@ class PrintingService {
     if (taxLines.isNotEmpty) {
       final double aggregatedTax = taxLines.fold<double>(
         0,
-        (sum, line) => sum + line.value,
+        (total, line) => total + line.value,
       );
       rows.add(_buildTotalRow(ttf, 'Tax', aggregatedTax));
       for (final tax in taxLines) {

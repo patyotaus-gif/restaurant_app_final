@@ -13,23 +13,6 @@ import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:restaurant_models/restaurant_models.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-class _FakeConnectivity extends Fake implements Connectivity {
-  final _controller = StreamController<List<ConnectivityResult>>.broadcast();
-
-  @override
-  Future<List<ConnectivityResult>> checkConnectivity() async {
-    return [ConnectivityResult.wifi];
-  }
-
-  @override
-  Stream<List<ConnectivityResult>> get onConnectivityChanged =>
-      _controller.stream;
-
-  void dispose() {
-    unawaited(_controller.close());
-  }
-}
-
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -46,8 +29,6 @@ void main() {
     );
 
     addTearDown(() {
-      FlutterError.onError = defaultOnError;
-      connectivity.dispose();
       syncQueue.dispose();
     });
 
@@ -74,7 +55,7 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.runAsync(() async {
-      await tester.tap(find.text('I HAVE PAID - CONFIRM'));
+      await tester.tap(find.text('Confirm Payment'));
       await tester.pumpAndSettle();
     });
 

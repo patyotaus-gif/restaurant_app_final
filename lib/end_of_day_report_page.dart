@@ -368,8 +368,8 @@ class _EndOfDayReportPageState extends State<EndOfDayReportPage> {
                       content: Text(
                         'Failed to save reconciliation: ${e.toString()}',
                       ),
-                    ),
-                  );
+                    );
+                  }
                 }
               },
               child: const Text('Save'),
@@ -629,10 +629,11 @@ class _EndOfDayReportPageState extends State<EndOfDayReportPage> {
         context,
       ).showSnackBar(const SnackBar(content: Text('Shift Z report saved.')));
     } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to generate Shift Z report: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to generate Shift Z report: $e')),
+        );
+      }
     }
   }
 }

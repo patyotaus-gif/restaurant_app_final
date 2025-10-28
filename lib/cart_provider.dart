@@ -35,7 +35,7 @@ class CartItem {
     if (selectedModifiers.isEmpty) return 0.0;
     return selectedModifiers.fold(
       0.0,
-      (sum, modifier) => sum + (modifier['priceChange'] as num),
+      (total, modifier) => total + (modifier['priceChange'] as num),
     );
   }
 

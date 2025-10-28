@@ -110,7 +110,7 @@ class Workmanager {
       'taskName': taskName,
       'inputData': inputData,
       'initialDelayMillis': initialDelay?.inMilliseconds,
-      'existingWorkPolicy': describeEnum(existingWorkPolicy),
+      'existingWorkPolicy': existingWorkPolicy.name,
       'constraints': constraints?.toJson(),
       'backoffPolicy': backoffPolicy?.toJson(),
       'tags': tags,
@@ -138,7 +138,7 @@ class Workmanager {
       'initialDelayMillis': initialDelay?.inMilliseconds,
       'inputData': inputData,
       'constraints': constraints?.toJson(),
-      'existingWorkPolicy': describeEnum(existingWorkPolicy),
+      'existingWorkPolicy': existingWorkPolicy.name,
       'backoffPolicy': backoffPolicy?.toJson(),
       'tags': tags,
     });
@@ -185,7 +185,7 @@ class BackoffPolicyConfig {
   final Duration delay;
 
   Map<String, dynamic> toJson() => <String, dynamic>{
-        'policy': describeEnum(policy),
+        'policy': policy.name,
         'delayMillis': delay.inMilliseconds,
       };
 }
@@ -219,6 +219,6 @@ class Constraints {
           'requiresBatteryNotLow': requiresBatteryNotLow,
         if (requiresStorageNotLow != null)
           'requiresStorageNotLow': requiresStorageNotLow,
-        if (networkType != null) 'networkType': describeEnum(networkType!),
+        if (networkType != null) 'networkType': networkType!.name,
       };
 }

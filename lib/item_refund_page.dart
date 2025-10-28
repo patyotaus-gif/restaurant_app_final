@@ -158,11 +158,13 @@ class _ItemRefundPageState extends State<ItemRefundPage> {
         .toList();
 
     if (refundedItems.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please select at least one item to refund.'),
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please select at least one item to refund.'),
+          ),
+        );
+      }
       setState(() {
         _isProcessing = false;
       });
@@ -176,11 +178,13 @@ class _ItemRefundPageState extends State<ItemRefundPage> {
     final String? customerId = orderData['customerId'] as String?;
 
     if (_refundMethod == 'storeCredit' && customerId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Cannot apply store credit without a customer.'),
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Cannot apply store credit without a customer.'),
+          ),
+        );
+      }
       setState(() {
         _isProcessing = false;
       });
