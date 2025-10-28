@@ -25,8 +25,7 @@ class _EmployeeManagementPageState extends State<EmployeeManagementPage> {
   Future<void> _showEmployeeDialog({Employee? employee}) async {
     final isNew = employee == null;
     final nameController = TextEditingController(text: employee?.name);
-    final pinController =
-        TextEditingController(); // PIN is not pre-filled for security
+    final pinController = TextEditingController(); // PIN is not pre-filled for security
     String selectedRole = employee?.role ?? 'Employee';
     final formKey = GlobalKey<FormState>();
 
@@ -71,9 +70,7 @@ class _EmployeeManagementPageState extends State<EmployeeManagementPage> {
                   TextFormField(
                     controller: pinController,
                     decoration: InputDecoration(
-                      labelText: isNew
-                          ? '4-Digit PIN'
-                          : 'New 4-Digit PIN (optional)',
+                      labelText: isNew ? '4-Digit PIN' : 'New 4-Digit PIN (optional)',
                     ),
                     keyboardType: TextInputType.number,
                     inputFormatters: [FilteringTextInputFormatter.digitsOnly],
@@ -82,10 +79,7 @@ class _EmployeeManagementPageState extends State<EmployeeManagementPage> {
                       if (isNew && (value == null || value.length < 4)) {
                         return 'A 4-digit PIN is required for new employees';
                       }
-                      if (!isNew &&
-                          value != null &&
-                          value.isNotEmpty &&
-                          value.length < 4) {
+                      if (!isNew && value != null && value.isNotEmpty && value.length < 4) {
                         return 'PIN must be 4 digits if you want to change it';
                       }
                       return null;
@@ -111,12 +105,8 @@ class _EmployeeManagementPageState extends State<EmployeeManagementPage> {
                   final pin = pinController.text;
                   if (pin.isNotEmpty) {
                     final algorithm = Sha256();
-                    final hashedPinBytes = await algorithm.hash(
-                      utf8.encode(pin),
-                    );
-                    employeeData['hashedPin'] = base64Url.encode(
-                      hashedPinBytes.bytes,
-                    );
+                    final hashedPinBytes = await algorithm.hash(utf8.encode(pin));
+                    employeeData['hashedPin'] = base64Url.encode(hashedPinBytes.bytes);
                   }
 
                   if (isNew) {

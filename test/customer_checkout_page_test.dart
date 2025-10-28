@@ -21,12 +21,8 @@ void main() {
   ) async {
     SharedPreferences.setMockInitialValues({});
 
-    final connectivity = _FakeConnectivity();
-    inal firestore = FakeFirebaseFirestore();
-    final syncQueue = SyncQueueService(
-      firestore: firestore,
-      connectivity: connectivity,
-    );
+    final firestore = FakeFirebaseFirestore();
+    final syncQueue = SyncQueueService(firestore);
 
     addTearDown(() {
       syncQueue.dispose();

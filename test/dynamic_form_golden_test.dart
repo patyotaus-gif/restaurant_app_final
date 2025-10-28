@@ -17,17 +17,10 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('Dynamic forms golden tests', () {
-    setUpAll(() {
-      final goldenComparator = CustomGoldenFileComparator(
-        '${(goldenFileComparator as LocalFileComparator).basedir}/goldens',
-        tolerance: 0.1,
-      );
-      goldenFileComparator = goldenComparator;
-    });
-
     setUp(() {
       (TestWidgetsFlutterBinding.instance).deferFirstFrame();
     });
+
     testWidgets('Menu item blueprint renders as expected', (tester) async {
       await tester.binding.setSurfaceSize(const Size(1024, 900));
       addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -69,7 +62,7 @@ void main() {
 
       await expectLater(
         find.byKey(_menuGoldenKey),
-        matchesGoldenFile('menu_item_form.png'),
+        matchesGoldenFile('goldens/menu_item_form.png'),
       );
     });
 
@@ -96,30 +89,10 @@ void main() {
 
       await expectLater(
         find.byKey(_pageGoldenKey),
-        matchesGoldenFile('backoffice_schema_page.png'),
+        matchesGoldenFile('goldens/backoffice_schema_page.png'),
       );
     });
   });
-}
-
-class CustomGoldenFileComparator extends LocalFileComparator {
-  CustomGoldenFileComparator(String basedir, {required this.tolerance})
-    : super(Uri.parse(basedir));
-
-  final double tolerance;
-
-  @override
-  Future<bool> compare(Uint8List imageBytes, Uri golden) async {
-    final result = await super.compare(imageBytes, golden);
-    if (result) {
-      return true;
-    }
-    final ComparisonResult comparison = await GoldenFileComparator.compareLists(
-      imageBytes,
-      await getGoldenBytes(golden),
-    );
-    return comparison.passed || (comparison.diffPercent / 100) < tolerance;
-  }
 }
 
 Future<void> _ensureGoldenExists(

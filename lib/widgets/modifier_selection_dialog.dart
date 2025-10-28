@@ -1,6 +1,7 @@
 // lib/widgets/modifier_selection_dialog.dart
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:restaurant_models/restaurant_models.dart';
 
@@ -48,14 +49,13 @@ class _ModifierSelectionDialogState extends State<ModifierSelectionDialog> {
         if (_selectedOptions[groupId] == null) {
           _selectedOptions[groupId] = <ModifierOption>[];
         }
-        List<ModifierOption> currentSelections = _selectedOptions[groupId];
-        // Check if the option is already selected by comparing names, as object instances can differ
-        final existingOption = currentSelections.firstWhere(
+        final currentSelections =
+            _selectedOptions[groupId] as List<ModifierOption>;
+        final existingOption = currentSelections.firstWhereOrNull(
           (o) => o.optionName == option.optionName,
-          orElse: () => ModifierOption(optionName: 'not_found'),
         );
 
-        if (existingOption.optionName != 'not_found') {
+        if (existingOption != null) {
           currentSelections.remove(existingOption);
         } else {
           currentSelections.add(option);

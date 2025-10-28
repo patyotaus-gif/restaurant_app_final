@@ -8,7 +8,6 @@ import 'package:url_launcher/url_launcher.dart';
 
 import 'cart_provider.dart';
 import 'services/sync_queue_service.dart';
-
 class CustomerCheckoutPage extends StatefulWidget {
   final String tableNumber;
   final Map<String, CartItem> cart;
@@ -148,10 +147,10 @@ class _CustomerCheckoutPageState extends State<CustomerCheckoutPage> {
         );
       }
     } catch (e) {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error: $e')));
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Error: $e')));
+      }
     } finally {
       if (mounted) {
         setState(() {
@@ -192,8 +191,7 @@ class _CustomerCheckoutPageState extends State<CustomerCheckoutPage> {
                       children: [
                         Text(
                           'Card payments powered by omise-node',
-                          style:
-                              Theme.of(context).textTheme.titleMedium?.copyWith(
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
                                 fontWeight: FontWeight.bold,
                               ) ??
                               const TextStyle(
@@ -210,21 +208,20 @@ class _CustomerCheckoutPageState extends State<CustomerCheckoutPage> {
                           alignment: Alignment.centerLeft,
                           child: TextButton.icon(
                             onPressed: () async {
-                              final uri = Uri.parse(
-                                'https://github.com/omise/omise-node',
-                              );
+                              final uri = Uri.parse('https://github.com/omise/omise-node');
                               final launched = await launchUrl(
                                 uri,
                                 mode: LaunchMode.externalApplication,
                               );
-                              if (!launched && mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text(
-                                      'Unable to open Omise documentation.',
+                              if (!launched) {
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                          'Unable to open Omise documentation.'),
                                     ),
-                                  ),
-                                );
+                                  );
+                                }
                               }
                             },
                             icon: const Icon(Icons.open_in_new),
@@ -265,15 +262,11 @@ class _CustomerCheckoutPageState extends State<CustomerCheckoutPage> {
                             height: 20,
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                Colors.white,
-                              ),
+                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                             ),
                           )
                         : const Icon(Icons.check_circle),
-                    label: Text(
-                      _isLoading ? 'Processing...' : 'Confirm Payment',
-                    ),
+                    label: Text(_isLoading ? 'Processing...' : 'Confirm Payment'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.green,
                       foregroundColor: Colors.white,

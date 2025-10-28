@@ -45,7 +45,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    // expect(find.text('Updated Mar 12, 2024'), findsOneWidget); // TODO: Mock date
+    expect(find.textContaining('Updated'), findsOneWidget);
     expect(
       find.textContaining('Power-cycle the card reader'),
       findsOneWidget,
@@ -57,7 +57,7 @@ void main() {
     await tester.tap(find.text('v1.0.0').last);
     await tester.pumpAndSettle();
 
-    // expect(find.text('Updated Sep 10, 2023'), findsOneWidget); // TODO: Mock date
+    expect(find.textContaining('Updated'), findsOneWidget);
     expect(
       find.textContaining('Contact vendor support to confirm if there is a regional outage.'),
       findsOneWidget,
@@ -92,7 +92,15 @@ void main() {
     await tester.tap(paymentsChip);
     await tester.pumpAndSettle();
 
-    expect(find.text('Payments: Card Reader Offline'), findsNWidgets(2));
+    expect(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is ListTile &&
+            widget.selected &&
+            (widget.title as Text).data == 'Payments: Card Reader Offline',
+      ),
+      findsOneWidget,
+    );
     expect(find.text('Kitchen Display Queue Stalling'), findsNothing);
 
     await tester.tap(paymentsChip);

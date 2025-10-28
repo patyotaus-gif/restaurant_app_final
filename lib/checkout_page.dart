@@ -1156,6 +1156,42 @@ class _CheckoutPageState extends State<CheckoutPage> {
     );
   }
 
+  Future<void> _handleReceiptPreview() async {
+    final storeProvider = context.read<StoreProvider>();
+    try {
+      final orderDoc = await FirebaseFirestore.instance
+          .collection('orders')
+          .doc(widget.orderId)
+          .get();
+      if (!orderDoc.exists) {
+        throw Exception('Order not found!');
+      }
+      final store = storeProvider.activeStore;
+      if (store == null) {
+        throw Exception('Store information not available');
+      }
+      await PrintingService().previewReceipt(
+        orderDoc.data()!,
+        storeDetails: StoreReceiptDetails.fromStore(store),
+        taxDetails: _includeTaxInvoice
+            ? TaxInvoiceDetails(
+                customerName: _customerNameController.text.trim(),
+                taxId: _customerTaxIdController.text.trim(),
+                address: _customerAddressController.text.trim(),
+                email: _customerEmailController.text.trim(),
+                phone: _customerPhoneController.text.trim(),
+              )
+            : null,
+        includeTaxInvoice: _includeTaxInvoice,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Preview Error: $e')));
+    }
+  }
+
   bool _isValidEmail(String value) {
     final email = value.trim();
     if (email.isEmpty) return false;
@@ -2278,6 +2314,18 @@ class _CheckoutPageState extends State<CheckoutPage> {
                   runSpacing: 12,
                   alignment: WrapAlignment.start,
                   children: [
+                    OutlinedButton.icon(
+                      icon: const Icon(Icons.visibility),
+                      label: const Text('Preview Receipt (PDF)'),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 15,
+                        ),
+                        textStyle: const TextStyle(fontSize: 16),
+                      ),
+                      onPressed: _handleReceiptPreview,
+                    ),
                     OutlinedButton.icon(
                       icon: _isPrintingEscPos
                           ? const SizedBox(
