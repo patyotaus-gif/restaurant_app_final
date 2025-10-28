@@ -195,13 +195,15 @@ class _ModifierManagementPageState extends State<ModifierManagementPage> {
                     group.groupName = groupNameController.text;
                     if (group.groupName.isEmpty ||
                         group.options.any((o) => o.optionName.isEmpty)) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            'Group Name and all Option Names are required.',
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'Group Name and all Option Names are required.',
+                            ),
                           ),
-                        ),
-                      );
+                        );
+                      }
                       return;
                     }
 

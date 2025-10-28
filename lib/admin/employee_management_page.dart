@@ -118,6 +118,7 @@ class _EmployeeManagementPageState extends State<EmployeeManagementPage> {
                         .update(employeeData);
                   }
 
+                  if (!context.mounted) return;
                   Navigator.of(context).pop();
                 }
               },

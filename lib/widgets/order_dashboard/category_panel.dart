@@ -47,7 +47,7 @@ class CategoryPanel extends StatelessWidget {
             selected: isSelected,
             selectedTileColor: Theme.of(
               context,
-            ).colorScheme.primary.withOpacity(0.1),
+            ).colorScheme.primary.withAlpha(26),
             onTap: () => onCategorySelected(categoryKey),
           );
         },

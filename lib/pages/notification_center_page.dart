@@ -9,7 +9,6 @@ class NotificationCenterPage extends StatelessWidget {
 
   void _handleNotificationTap(BuildContext context, AppNotification n) {
     // --- THIS IS THE TEST CODE ---
-    print('--- Tapped on notification: ${n.title} ---');
     // -----------------------------
 
     context.read<NotificationProvider>().markSeen(n.id);

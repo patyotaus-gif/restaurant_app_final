@@ -41,9 +41,6 @@ class RolePermissionRegistry {
     'viewer': {Permission.viewInventory},
   };
 
-  static final MapEquality<String, Set<Permission>> _mapEquality =
-      const MapEquality();
-
   static Map<String, Set<Permission>> _customOverrides = {};
 
   static void registerCustomRoles(Map<String, Set<Permission>> roles) {

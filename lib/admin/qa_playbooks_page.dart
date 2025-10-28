@@ -172,7 +172,7 @@ class _PlaybookSidebar extends StatelessWidget {
                     if (playbook.lastUpdated != null)
                       Text(
                         DateFormat.yMMMd().format(playbook.lastUpdated!),
-                        style: Theme.of(context).textTheme.bodySmall,
+                        style: Theme.of(context).textTheme.labelSmall,
                       ),
                   ],
                 ),

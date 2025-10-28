@@ -29,7 +29,7 @@ class _SplashScreenState extends State<SplashScreen> {
         fit: StackFit.expand,
         children: [
           Image.asset('assets/images/logo.png', fit: BoxFit.cover),
-          Container(color: Colors.black.withOpacity(0.2)),
+          Container(color: Colors.black.withAlpha(51)),
           const Center(
             child: CircularProgressIndicator(
               valueColor: AlwaysStoppedAnimation<Color>(Colors.white),

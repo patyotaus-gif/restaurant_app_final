@@ -144,10 +144,6 @@ class _ReceiptQrImage extends StatelessWidget {
   }
 }
 
-extension on QrCode {
-  module(int y, int x) {}
-}
-
 class _QrMatrixPainter extends CustomPainter {
   const _QrMatrixPainter({
     required this.modules,
@@ -262,7 +258,6 @@ class _WindowsChargePollResult {
 class _CheckoutPageState extends State<CheckoutPage> {
   static const String _fallbackOmiseReturnUri =
       'https://restaurant-pos.web.app/payments/omise-return';
-  final PrintingService _printingService = PrintingService();
   final ReceiptService _receiptService = ReceiptService();
   final HouseAccountService _houseAccountService = HouseAccountService();
   bool _isConfirming = false;
@@ -1159,42 +1154,6 @@ class _CheckoutPageState extends State<CheckoutPage> {
         ),
       ),
     );
-  }
-
-  Future<void> _handleReceiptPreview() async {
-    final storeProvider = context.read<StoreProvider>();
-    try {
-      final orderDoc = await FirebaseFirestore.instance
-          .collection('orders')
-          .doc(widget.orderId)
-          .get();
-      if (!orderDoc.exists) {
-        throw Exception('Order not found!');
-      }
-      final store = storeProvider.activeStore;
-      if (store == null) {
-        throw Exception('Store information not available');
-      }
-      await _printingService.previewReceipt(
-        orderDoc.data()!,
-        storeDetails: StoreReceiptDetails.fromStore(store),
-        taxDetails: _includeTaxInvoice
-            ? TaxInvoiceDetails(
-                customerName: _customerNameController.text.trim(),
-                taxId: _customerTaxIdController.text.trim(),
-                address: _customerAddressController.text.trim(),
-                email: _customerEmailController.text.trim(),
-                phone: _customerPhoneController.text.trim(),
-              )
-            : null,
-        includeTaxInvoice: _includeTaxInvoice,
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Preview Error: $e')));
-    }
   }
 
   bool _isValidEmail(String value) {
@@ -2319,18 +2278,6 @@ class _CheckoutPageState extends State<CheckoutPage> {
                   runSpacing: 12,
                   alignment: WrapAlignment.start,
                   children: [
-                    OutlinedButton.icon(
-                      icon: const Icon(Icons.visibility),
-                      label: const Text('Preview Receipt (PDF)'),
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 20,
-                          vertical: 15,
-                        ),
-                        textStyle: const TextStyle(fontSize: 16),
-                      ),
-                      onPressed: _handleReceiptPreview,
-                    ),
                     OutlinedButton.icon(
                       icon: _isPrintingEscPos
                           ? const SizedBox(

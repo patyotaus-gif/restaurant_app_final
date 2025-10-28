@@ -117,7 +117,7 @@ class _CustomerMenuPageState extends State<CustomerMenuPage> {
     final categories = _tempCart.values.map((item) => item.category).toSet();
     final totalItems = _tempCart.values.fold<int>(
       0,
-      (count, item) => count + item.quantity,
+      (sum, item) => sum + item.quantity,
     );
     final validationMessage = promo.rules.validate(
       subtotal: _subtotal,

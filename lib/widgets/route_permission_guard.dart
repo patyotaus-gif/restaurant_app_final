@@ -35,7 +35,7 @@ class _RoutePermissionGuardState extends State<RoutePermissionGuard> {
     }
     _redirectScheduled = true;
     Future.microtask(() {
-      if (!mounted) {
+      if (!context.mounted) {
         return;
       }
       context.go('/login');

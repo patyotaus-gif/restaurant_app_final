@@ -1036,8 +1036,8 @@ class _CartPageState extends State<CartPage> {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(result)));
-      _promoCodeController.clear();
     }
+    _promoCodeController.clear();
   }
 
   @override

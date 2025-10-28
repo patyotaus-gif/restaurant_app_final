@@ -105,7 +105,7 @@ class _CreatePurchaseOrderPageState extends State<CreatePurchaseOrderPage> {
 
     setState(() => _isLoading = true);
 
-    final totalAmount = _items.fold(0.0, (sum, item) => sum + item.cost);
+    final totalAmount = _items.fold(0.0, (total, item) => total + item.cost);
 
     final newPo = {
       'poNumber': 'PO-${DateTime.now().millisecondsSinceEpoch}',

@@ -258,8 +258,8 @@ class _BackofficeSchemaPageState extends State<BackofficeSchemaPage> {
               width: double.infinity,
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: theme.colorScheme.surfaceContainerHighest.withOpacity(
-                  0.4,
+                color: theme.colorScheme.surfaceContainerHighest.withAlpha(
+                  102,
                 ),
                 borderRadius: BorderRadius.circular(12),
               ),

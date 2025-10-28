@@ -1306,34 +1306,37 @@ class _StoreManagementPageState extends State<StoreManagementPage> {
             ? terminalId
             : null,
       );
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Flag "$flagKey" ${_flagValue ? 'enabled' : 'disabled'} at ${_selectedScope.name} scope.',
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Flag "$flagKey" ${_flagValue ? 'enabled' : 'disabled'} at ${_selectedScope.name} scope.',
+            ),
           ),
-        ),
-      );
-      _flagNameController.clear();
+        );
+        _flagNameController.clear();
+      }
     } catch (error) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to update feature flag: $error'),
-          backgroundColor: Theme.of(context).colorScheme.error,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to update feature flag: $error'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
     }
   }
 
   Future<void> _persistTerminalId(BuildContext context) async {
     final terminalProvider = context.read<TerminalProvider>();
     await terminalProvider.setTerminalId(_terminalIdController.text.trim());
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Terminal identifier saved for this device.'),
-      ),
-    );
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Terminal identifier saved for this device.'),
+        ),
+      );
+    }
   }
 }

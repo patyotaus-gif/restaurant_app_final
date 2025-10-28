@@ -148,9 +148,8 @@ class _CustomerCheckoutPageState extends State<CustomerCheckoutPage> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error: $e')));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Error: $e')));
       }
     } finally {
       if (mounted) {
@@ -214,12 +213,15 @@ class _CustomerCheckoutPageState extends State<CustomerCheckoutPage> {
                                 uri,
                                 mode: LaunchMode.externalApplication,
                               );
-                              if (!launched && mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Unable to open Omise documentation.'),
-                                  ),
-                                );
+                              if (!launched) {
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                          'Unable to open Omise documentation.'),
+                                    ),
+                                  );
+                                }
                               }
                             },
                             icon: const Icon(Icons.open_in_new),

@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -13,10 +14,17 @@ const _menuGoldenKey = ValueKey('menu_form_golden');
 const _pageGoldenKey = ValueKey('schema_page_golden');
 
 void main() {
-  final binding = TestWidgetsFlutterBinding.ensureInitialized();
-  binding.allowFirstFrame = true;
+  TestWidgetsFlutterBinding.ensureInitialized();
 
   group('Dynamic forms golden tests', () {
+    setUpAll(() {
+      GoldenFileComparator.testImageDirectory = 'test/goldens';
+    });
+
+    setUp(() {
+      (TestWidgetsFlutterBinding.instance).deferFirstFrame();
+    });
+
     testWidgets('Menu item blueprint renders as expected', (tester) async {
       await tester.binding.setSurfaceSize(const Size(1024, 900));
       addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -58,10 +66,7 @@ void main() {
 
       await expectLater(
         find.byKey(_menuGoldenKey),
-        matchesGoldenFileWithTolerance(
-          'goldens/menu_item_form.png',
-          tolerance: 0.1,
-        ),
+        matchesGoldenFile('menu_item_form.png'),
       );
     });
 
@@ -88,10 +93,7 @@ void main() {
 
       await expectLater(
         find.byKey(_pageGoldenKey),
-        matchesGoldenFileWithTolerance(
-          'goldens/backoffice_schema_page.png',
-          tolerance: 0.1,
-        ),
+        matchesGoldenFile('backoffice_schema_page.png'),
       );
     });
   });

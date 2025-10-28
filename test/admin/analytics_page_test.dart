@@ -11,7 +11,7 @@ void main() {
     firestore = FakeFirebaseFirestore();
   });
 
-  Future<void> _addExportJob(DateTime requestedAt) async {
+  Future<void> addExportJob(DateTime requestedAt) async {
     await firestore.collection('analytics_exports').add({
       'requestedAt': Timestamp.fromDate(requestedAt),
       'status': 'completed',
@@ -23,9 +23,9 @@ void main() {
 
   testWidgets('AnalyticsPage only shows recent export jobs', (WidgetTester tester) async {
     // Add a recent export job
-    await _addExportJob(DateTime.now().subtract(const Duration(days: 15)));
+    await addExportJob(DateTime.now().subtract(const Duration(days: 15)));
     // Add an old export job
-    await _addExportJob(DateTime.now().subtract(const Duration(days: 45)));
+    await addExportJob(DateTime.now().subtract(const Duration(days: 45)));
 
     await tester.pumpWidget(
       MaterialApp(

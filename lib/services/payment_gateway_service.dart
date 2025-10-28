@@ -750,7 +750,7 @@ class PaymentGatewayService with ChangeNotifier {
     if (!result.success) {
       throw PaymentGatewayException(
         result.message ??
-            'Payment failed when using ${describeEnum(_adapter.type)}.',
+            'Payment failed when using ${_adapter.type.name}.',
       );
     }
     return result;

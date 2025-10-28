@@ -50,7 +50,7 @@ class _QrGeneratorPageState extends State<QrGeneratorPage> {
                             uri,
                             mode: LaunchMode.externalApplication,
                           );
-                          if (!launched && mounted) {
+                          if (!launched && context.mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
                                 content: Text('Unable to open Omise documentation.'),

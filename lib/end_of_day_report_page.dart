@@ -354,20 +354,25 @@ class _EndOfDayReportPageState extends State<EndOfDayReportPage> {
                         'notes': noteController.text.trim(),
                         'recordedAt': Timestamp.now(),
                       });
-                  if (!mounted) return;
-                  Navigator.of(dialogContext).pop();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Cash reconciliation saved.')),
-                  );
+                  if (dialogContext.mounted) {
+                    Navigator.of(dialogContext).pop();
+                  }
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                          content: Text('Cash reconciliation saved.')),
+                    );
+                  }
                 } catch (e) {
-                  if (!mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        'Failed to save reconciliation: ${e.toString()}',
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          'Failed to save reconciliation: ${e.toString()}',
+                        ),
                       ),
-                    ),
-                  );
+                    );
+                  }
                 }
               },
               child: const Text('Save'),
@@ -571,12 +576,11 @@ class _EndOfDayReportPageState extends State<EndOfDayReportPage> {
         'itemSummary': Map.fromEntries(sortedItems),
       });
 
-      if (!mounted) return;
-
-      final timeFormat = DateFormat('HH:mm');
-      await showDialog(
-        context: context,
-        builder: (context) {
+      if (mounted) {
+        final timeFormat = DateFormat('HH:mm');
+        await showDialog(
+          context: context,
+          builder: (context) {
           return AlertDialog(
             title: const Text('Shift Z Report Summary'),
             content: SingleChildScrollView(
@@ -627,10 +631,11 @@ class _EndOfDayReportPageState extends State<EndOfDayReportPage> {
         context,
       ).showSnackBar(const SnackBar(content: Text('Shift Z report saved.')));
     } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to generate Shift Z report: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to generate Shift Z report: $e')),
+        );
+      }
     }
   }
 }
