@@ -702,7 +702,7 @@ Future<void> main() async {
           'Firebase Firestore is not supported on this platform; launching '
           'fallback experience.',
         );
-      runApp(UnsupportedPlatformApp());
+        runApp(UnsupportedPlatformApp());
         return;
       }
 
@@ -1154,7 +1154,7 @@ class UnsupportedPlatformApp extends StatelessWidget {
       home: Scaffold(
         body: Center(
           child: ConstrainedBox(
-            constraints: BoxConstraints(maxWidth: 360),
+            constraints: const BoxConstraints(maxWidth: 360),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.center,
@@ -1165,7 +1165,10 @@ class UnsupportedPlatformApp extends StatelessWidget {
                   'This build of Restaurant App is not supported on the '
                   'current platform.',
                   textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
                 SizedBox(height: 12),
                 Text(
