@@ -85,6 +85,7 @@ dependencies:
     path: packages/restaurant_models
   package_info_plus: ^8.0.0
   qr: ^3.0.2
+  qr_flutter: ^4.1.0
 
 dev_dependencies:
   fake_cloud_firestore: ^3.1.0
