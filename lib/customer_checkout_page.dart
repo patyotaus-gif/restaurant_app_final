@@ -122,30 +122,30 @@ class _CustomerCheckoutPageState extends State<CustomerCheckoutPage> {
         'customerPhoneNumber': _phoneController.text,
       });
 
-      if (mounted) {
-        final isSynced = result.isSynced;
-        showDialog(
-          context: context,
-          barrierDismissible: false,
-          builder: (ctx) => AlertDialog(
-            title: Text(isSynced ? 'Payment Confirmed!' : 'Payment Queued'),
-            content: Text(
-              isSynced
-                  ? 'Thank you! Your order is complete. A receipt will be sent shortly.'
-                  : 'You are offline. Your payment has been queued and will sync automatically when connected.',
-            ),
-            actions: [
-              TextButton(
-                child: const Text('OK'),
-                onPressed: () {
-                  Navigator.of(ctx).pop();
-                  Navigator.of(context).popUntil((route) => route.isFirst);
-                },
-              ),
-            ],
+      final isSynced = result.isSynced;
+      if (!mounted) return;
+
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => AlertDialog(
+          title: Text(isSynced ? 'Payment Confirmed!' : 'Payment Queued'),
+          content: Text(
+            isSynced
+                ? 'Thank you! Your order is complete. A receipt will be sent shortly.'
+                : 'You are offline. Your payment has been queued and will sync automatically when connected.',
           ),
-        );
-      }
+          actions: [
+            TextButton(
+              child: const Text('OK'),
+              onPressed: () {
+                Navigator.of(ctx).pop();
+                Navigator.of(context).popUntil((route) => route.isFirst);
+              },
+            ),
+          ],
+        ),
+      );
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context)

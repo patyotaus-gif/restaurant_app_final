@@ -12,7 +12,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
-import 'package:qr/qr.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import 'package:restaurant_models/restaurant_models.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -84,106 +84,6 @@ class CheckoutPage extends StatefulWidget {
 
   @override
   State<CheckoutPage> createState() => _CheckoutPageState();
-}
-
-class _ReceiptQrImage extends StatelessWidget {
-  const _ReceiptQrImage({
-    required this.data,
-    this.size = 180,
-    this.color = Colors.black,
-    this.backgroundColor = Colors.white,
-  });
-
-  final String data;
-  final double size;
-  final Color color;
-  final Color backgroundColor;
-
-  @override
-  Widget build(BuildContext context) {
-    try {
-      final qrCode = QrCode.fromData(
-        data: data,
-        errorCorrectLevel: QrErrorCorrectLevel.M,
-      );
-      final qrImage = QrImage(qrCode);
-      return SizedBox(
-        width: size,
-        height: size,
-        child: CustomPaint(
-          painter: _QrMatrixPainter(
-            qrImage: qrImage,
-            color: color,
-            backgroundColor: backgroundColor,
-          ),
-        ),
-      );
-    } catch (_) {
-      return Container(
-        width: size,
-        height: size,
-        color: backgroundColor,
-        alignment: Alignment.center,
-        child: Text(
-          'ไม่สามารถสร้าง QR ได้',
-          style: Theme.of(context).textTheme.bodySmall,
-          textAlign: TextAlign.center,
-        ),
-      );
-    }
-  }
-}
-
-class _QrMatrixPainter extends CustomPainter {
-  const _QrMatrixPainter({
-    required this.qrImage,
-    required this.color,
-    required this.backgroundColor,
-  });
-
-  final QrImage qrImage;
-  final Color color;
-  final Color backgroundColor;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final backgroundPaint = Paint()..color = backgroundColor;
-    canvas.drawRect(Offset.zero & size, backgroundPaint);
-
-    final moduleCount = qrImage.moduleCount;
-    if (moduleCount == 0) {
-      return;
-    }
-
-    final modulePaint = Paint()..color = color;
-    final double dimension = size.shortestSide;
-    final double pixelSize = dimension / moduleCount;
-    final double qrExtent = pixelSize * moduleCount;
-    final double horizontalInset = (size.width - qrExtent) / 2;
-    final double verticalInset = (size.height - qrExtent) / 2;
-
-    for (var y = 0; y < moduleCount; y++) {
-      for (var x = 0; x < moduleCount; x++) {
-        if (!qrImage.isDark(y, x)) {
-          continue;
-        }
-        final rect = Rect.fromLTWH(
-          horizontalInset + x * pixelSize,
-          verticalInset + y * pixelSize,
-          pixelSize,
-          pixelSize,
-        );
-        canvas.drawRect(rect, modulePaint);
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _QrMatrixPainter oldDelegate) {
-    return qrImage != oldDelegate.qrImage ||
-        color != oldDelegate.color ||
-        backgroundColor != oldDelegate.backgroundColor;
-  }
 }
 
 enum _WindowsChargeState { pending, success, failure }
@@ -2270,7 +2170,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
                     child: Text(
                       merchantCity != null
                           ? '$merchantName • $merchantCity'
-                          : merchantName ?? '',
+                          : merchantName,
                       style: Theme.of(context).textTheme.bodyMedium,
                     ),
                   ),

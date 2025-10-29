@@ -25,7 +25,7 @@ class UnauthorizedPage extends StatelessWidget {
               const SizedBox(height: 16),
               const Text(
                 'คุณไม่มีสิทธิ์เข้าถึงหน้านี้',
-                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 12),

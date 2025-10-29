@@ -332,21 +332,21 @@ Future<List<int>> _renderReceiptBytes(Map<String, dynamic> payload) async {
   return bytes;
 }
 
-const List<PaperSize> _knownPaperSizes = <PaperSize>[PaperSize.mm58, PaperSize.mm80];
+const List<PaperSize> _knownPaperSizes = <PaperSize>[
+  PaperSize.mm58,
+  PaperSize.mm80
+];
 
-String _paperSizeToStorageKey(PaperSize size) {
-  return size.name;
+String _paperSizeToStorageKey(PaperSize paper) {
+  if (paper == PaperSize.mm58) {
+    return 'mm58';
+  }
+  return 'mm80';
 }
 
 PaperSize _paperSizeFromStorageKey(String? key) {
-  if (key == null) {
-    return PaperSize.mm80;
-  }
-  for (final PaperSize size in _knownPaperSizes) {
-    final String enumName = size.name;
-    if (key == enumName || key == size.toString()) {
-      return size;
-    }
+  if (key == 'mm58') {
+    return PaperSize.mm58;
   }
   return PaperSize.mm80;
 }

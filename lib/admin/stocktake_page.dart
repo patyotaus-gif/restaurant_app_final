@@ -438,11 +438,12 @@ class _StocktakePageState extends State<StocktakePage> {
         );
       },
     );
+    final currentContext = context;
 
-    if (!context.mounted) return;
+    if (!currentContext.mounted) return;
     if (action == _StocktakeAction.partial) {
       await _handlePartialAdjustment(
-        context,
+        currentContext,
         ingredient,
         stocktakeService,
         authService,

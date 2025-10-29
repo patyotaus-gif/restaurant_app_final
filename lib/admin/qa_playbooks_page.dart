@@ -115,6 +115,7 @@ class _QaPlaybooksPageState extends State<QaPlaybooksPage> {
 
 class _PlaybookSidebar extends StatelessWidget {
   const _PlaybookSidebar({
+    super.key,
     required this.controller,
     required this.tags,
     required this.selectedTags,
@@ -192,9 +193,9 @@ class _PlaybookSidebar extends StatelessWidget {
               children: [
                 TextField(
                   controller: controller,
-                  decoration: InputDecoration(
+                  decoration: const InputDecoration(
                     labelText: 'Search playbooks',
-                    prefixIcon: const Icon(Icons.search),
+                    prefixIcon: Icon(Icons.search),
                     suffixIcon: controller.text.isEmpty
                         ? null
                         : IconButton(
@@ -240,7 +241,7 @@ class _PlaybookSidebar extends StatelessWidget {
 }
 
 class _PlaybookDetail extends StatefulWidget {
-  const _PlaybookDetail({required this.playbook});
+  const _PlaybookDetail({super.key, required this.playbook});
 
   final QaPlaybook playbook;
 
@@ -350,24 +351,24 @@ class _PlaybookDetailState extends State<_PlaybookDetail> {
                 ],
               ),
               const SizedBox(height: 24),
-              const _SectionHeader('Trigger & Detection'),
+              _SectionHeader('Trigger & Detection'),
               _BulletList(items: revision.triggers),
               const SizedBox(height: 16),
-              const _SectionHeader('Checklist'),
+              _SectionHeader('Checklist'),
               _NumberedList(items: revision.steps),
               if (revision.signals.isNotEmpty) ...[
                 const SizedBox(height: 16),
-                const _SectionHeader('Success Signals'),
+                _SectionHeader('Success Signals'),
                 _BulletList(items: revision.signals),
               ],
               if (revision.followUp.isNotEmpty) ...[
                 const SizedBox(height: 16),
-                const _SectionHeader('Follow-up Actions'),
+                _SectionHeader('Follow-up Actions'),
                 _BulletList(items: revision.followUp),
               ],
               const SizedBox(height: 24),
               if (revision.resources.isNotEmpty) ...[
-                const _SectionHeader('Reference Resources'),
+                _SectionHeader('Reference Resources'),
                 _BulletList(items: revision.resources),
               ],
             ],
@@ -379,7 +380,7 @@ class _PlaybookDetailState extends State<_PlaybookDetail> {
 }
 
 class _EmptyState extends StatelessWidget {
-  const _EmptyState();
+  const _EmptyState({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -401,7 +402,7 @@ class _EmptyState extends StatelessWidget {
 }
 
 class _SectionHeader extends StatelessWidget {
-  const _SectionHeader(this.title);
+  const _SectionHeader(this.title, {super.key});
 
   final String title;
 
@@ -417,7 +418,7 @@ class _SectionHeader extends StatelessWidget {
 }
 
 class _BulletList extends StatelessWidget {
-  const _BulletList({required this.items});
+  const _BulletList({super.key, required this.items});
 
   final List<String> items;
 
@@ -446,7 +447,7 @@ class _BulletList extends StatelessWidget {
 }
 
 class _NumberedList extends StatelessWidget {
-  const _NumberedList({required this.items});
+  const _NumberedList({super.key, required this.items});
 
   final List<String> items;
 

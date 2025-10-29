@@ -564,9 +564,7 @@ class _CustomerMenuPageState extends State<CustomerMenuPage> {
                               Icons.add_shopping_cart,
                               color: Colors.green,
                             ),
-                            onPressed: isAvailable
-                                ? () => _addItemToCart(product)
-                                : null,
+                            onPressed: () => _addItemToCart(product),
                           ),
                         ],
                       ),
