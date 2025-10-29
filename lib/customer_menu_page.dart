@@ -117,7 +117,7 @@ class _CustomerMenuPageState extends State<CustomerMenuPage> {
     final categories = _tempCart.values.map((item) => item.category).toSet();
     final totalItems = _tempCart.values.fold<int>(
       0,
-      (sum, item) => sum + item.quantity,
+      (total, item) => total + item.quantity,
     );
     final validationMessage = promo.rules.validate(
       subtotal: _subtotal,
@@ -370,16 +370,16 @@ class _CustomerMenuPageState extends State<CustomerMenuPage> {
                           fit: BoxFit.cover,
                           loadingBuilder: (context, child, progress) =>
                               progress == null
-                              ? child
-                              : const Center(
-                                  child: CircularProgressIndicator(),
-                                ),
+                                  ? child
+                                  : const Center(
+                                      child: CircularProgressIndicator(),
+                                    ),
                           errorBuilder: (context, error, stackTrace) =>
                               const Icon(
-                                Icons.broken_image,
-                                size: 50,
-                                color: Colors.grey,
-                              ),
+                            Icons.broken_image,
+                            size: 50,
+                            color: Colors.grey,
+                          ),
                         )
                       : Container(
                           color: Colors.grey.shade200,

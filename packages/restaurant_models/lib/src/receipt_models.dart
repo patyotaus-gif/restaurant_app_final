@@ -26,17 +26,6 @@ class StoreReceiptDetails {
       email: store.email,
     );
   }
-
-  Map<String, dynamic> toMap() {
-    return {
-      'name': name,
-      if (branch != null) 'branch': branch,
-      if (taxId != null) 'taxId': taxId,
-      if (address != null) 'address': address,
-      if (phone != null) 'phone': phone,
-      if (email != null) 'email': email,
-    };
-  }
 }
 
 class TaxInvoiceDetails {
@@ -60,15 +49,4 @@ class TaxInvoiceDetails {
       (address != null && address!.isNotEmpty) ||
       (email != null && email!.isNotEmpty) ||
       (phone != null && phone!.isNotEmpty);
-
-  Map<String, dynamic> toMap() {
-    return {
-      if (customerName != null && customerName!.isNotEmpty)
-        'customerName': customerName,
-      if (taxId != null && taxId!.isNotEmpty) 'taxId': taxId,
-      if (address != null && address!.isNotEmpty) 'address': address,
-      if (email != null && email!.isNotEmpty) 'email': email,
-      if (phone != null && phone!.isNotEmpty) 'phone': phone,
-    };
-  }
 }

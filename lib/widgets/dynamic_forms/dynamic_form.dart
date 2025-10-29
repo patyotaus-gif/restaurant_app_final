@@ -242,7 +242,7 @@ class _DynamicFormState extends State<DynamicForm>
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: DropdownButtonFormField<String>(
-        value: field.options.any((option) => option.value == current)
+        initialValue: field.options.any((option) => option.value == current)
             ? current
             : null,
         isExpanded: true,

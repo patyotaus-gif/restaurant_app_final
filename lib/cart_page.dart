@@ -506,8 +506,9 @@ class _CartPageState extends State<CartPage> {
 
       await _finalizeAppliedCredits(cart, orderData);
       cart.clear();
+      final navigator = Navigator.of(context);
 
-      await Navigator.of(context).push(
+      await navigator.push(
         MaterialPageRoute(
           builder: (context) => CheckoutPage(
             orderId: orderIdForCheckout,

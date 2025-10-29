@@ -136,7 +136,7 @@ class _RetailPosPageState extends State<RetailPosPage> {
                         onDetect: _onBarcodeDetected,
                       ),
                       MobileScannerOverlay(
-                        overlayColour: Colors.black.withOpacity(0.2),
+                        overlayColour: const Color.fromRGBO(0, 0, 0, 0.2),
                         borderColor: Colors.white,
                         borderRadius: 10,
                         borderStrokeWidth: 3,

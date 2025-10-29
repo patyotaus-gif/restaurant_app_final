@@ -17,7 +17,7 @@ class UnauthorizedPage extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
+              const Icon(
                 Icons.lock_outline,
                 size: 72,
                 color: Theme.of(context).colorScheme.error,
@@ -25,7 +25,7 @@ class UnauthorizedPage extends StatelessWidget {
               const SizedBox(height: 16),
               const Text(
                 'คุณไม่มีสิทธิ์เข้าถึงหน้านี้',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 12),

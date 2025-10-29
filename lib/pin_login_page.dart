@@ -43,19 +43,17 @@ class _PinLoginPageState extends State<PinLoginPage> {
     });
 
     final authService = Provider.of<AuthService>(context, listen: false);
+    final router = GoRouter.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    final l10n = AppLocalizations.of(context)!;
     final success = await authService.loginWithPin(_pin);
 
     if (success) {
-      if (mounted) context.go('/order-type-selection');
+      router.go('/order-type-selection');
       return;
     }
 
-    if (!mounted) {
-      return;
-    }
-
-    final l10n = AppLocalizations.of(context)!;
-    ScaffoldMessenger.of(context).showSnackBar(
+    messenger.showSnackBar(
       SnackBar(
         content: Text(l10n.pinLoginInvalidPin),
         backgroundColor: Colors.red,

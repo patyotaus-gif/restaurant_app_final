@@ -27,10 +27,9 @@ class AppBlockedScreen extends StatelessWidget {
                 children: [
                   Row(
                     children: [
-                      Icon(
+                      const Icon(
                         Icons.warning_amber_rounded,
                         size: 36,
-                        color: theme.colorScheme.error,
                       ),
                       const SizedBox(width: 12),
                       Flexible(

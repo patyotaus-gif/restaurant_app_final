@@ -51,7 +51,7 @@ class _EmployeeManagementPageState extends State<EmployeeManagementPage> {
                     },
                   ),
                   DropdownButtonFormField<String>(
-                    value: selectedRole, // Corrected from initialValue
+                    initialValue: selectedRole, // Corrected from initialValue
                     decoration: const InputDecoration(labelText: 'Role'),
                     items: ['Owner', 'Manager', 'Employee', 'Intern']
                         .map(
@@ -61,9 +61,7 @@ class _EmployeeManagementPageState extends State<EmployeeManagementPage> {
                         .toList(),
                     onChanged: (value) {
                       if (value != null) {
-                        setState(() {
-                          selectedRole = value;
-                        });
+                        selectedRole = value;
                       }
                     },
                   ),
@@ -97,6 +95,7 @@ class _EmployeeManagementPageState extends State<EmployeeManagementPage> {
             ElevatedButton(
               onPressed: () async {
                 if (formKey.currentState?.validate() ?? false) {
+                  final navigator = Navigator.of(context);
                   final employeeData = <String, dynamic>{
                     'name': nameController.text,
                     'role': selectedRole,
@@ -105,8 +104,10 @@ class _EmployeeManagementPageState extends State<EmployeeManagementPage> {
                   final pin = pinController.text;
                   if (pin.isNotEmpty) {
                     final algorithm = Sha256();
-                    final hashedPinBytes = await algorithm.hash(utf8.encode(pin));
-                    employeeData['hashedPin'] = base64Url.encode(hashedPinBytes.bytes);
+                    final hashedPinBytes =
+                        await algorithm.hash(utf8.encode(pin));
+                    employeeData['hashedPin'] =
+                        base64Url.encode(hashedPinBytes.bytes);
                   }
 
                   if (isNew) {
@@ -117,9 +118,7 @@ class _EmployeeManagementPageState extends State<EmployeeManagementPage> {
                         .doc(employee.id)
                         .update(employeeData);
                   }
-
-                  if (!context.mounted) return;
-                  Navigator.of(context).pop();
+                  navigator.pop();
                 }
               },
               child: const Text('Save'),
@@ -143,9 +142,13 @@ class _EmployeeManagementPageState extends State<EmployeeManagementPage> {
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            onPressed: () {
-              _firestore.collection('employees').doc(employee.id).delete();
-              Navigator.of(context).pop();
+            onPressed: () async {
+              final navigator = Navigator.of(context);
+              await _firestore
+                  .collection('employees')
+                  .doc(employee.id)
+                  .delete();
+              navigator.pop();
             },
             child: const Text('Delete'),
           ),

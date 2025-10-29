@@ -106,23 +106,13 @@ class _ReceiptQrImage extends StatelessWidget {
         data: data,
         errorCorrectLevel: QrErrorCorrectLevel.M,
       );
-      final moduleCount = qrCode.moduleCount;
-      final modules = List<List<bool>>.generate(
-        moduleCount,
-        (y) => List.generate(
-          moduleCount,
-          (x) => qrCode.modules[y][x],
-          growable: false,
-        ),
-        growable: false,
-      );
-
+      final qrImage = QrImage(qrCode);
       return SizedBox(
         width: size,
         height: size,
         child: CustomPaint(
           painter: _QrMatrixPainter(
-            modules: modules,
+            qrImage: qrImage,
             color: color,
             backgroundColor: backgroundColor,
           ),
@@ -146,12 +136,12 @@ class _ReceiptQrImage extends StatelessWidget {
 
 class _QrMatrixPainter extends CustomPainter {
   const _QrMatrixPainter({
-    required this.modules,
+    required this.qrImage,
     required this.color,
     required this.backgroundColor,
   });
 
-  final List<List<bool>> modules;
+  final QrImage qrImage;
   final Color color;
   final Color backgroundColor;
 
@@ -160,7 +150,7 @@ class _QrMatrixPainter extends CustomPainter {
     final backgroundPaint = Paint()..color = backgroundColor;
     canvas.drawRect(Offset.zero & size, backgroundPaint);
 
-    final moduleCount = modules.length;
+    final moduleCount = qrImage.moduleCount;
     if (moduleCount == 0) {
       return;
     }
@@ -173,9 +163,8 @@ class _QrMatrixPainter extends CustomPainter {
     final double verticalInset = (size.height - qrExtent) / 2;
 
     for (var y = 0; y < moduleCount; y++) {
-      final row = modules[y];
       for (var x = 0; x < moduleCount; x++) {
-        if (!row[x]) {
+        if (!qrImage.isDark(y, x)) {
           continue;
         }
         final rect = Rect.fromLTWH(
@@ -191,7 +180,7 @@ class _QrMatrixPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _QrMatrixPainter oldDelegate) {
-    return !identical(modules, oldDelegate.modules) ||
+    return qrImage != oldDelegate.qrImage ||
         color != oldDelegate.color ||
         backgroundColor != oldDelegate.backgroundColor;
   }
@@ -716,11 +705,10 @@ class _CheckoutPageState extends State<CheckoutPage> {
               ),
               const SizedBox(height: 12),
               Center(
-                child: _ReceiptQrImage(
+                child: QrImageView(
                   data: _generatedReceiptUrl!,
-                  size: 180,
-                  color: Colors.black,
-                  backgroundColor: Colors.white,
+                  version: QrVersions.auto,
+                  size: 180.0,
                 ),
               ),
               const SizedBox(height: 12),

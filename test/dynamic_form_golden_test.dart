@@ -2,7 +2,6 @@ import 'dart:io';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -18,7 +17,7 @@ void main() {
 
   group('Dynamic forms golden tests', () {
     setUp(() {
-      (TestWidgetsFlutterBinding.instance).deferFirstFrame();
+      TestWidgetsFlutterBinding.instance.deferFirstFrame();
     });
 
     testWidgets('Menu item blueprint renders as expected', (tester) async {

@@ -335,7 +335,7 @@ Future<List<int>> _renderReceiptBytes(Map<String, dynamic> payload) async {
 const List<PaperSize> _knownPaperSizes = <PaperSize>[PaperSize.mm58, PaperSize.mm80];
 
 String _paperSizeToStorageKey(PaperSize size) {
-  return describeEnum(size);
+  return size.name;
 }
 
 PaperSize _paperSizeFromStorageKey(String? key) {
@@ -343,7 +343,7 @@ PaperSize _paperSizeFromStorageKey(String? key) {
     return PaperSize.mm80;
   }
   for (final PaperSize size in _knownPaperSizes) {
-    final String enumName = describeEnum(size);
+    final String enumName = size.name;
     if (key == enumName || key == size.toString()) {
       return size;
     }
