@@ -332,11 +332,6 @@ Future<List<int>> _renderReceiptBytes(Map<String, dynamic> payload) async {
   return bytes;
 }
 
-const List<PaperSize> _knownPaperSizes = <PaperSize>[
-  PaperSize.mm58,
-  PaperSize.mm80
-];
-
 String _paperSizeToStorageKey(PaperSize paper) {
   if (paper == PaperSize.mm58) {
     return 'mm58';

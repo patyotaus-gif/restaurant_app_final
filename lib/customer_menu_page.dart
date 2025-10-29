@@ -493,8 +493,6 @@ class _CustomerMenuPageState extends State<CustomerMenuPage> {
   }
 
   Widget _buildProductCard(Product product) {
-    const isAvailable = true; // Simplified for customer menu
-
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
       clipBehavior: Clip.antiAlias,

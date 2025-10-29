@@ -170,7 +170,6 @@ class _KitchenDisplayPageState extends State<KitchenDisplayPage> {
 
 class _StationSelector extends StatelessWidget {
   const _StationSelector({
-    super.key,
     required this.selectedStationId,
     required this.onChanged,
     required this.onStationsLoaded,
@@ -248,7 +247,7 @@ class _StationSelector extends StatelessWidget {
 }
 
 class _OrderCard extends StatefulWidget {
-  const _OrderCard({super.key, required this.orderDoc, this.station});
+  const _OrderCard({required this.orderDoc, this.station});
 
   final DocumentSnapshot orderDoc;
   final KitchenStation? station;
@@ -560,7 +559,7 @@ class _OrderCardState extends State<_OrderCard> {
 }
 
 class _KdsSkeletonGrid extends StatelessWidget {
-  const _KdsSkeletonGrid({super.key});
+  const _KdsSkeletonGrid();
 
   static const int _placeholderCount = 8;
 
@@ -582,7 +581,7 @@ class _KdsSkeletonGrid extends StatelessWidget {
 }
 
 class _KdsSkeletonCard extends StatelessWidget {
-  const _KdsSkeletonCard({super.key});
+  const _KdsSkeletonCard();
 
   @override
   Widget build(BuildContext context) {
@@ -633,7 +632,7 @@ class _KdsSkeletonCard extends StatelessWidget {
 }
 
 class _SkeletonOrderLine extends StatelessWidget {
-  const _SkeletonOrderLine({super.key});
+  const _SkeletonOrderLine();
 
   @override
   Widget build(BuildContext context) {
@@ -657,7 +656,7 @@ class _SkeletonOrderLine extends StatelessWidget {
 }
 
 class _StationSelectorSkeleton extends StatelessWidget {
-  const _StationSelectorSkeleton({super.key});
+  const _StationSelectorSkeleton();
 
   @override
   Widget build(BuildContext context) {
@@ -677,7 +676,6 @@ class _StationSelectorSkeleton extends StatelessWidget {
 
 class _SkeletonBox extends StatelessWidget {
   const _SkeletonBox({
-    super.key,
     this.height = 16,
     this.width,
     this.borderRadius = 8,

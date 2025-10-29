@@ -193,9 +193,9 @@ class _PlaybookSidebar extends StatelessWidget {
               children: [
                 TextField(
                   controller: controller,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'Search playbooks',
-                    prefixIcon: Icon(Icons.search),
+                    prefixIcon: const Icon(Icons.search),
                     suffixIcon: controller.text.isEmpty
                         ? null
                         : IconButton(

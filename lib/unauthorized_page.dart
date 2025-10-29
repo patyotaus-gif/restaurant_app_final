@@ -17,7 +17,7 @@ class UnauthorizedPage extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(
+              Icon(
                 Icons.lock_outline,
                 size: 72,
                 color: Theme.of(context).colorScheme.error,

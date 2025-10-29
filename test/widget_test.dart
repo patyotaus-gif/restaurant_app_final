@@ -13,7 +13,7 @@ void main() {
     await tester.pumpWidget(
       const MaterialApp(
         home: Scaffold(
-          body: const Center(child: Text('Placeholder')),
+          body: Center(child: Text('Placeholder')),
         ),
       ),
     );

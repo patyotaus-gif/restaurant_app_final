@@ -174,7 +174,6 @@ class _ModifierSelectionDialogState extends State<ModifierSelectionDialog> {
                                       );
                                     }
                                   },
-                                  selected: _selectedOptions[group.id!] == option,
                                 );
                               }),
                             if (group.selectionType == 'MULTIPLE')

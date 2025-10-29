@@ -78,13 +78,13 @@ class _StocktakePageState extends State<StocktakePage> {
                     const SizedBox(width: 12),
                     ElevatedButton.icon(
                       onPressed: () async {
-                        final navigator = Navigator.of(context);
-                        final scannedCode = await navigator.push<String>(
+                        final scannedCode = await Navigator.of(context).push<String>(
                               MaterialPageRoute(
                                 builder: (_) => const BarcodeScannerPage(),
                                 fullscreenDialog: true,
                               ),
                             );
+                        if (!mounted) return;
                         if (scannedCode != null) {
                           final ingredient = stockProvider.findByBarcode(
                             scannedCode,
@@ -438,12 +438,11 @@ class _StocktakePageState extends State<StocktakePage> {
         );
       },
     );
-    final currentContext = context;
 
-    if (!currentContext.mounted) return;
+    if (!mounted) return;
     if (action == _StocktakeAction.partial) {
       await _handlePartialAdjustment(
-        currentContext,
+        context,
         ingredient,
         stocktakeService,
         authService,

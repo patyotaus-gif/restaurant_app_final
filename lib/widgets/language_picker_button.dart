@@ -42,7 +42,7 @@ class LanguagePickerButton extends StatelessWidget {
         for (final locale in AppLocalizations.supportedLocales) {
           final isSelected = currentLocale != null &&
               locale.languageCode == currentLocale.languageCode &&
-              (locale.countryCode?.isEmpty ?? true ||
+              (locale.countryCode == null ||
                   locale.countryCode == currentLocale.countryCode);
           entries.add(
             PopupMenuItem<Locale?>(
