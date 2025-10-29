@@ -591,7 +591,7 @@ final _router = GoRouter(
                 Permission.manageStores,
                 Permission.viewInventory,
               }),
-              builder: (context, state) => const AnalyticsPage(),
+              builder: (context, state) => AnalyticsPage(),
             ),
           ),
         ),
@@ -702,7 +702,7 @@ Future<void> main() async {
           'Firebase Firestore is not supported on this platform; launching '
           'fallback experience.',
         );
-      runApp(UnsupportedPlatformApp());
+        runApp(UnsupportedPlatformApp());
         return;
       }
 
@@ -1149,7 +1149,7 @@ class UnsupportedPlatformApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
+    return MaterialApp(
       debugShowCheckedModeBanner: false,
       home: Scaffold(
         body: Center(
