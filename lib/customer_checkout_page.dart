@@ -122,8 +122,8 @@ class _CustomerCheckoutPageState extends State<CustomerCheckoutPage> {
         'customerPhoneNumber': _phoneController.text,
       });
 
-      final isSynced = result.isSynced;
       if (!mounted) return;
+      final isSynced = result.isSynced;
 
       showDialog(
         context: context,
@@ -214,14 +214,13 @@ class _CustomerCheckoutPageState extends State<CustomerCheckoutPage> {
                                 mode: LaunchMode.externalApplication,
                               );
                               if (!launched) {
-                                if (mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text(
-                                          'Unable to open Omise documentation.'),
-                                    ),
-                                  );
-                                }
+                                if (!mounted) return;
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                        'Unable to open Omise documentation.'),
+                                  ),
+                                );
                               }
                             },
                             icon: const Icon(Icons.open_in_new),

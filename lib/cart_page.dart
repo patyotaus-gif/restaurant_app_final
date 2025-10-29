@@ -92,27 +92,25 @@ class _CartPageState extends State<CartPage> {
 
     try {
       final card = await _giftCardService.findByCode(code);
-      if (mounted) {
-        setState(() {
-          _giftCardLookupResult = card;
-          if (card == null) {
-            _giftCardError = 'Gift card not found or inactive.';
-          } else {
-            final suggested = cart.maxGiftCardApplicable < card.balance
-                ? cart.maxGiftCardApplicable
-                : card.balance;
-            if (suggested > 0) {
-              _giftCardAmountController.text = suggested.toStringAsFixed(2);
-            }
+      if (!mounted) return;
+      setState(() {
+        _giftCardLookupResult = card;
+        if (card == null) {
+          _giftCardError = 'Gift card not found or inactive.';
+        } else {
+          final suggested = cart.maxGiftCardApplicable < card.balance
+              ? cart.maxGiftCardApplicable
+              : card.balance;
+          if (suggested > 0) {
+            _giftCardAmountController.text = suggested.toStringAsFixed(2);
           }
-        });
-      }
+        }
+      });
     } catch (e) {
-      if (mounted) {
-        setState(() {
-          _giftCardError = 'Unable to check gift card: $e';
-        });
-      }
+      if (!mounted) return;
+      setState(() {
+        _giftCardError = 'Unable to check gift card: $e';
+      });
     } finally {
       if (mounted) {
         setState(() {
@@ -191,14 +189,13 @@ class _CartPageState extends State<CartPage> {
       try {
         await _giftCardService.redeemBalance(giftCard, giftCardAmount);
       } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Gift card redemption failed: $e'),
-              backgroundColor: Colors.red.shade700,
-            ),
-          );
-        }
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gift card redemption failed: $e'),
+            backgroundColor: Colors.red.shade700,
+          ),
+        );
       }
     }
 
@@ -209,14 +206,13 @@ class _CartPageState extends State<CartPage> {
             .doc(customerId)
             .update({'storeCredit': FieldValue.increment(-storeCreditAmount)});
       } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Failed to deduct store credit: $e'),
-              backgroundColor: Colors.red.shade700,
-            ),
-          );
-        }
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to deduct store credit: $e'),
+            backgroundColor: Colors.red.shade700,
+          ),
+        );
       }
     }
   }
@@ -505,6 +501,7 @@ class _CartPageState extends State<CartPage> {
       final identifierForCheckout = orderData['orderIdentifier'];
 
       await _finalizeAppliedCredits(cart, orderData);
+      if (!mounted) return;
       cart.clear();
       final navigator = Navigator.of(context);
 
@@ -1033,11 +1030,10 @@ class _CartPageState extends State<CartPage> {
   void _applyPromo(CartProvider cart) async {
     final code = _promoCodeController.text;
     final result = await cart.applyPromotionCode(code);
-    if (mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(result)));
-    }
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(result)));
     _promoCodeController.clear();
   }
 

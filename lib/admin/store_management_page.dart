@@ -315,9 +315,8 @@ class _StoreManagementPageState extends State<StoreManagementPage> {
                                     content: Text(
                                       'Failed to update plugin: $error',
                                     ),
-                                    backgroundColor: Theme.of(
-                                      context,
-                                    ).colorScheme.error,
+                                    backgroundColor:
+                                        Theme.of(context).colorScheme.error,
                                   ),
                                 );
                               }
@@ -984,11 +983,10 @@ class _StoreManagementPageState extends State<StoreManagementPage> {
         ),
       );
     } catch (error) {
-      if (mounted) {
-        setState(() {
-          _errorMessage = 'Failed to update FX rate: $error';
-        });
-      }
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = 'Failed to update FX rate: $error';
+      });
     } finally {
       if (mounted) {
         setState(() {
@@ -1012,11 +1010,10 @@ class _StoreManagementPageState extends State<StoreManagementPage> {
         context,
       ).showSnackBar(const SnackBar(content: Text('FX rates refreshed.')));
     } catch (error) {
-      if (mounted) {
-        setState(() {
-          _errorMessage = 'Unable to refresh FX rates: $error';
-        });
-      }
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = 'Unable to refresh FX rates: $error';
+      });
     } finally {
       if (mounted) {
         setState(() {
@@ -1049,11 +1046,10 @@ class _StoreManagementPageState extends State<StoreManagementPage> {
         ).showSnackBar(SnackBar(content: Text(successMessage)));
       }
     } catch (error) {
-      if (mounted) {
-        setState(() {
-          _errorMessage = 'Failed to update currency settings: $error';
-        });
-      }
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = 'Failed to update currency settings: $error';
+      });
     } finally {
       if (mounted) {
         setState(() {
@@ -1180,6 +1176,7 @@ class _StoreManagementPageState extends State<StoreManagementPage> {
         context,
       ).showSnackBar(SnackBar(content: Text('Store "${store.name}" created.')));
     } catch (error) {
+      if (!mounted) return;
       setState(() {
         _errorMessage = 'Failed to create store: $error';
       });
@@ -1311,21 +1308,20 @@ class _StoreManagementPageState extends State<StoreManagementPage> {
             ? terminalId
             : null,
       );
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Flag "$flagKey" ${_flagValue ? 'enabled' : 'disabled'} at ${_selectedScope.name} scope.',
-            ),
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Flag "$flagKey" ${_flagValue ? 'enabled' : 'disabled'} at ${_selectedScope.name} scope.',
           ),
-        );
-        _flagNameController.clear();
-      }
+        ),
+      );
+      _flagNameController.clear();
     } catch (error) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to update feature flag: $error'),
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to update feature flag: $error'),
             backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
@@ -1336,12 +1332,11 @@ class _StoreManagementPageState extends State<StoreManagementPage> {
   Future<void> _persistTerminalId(BuildContext context) async {
     final terminalProvider = context.read<TerminalProvider>();
     await terminalProvider.setTerminalId(_terminalIdController.text.trim());
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Terminal identifier saved for this device.'),
-        ),
-      );
-    }
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Terminal identifier saved for this device.'),
+      ),
+    );
   }
 }

@@ -605,7 +605,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
               ),
               const SizedBox(height: 12),
               Center(
-                child: QrImageView(
+                child: QrImage(
                   data: _generatedReceiptUrl!,
                   version: QrVersions.auto,
                   size: 180.0,
