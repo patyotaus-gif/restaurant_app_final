@@ -1,9 +1,6 @@
 // lib/edit_product_page.dart
 
-import 'dart:io';
-
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
@@ -45,8 +42,6 @@ class _EditProductPageState extends State<EditProductPage> {
   List<Ingredient> _availableIngredients = [];
   bool _isLoadingIngredients = true;
   List<Map<String, dynamic>> _recipeData = [];
-
-  final ImagePicker _picker = ImagePicker();
 
   @override
   void initState() {

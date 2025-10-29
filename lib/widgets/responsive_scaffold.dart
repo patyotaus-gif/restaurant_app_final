@@ -79,7 +79,6 @@ class ResponsiveScaffold extends StatelessWidget {
             child: NavigationRail(
               selectedIndex: selectedIndex,
               onDestinationSelected: onDestinationSelected,
-              labelType: NavigationRailLabelType.all,
               destinations: railDestinations,
             ),
           ),

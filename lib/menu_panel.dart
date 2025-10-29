@@ -169,7 +169,7 @@ class _MenuPanelState extends State<MenuPanel> {
                             if (!isAvailable)
                               Container(
                                 alignment: Alignment.center,
-                                color: Colors.black.withOpacity(0.5),
+                                color: const Color.fromRGBO(0, 0, 0, 0.5),
                                 child: const Text(
                                   'สินค้าหมด',
                                   style: TextStyle(

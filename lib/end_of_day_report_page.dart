@@ -624,12 +624,13 @@ class _EndOfDayReportPageState extends State<EndOfDayReportPage> {
               ),
             ],
           );
-        },
-      );
-
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Shift Z report saved.')));
+        });
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Shift Z report saved.')));
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

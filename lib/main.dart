@@ -8,7 +8,7 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_remote_config/firebase_remote_config.dart';
 import 'package:flutter/foundation.dart'
-    show TargetPlatform, debugPrint, defaultTargetPlatform, kIsWeb;
+    show TargetPlatform, defaultTargetPlatform, kIsWeb;
 import 'package:flutter/services.dart' show ServicesBinding;
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -18,7 +18,6 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
 import 'package:restaurant_models/restaurant_models.dart';
 import 'package:url_strategy/url_strategy.dart';
-import 'package:webview_flutter/webview_flutter.dart';
 
 import 'localization/app_localizations.dart';
 import 'webview_initializer.dart';
@@ -181,8 +180,7 @@ bool get _supportsFirestore {
 
 FirebaseRemoteConfig? _obtainRemoteConfigInstance() {
   if (!_supportsRemoteConfig) {
-    // ignore: avoid_print
-    print(
+    debugPrint(
       'Firebase Remote Config is not supported on this platform; using defaults.',
     );
     return null;
@@ -190,8 +188,7 @@ FirebaseRemoteConfig? _obtainRemoteConfigInstance() {
   try {
     return FirebaseRemoteConfig.instance;
   } catch (error) {
-    // ignore: avoid_print
-    print('Unable to access Firebase Remote Config: $error');
+    debugPrint('Unable to access Firebase Remote Config: $error');
     return null;
   }
 }
@@ -209,8 +206,7 @@ Future<void> _initializePaymentGateways(
       try {
         await remoteConfig.fetchAndActivate();
       } catch (error) {
-        // ignore: avoid_print
-        print('Failed to refresh Remote Config for Omise: $error');
+        debugPrint('Failed to refresh Remote Config for Omise: $error');
       }
 
       publicKey = remoteConfig.getString('omise_public_key');
@@ -229,16 +225,14 @@ Future<void> _initializePaymentGateways(
     }
 
     if (publicKey.isEmpty) {
-      // ignore: avoid_print
-      print(
+      debugPrint(
         'Skipping Omise configuration because the public key is missing.',
       );
       return;
     }
 
     if (secretKey.isEmpty) {
-      // ignore: avoid_print
-      print(
+      debugPrint(
         'Omise secret key was not provided; proceeding with public key only.',
       );
     }
@@ -272,8 +266,7 @@ Future<void> _initializePaymentGateways(
       ),
     );
   } catch (error) {
-    // ignore: avoid_print
-    print('Unable to initialize Omise payment gateway: $error');
+    debugPrint('Unable to initialize Omise payment gateway: $error');
   }
 }
 
@@ -690,8 +683,7 @@ Future<void> main() async {
       configureBackgroundSync(
         rootIsolateToken: ServicesBinding.rootIsolateToken,
       );
-      // ignore: avoid_print
-      print('Launching Restaurant App (${FlavorConfig.flavorName})');
+      debugPrint('Launching Restaurant App (${FlavorConfig.flavorName})');
       ensureBackgroundPlugins = () {
         DartPluginRegistrant.ensureInitialized();
       };
@@ -706,8 +698,7 @@ Future<void> main() async {
       );
 
       if (!_supportsFirestore) {
-        // ignore: avoid_print
-        print(
+        debugPrint(
           'Firebase Firestore is not supported on this platform; launching '
           'fallback experience.',
         );

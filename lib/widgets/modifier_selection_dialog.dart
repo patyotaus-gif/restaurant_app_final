@@ -159,16 +159,22 @@ class _ModifierSelectionDialogState extends State<ModifierSelectionDialog> {
                             if (group.selectionType == 'SINGLE')
                               ...group.options.map((option) {
                                 return RadioListTile<ModifierOption>(
-                                  title: Text(
-                                    '${option.optionName} (+${option.priceChange.toStringAsFixed(2)})',
+                                  title: Text(option.optionName),
+                                  subtitle: Text(
+                                    '+${option.priceChange.toStringAsFixed(2)}',
                                   ),
                                   value: option,
                                   groupValue: _selectedOptions[group.id!],
-                                  onChanged: (value) => _updateSelection(
-                                    group.id!,
-                                    value!,
-                                    'SINGLE',
-                                  ),
+                                  onChanged: (value) {
+                                    if (value != null) {
+                                      _updateSelection(
+                                        group.id!,
+                                        value,
+                                        'SINGLE',
+                                      );
+                                    }
+                                  },
+                                  selected: _selectedOptions[group.id!] == option,
                                 );
                               }),
                             if (group.selectionType == 'MULTIPLE')

@@ -33,7 +33,7 @@ void main() {
     await tester.pumpWidget(
       ChangeNotifierProvider<SyncQueueService>.value(
         value: syncQueue,
-        child: MaterialApp(
+        child: const MaterialApp(
           home: CustomerCheckoutPage(
             tableNumber: 'A1',
             cart: {'p1': CartItem(product: product)},

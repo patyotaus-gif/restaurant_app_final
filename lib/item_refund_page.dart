@@ -334,7 +334,7 @@ class _ItemRefundPageState extends State<ItemRefundPage> {
               color: Theme.of(context).cardColor,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
+                  color: const Color.fromRGBO(0, 0, 0, 0.1),
                   blurRadius: 10,
                   offset: const Offset(0, -5),
                 ),
