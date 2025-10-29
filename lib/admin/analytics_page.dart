@@ -3,7 +3,10 @@ import 'package:flutter/material.dart';
 
 import '../services/analytics_service.dart';
 class AnalyticsPage extends StatefulWidget {
-  const AnalyticsPage({super.key});
+  const AnalyticsPage({super.key, FirebaseFirestore? firestore})
+      : firestore = firestore ?? FirebaseFirestore.instance;
+
+  final FirebaseFirestore firestore;
 
   @override
   State<AnalyticsPage> createState() => _AnalyticsPageState();
@@ -18,7 +21,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
   @override
   void initState() {
     super.initState();
-    _analyticsService = AnalyticsService(FirebaseFirestore.instance);
+    _analyticsService = AnalyticsService(widget.firestore);
   }
 
   Future<void> _pickRange() async {
@@ -156,7 +159,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                       style: TextStyle(fontWeight: FontWeight.w600),
                     ),
                     const SizedBox(height: 8),
-                    _ExportJobsList(),
+                    _ExportJobsList(firestore: widget.firestore),
                   ],
                 ),
               ),
@@ -197,7 +200,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                       style: TextStyle(fontWeight: FontWeight.w600),
                     ),
                     const SizedBox(height: 8),
-                    _RfmJobStatus(),
+                    _RfmJobStatus(firestore: widget.firestore),
                   ],
                 ),
               ),
@@ -214,10 +217,14 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
 }
 
 class _ExportJobsList extends StatelessWidget {
+  const _ExportJobsList({required this.firestore});
+
+  final FirebaseFirestore firestore;
+
   @override
   Widget build(BuildContext context) {
     final thirtyDaysAgo = DateTime.now().subtract(const Duration(days: 30));
-    final query = FirebaseFirestore.instance
+    final query = firestore
         .collection('analytics_exports')
         .where('requestedAt', isGreaterThanOrEqualTo: thirtyDaysAgo)
         .orderBy('requestedAt', descending: true)
@@ -267,10 +274,14 @@ class _ExportJobsList extends StatelessWidget {
 }
 
 class _RfmJobStatus extends StatelessWidget {
+  const _RfmJobStatus({required this.firestore});
+
+  final FirebaseFirestore firestore;
+
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-      stream: FirebaseFirestore.instance
+      stream: firestore
           .collection('analytics_jobs')
           .doc('rfm_scoring')
           .snapshots(),
