@@ -702,7 +702,7 @@ Future<void> main() async {
           'Firebase Firestore is not supported on this platform; launching '
           'fallback experience.',
         );
-        runApp(const UnsupportedPlatformApp());
+      runApp(UnsupportedPlatformApp());
         return;
       }
 
@@ -979,7 +979,7 @@ class MyApp extends StatelessWidget {
             return service;
           },
         ),
-        Provider<PrinterDrawerService>(create: (_) => const PrinterDrawerService()),
+        Provider<PrinterDrawerService>(create: (_) => PrinterDrawerService()),
         Provider<AuditLogService>(
           create: (_) => AuditLogService(FirebaseFirestore.instance),
         ),
