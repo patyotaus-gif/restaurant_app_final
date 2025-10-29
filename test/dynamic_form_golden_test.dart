@@ -8,11 +8,15 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:restaurant_app_final/admin/backoffice_schema_page.dart';
 import 'package:restaurant_app_final/admin/backoffice_schema_registry.dart';
 import 'package:restaurant_app_final/widgets/dynamic_forms/dynamic_form.dart';
+import 'firebase_test_helpers.dart';
 
 const _menuGoldenKey = ValueKey('menu_form_golden');
 const _pageGoldenKey = ValueKey('schema_page_golden');
 
 void main() {
+  setUpAll(() async {
+    await setupMockFirebaseApp();
+  });
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('Dynamic forms golden tests', () {

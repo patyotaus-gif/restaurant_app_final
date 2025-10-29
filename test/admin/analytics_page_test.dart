@@ -4,8 +4,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:restaurant_app_final/admin/analytics_page.dart';
 
+import '../firebase_test_helpers.dart';
+
 void main() {
   late FakeFirebaseFirestore firestore;
+
+  setUpAll(() async {
+    await setupMockFirebaseApp();
+  });
 
   setUp(() {
     firestore = FakeFirebaseFirestore();
@@ -29,7 +35,7 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
-        home: AnalyticsPage(),
+        home: AnalyticsPage(firestore: firestore),
       ),
     );
 

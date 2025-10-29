@@ -4,8 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:restaurant_app_final/admin/backoffice_schema_page.dart';
+import 'firebase_test_helpers.dart';
 
 void main() {
+  setUpAll(() async {
+    await setupMockFirebaseApp();
+  });
   TestWidgetsFlutterBinding.ensureInitialized();
 
   testWidgets('Backoffice schema page stays within frame budget', (

@@ -33,13 +33,13 @@ void main() {
 
   testWidgets('Selecting older revision updates checklist and metadata',
       (tester) async {
+    tester.view.physicalSize = const Size(1200, 800);
+    tester.view.devicePixelRatio = 1.0;
+
     await tester.pumpWidget(
       const MaterialApp(
         home: Scaffold(
-          body: SizedBox(
-            height: 800,
-            child: QaPlaybooksPage(),
-          ),
+          body: QaPlaybooksPage(),
         ),
       ),
     );
