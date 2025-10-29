@@ -845,6 +845,8 @@ class _StoreManagementPageState extends State<StoreManagementPage> {
       if (chosen == null || chosen.isEmpty) {
         return;
       }
+
+      if (!mounted) return;
       if (existing.contains(chosen)) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('$chosen is already supported.')),
@@ -879,6 +881,7 @@ class _StoreManagementPageState extends State<StoreManagementPage> {
     final normalized = currency.toUpperCase();
     final base = settings.baseCurrency.toUpperCase();
     if (normalized == base) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Cannot remove the base currency.')),
       );
@@ -1277,6 +1280,7 @@ class _StoreManagementPageState extends State<StoreManagementPage> {
   Future<void> _saveFlag(BuildContext context, Store store) async {
     final flagKey = _flagNameController.text.trim();
     if (flagKey.isEmpty) {
+      if (!mounted) return;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Please enter a flag key.')));
@@ -1285,6 +1289,7 @@ class _StoreManagementPageState extends State<StoreManagementPage> {
 
     final terminalId = _terminalIdController.text.trim();
     if (_selectedScope == FeatureFlagScope.terminal && terminalId.isEmpty) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(

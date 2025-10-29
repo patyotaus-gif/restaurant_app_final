@@ -170,6 +170,7 @@ class _KitchenDisplayPageState extends State<KitchenDisplayPage> {
 
 class _StationSelector extends StatelessWidget {
   const _StationSelector({
+    super.key,
     required this.selectedStationId,
     required this.onChanged,
     required this.onStationsLoaded,
@@ -247,7 +248,7 @@ class _StationSelector extends StatelessWidget {
 }
 
 class _OrderCard extends StatefulWidget {
-  const _OrderCard({required this.orderDoc, this.station});
+  const _OrderCard({super.key, required this.orderDoc, this.station});
 
   final DocumentSnapshot orderDoc;
   final KitchenStation? station;
@@ -559,7 +560,7 @@ class _OrderCardState extends State<_OrderCard> {
 }
 
 class _KdsSkeletonGrid extends StatelessWidget {
-  const _KdsSkeletonGrid();
+  const _KdsSkeletonGrid({super.key});
 
   static const int _placeholderCount = 8;
 
@@ -581,7 +582,7 @@ class _KdsSkeletonGrid extends StatelessWidget {
 }
 
 class _KdsSkeletonCard extends StatelessWidget {
-  const _KdsSkeletonCard();
+  const _KdsSkeletonCard({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -632,7 +633,7 @@ class _KdsSkeletonCard extends StatelessWidget {
 }
 
 class _SkeletonOrderLine extends StatelessWidget {
-  const _SkeletonOrderLine();
+  const _SkeletonOrderLine({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -643,7 +644,7 @@ class _SkeletonOrderLine extends StatelessWidget {
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+            children: const [
               _SkeletonBox(height: 16),
               SizedBox(height: 6),
               _SkeletonBox(width: 120, height: 10),
@@ -656,7 +657,7 @@ class _SkeletonOrderLine extends StatelessWidget {
 }
 
 class _StationSelectorSkeleton extends StatelessWidget {
-  const _StationSelectorSkeleton();
+  const _StationSelectorSkeleton({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -675,7 +676,12 @@ class _StationSelectorSkeleton extends StatelessWidget {
 }
 
 class _SkeletonBox extends StatelessWidget {
-  const _SkeletonBox({this.height = 16, this.width, this.borderRadius = 8});
+  const _SkeletonBox({
+    super.key,
+    this.height = 16,
+    this.width,
+    this.borderRadius = 8,
+  });
 
   final double height;
   final double? width;

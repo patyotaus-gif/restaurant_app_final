@@ -192,18 +192,18 @@ class _ModifierManagementPageState extends State<ModifierManagementPage> {
                 ),
                 ElevatedButton(
                   onPressed: () async {
+                    final navigator = Navigator.of(dialogContext);
+                    final messenger = ScaffoldMessenger.of(context);
                     group.groupName = groupNameController.text;
                     if (group.groupName.isEmpty ||
                         group.options.any((o) => o.optionName.isEmpty)) {
-                      if (mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                              'Group Name and all Option Names are required.',
-                            ),
+                      messenger.showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'Group Name and all Option Names are required.',
                           ),
-                        );
-                      }
+                        ),
+                      );
                       return;
                     }
 
@@ -217,7 +217,7 @@ class _ModifierManagementPageState extends State<ModifierManagementPage> {
                           .doc(group.id)
                           .update(group.toFirestore());
                     }
-                    if (mounted) Navigator.of(dialogContext).pop();
+                    navigator.pop();
                   },
                   child: const Text('Save'),
                 ),

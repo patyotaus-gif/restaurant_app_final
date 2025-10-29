@@ -979,7 +979,7 @@ class MyApp extends StatelessWidget {
             return service;
           },
         ),
-        Provider<PrinterDrawerService>(create: (_) => PrinterDrawerService()),
+        Provider<PrinterDrawerService>(create: (_) => const PrinterDrawerService()),
         Provider<AuditLogService>(
           create: (_) => AuditLogService(FirebaseFirestore.instance),
         ),
@@ -1149,16 +1149,16 @@ class UnsupportedPlatformApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
+    return const MaterialApp(
       debugShowCheckedModeBanner: false,
       home: Scaffold(
         body: Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 360),
+            constraints: BoxConstraints(maxWidth: 360),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.center,
-              children: const [
+              children: [
                 Icon(Icons.desktop_windows, size: 48),
                 SizedBox(height: 16),
                 Text(
