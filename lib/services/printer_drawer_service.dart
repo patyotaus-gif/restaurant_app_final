@@ -2,7 +2,8 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:esc_pos_utils_plus/esc_pos_utils_plus.dart';
+import 'package:esc_pos_utils_plus/esc_pos_utils_plus.dart'
+    hide PaperSize; // Hide the class
 import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 import 'package:restaurant_models/restaurant_models.dart';
@@ -10,14 +11,21 @@ class PrinterDrawerException implements Exception {
   PrinterDrawerException(this.message);
 
   final String message;
-
   @override
   String toString() => 'PrinterDrawerException: $message';
+}
+
+// Re-define PaperSize as an enum as it was in older versions of the package
+enum PaperSize {
+  mm58,
+  mm72,
+  mm80,
 }
 
 class PrinterDrawerService {
   CapabilityProfile? _profile;
 
+  Future<void> printReceipt({
   Future<void> printReceipt({
     required String host,
     required Map<String, dynamic> orderData,

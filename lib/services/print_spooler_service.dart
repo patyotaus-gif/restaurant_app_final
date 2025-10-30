@@ -7,6 +7,7 @@ import 'package:restaurant_models/restaurant_models.dart';
 import '../notifications_repository.dart';
 import 'ops_observability_service.dart';
 import 'printer_drawer_service.dart';
+
 final Random _printJobRandom = Random();
 
 enum PrintJobType { receipt }
@@ -69,13 +70,13 @@ class PrintSpoolerHealth {
   });
 
   factory PrintSpoolerHealth.healthy() => PrintSpoolerHealth(
-        isHealthy: true,
-        pendingJobs: 0,
-        retryingJobs: 0,
-        failedJobs: 0,
-        lastUpdated: DateTime.fromMillisecondsSinceEpoch(0),
-        latestAlert: null,
-      );
+    isHealthy: true,
+    pendingJobs: 0,
+    retryingJobs: 0,
+    failedJobs: 0,
+    lastUpdated: DateTime.fromMillisecondsSinceEpoch(0),
+    latestAlert: null,
+  );
 
   final bool isHealthy;
   final int pendingJobs;
@@ -112,11 +113,14 @@ class PrintSpoolerService extends ChangeNotifier {
     NotificationsRepository? notificationsRepository,
     OpsObservabilityService? observability,
     Duration healthCheckInterval = const Duration(seconds: 30),
-  })  : _printerService = printerService,
-        _notificationsRepository = notificationsRepository,
-        _observability = observability,
-        _healthCheckInterval = healthCheckInterval {
-    _healthTimer = Timer.periodic(_healthCheckInterval, (_) => _evaluateHealth());
+  }) : _printerService = printerService,
+       _notificationsRepository = notificationsRepository,
+       _observability = observability,
+       _healthCheckInterval = healthCheckInterval {
+    _healthTimer = Timer.periodic(
+      _healthCheckInterval,
+      (_) => _evaluateHealth(),
+    );
     _evaluateHealth();
   }
 
@@ -183,11 +187,7 @@ class PrintSpoolerService extends ChangeNotifier {
     _observability?.log(
       'Print job queued',
       level: OpsLogLevel.debug,
-      context: {
-        'jobId': job.id,
-        'type': job.type.name,
-        'host': host,
-      },
+      context: {'jobId': job.id, 'type': job.type.name, 'host': host},
       sendRemote: false,
     );
     notifyListeners();
@@ -244,7 +244,10 @@ class PrintSpoolerService extends ChangeNotifier {
     final job = _queue.first;
     final now = DateTime.now();
     if (job.nextRunAt.isAfter(now)) {
-      _scheduledTimer = Timer(job.nextRunAt.difference(now), () => _processNextJob());
+      _scheduledTimer = Timer(
+        job.nextRunAt.difference(now),
+        () => _processNextJob(),
+      );
       return;
     }
     _isProcessing = true;
@@ -316,13 +319,7 @@ class PrintSpoolerService extends ChangeNotifier {
     switch (job.type) {
       case PrintJobType.receipt:
         final payload = job.payload as ReceiptPrintJobPayload;
-        await _printerService.printReceipt(
-          host: payload.host,
-          port: payload.port,
-          orderData: payload.orderData,
-          storeDetails: payload.storeDetails,
-          taxDetails: payload.taxDetails,
-        );
+        await _printerService.printReceipt(payload: payload);
         if (payload.openDrawer) {
           await _printerService.openCashDrawer(
             host: payload.host,
@@ -386,7 +383,9 @@ class PrintSpoolerService extends ChangeNotifier {
           },
         );
       } catch (notificationError, notificationStack) {
-        debugPrint('Failed to push print failure notification: $notificationError');
+        debugPrint(
+          'Failed to push print failure notification: $notificationError',
+        );
         _observability?.log(
           'Failed to record print failure notification',
           level: OpsLogLevel.error,
@@ -401,8 +400,9 @@ class PrintSpoolerService extends ChangeNotifier {
   void _evaluateHealth() {
     final now = DateTime.now();
     final pending = _queue.length;
-    final retrying =
-        _queue.where((job) => job.status == PrintJobStatus.retryScheduled).length;
+    final retrying = _queue
+        .where((job) => job.status == PrintJobStatus.retryScheduled)
+        .length;
     final failed = _failedJobs.length;
     PrintSpoolerAlert? latestAlert;
     if (failed > 0) {
@@ -436,7 +436,8 @@ class PrintSpoolerService extends ChangeNotifier {
   void _pushAlert(PrintSpoolerAlert alert) {
     if (_alerts.isNotEmpty) {
       final latest = _alerts.first;
-      if (latest.message == alert.message && latest.severity == alert.severity) {
+      if (latest.message == alert.message &&
+          latest.severity == alert.severity) {
         return;
       }
     }
@@ -462,10 +463,10 @@ class PrintSpoolerService extends ChangeNotifier {
 
 class _PrintJob {
   _PrintJob.receipt(this.payload)
-      : id = _generateId(),
-        type = PrintJobType.receipt,
-        createdAt = DateTime.now(),
-        nextRunAt = DateTime.now();
+    : id = _generateId(),
+      type = PrintJobType.receipt,
+      createdAt = DateTime.now(),
+      nextRunAt = DateTime.now();
 
   final String id;
   final PrintJobType type;
@@ -483,7 +484,8 @@ class _PrintJob {
       return {
         'host': data.host,
         'port': data.port,
-        if (data.orderIdentifier != null) 'orderIdentifier': data.orderIdentifier,
+        if (data.orderIdentifier != null)
+          'orderIdentifier': data.orderIdentifier,
       };
     }
     return const <String, dynamic>{};
