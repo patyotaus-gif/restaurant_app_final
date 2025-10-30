@@ -158,21 +158,30 @@ class _ModifierSelectionDialogState extends State<ModifierSelectionDialog> {
                             ),
                             if (group.selectionType == 'SINGLE')
                               ...group.options.map((option) {
-                                return RadioListTile<ModifierOption>(
+                                return ListTile(
                                   title: Text(option.optionName),
                                   subtitle: Text(
                                     '+${option.priceChange.toStringAsFixed(2)}',
                                   ),
-                                  value: option,
-                                  groupValue: _selectedOptions[group.id!],
-                                  onChanged: (value) {
-                                    if (value != null) {
-                                      _updateSelection(
-                                        group.id!,
-                                        value,
-                                        'SINGLE',
-                                      );
-                                    }
+                                  leading: Radio<ModifierOption>(
+                                    value: option,
+                                    groupValue: _selectedOptions[group.id!],
+                                    onChanged: (value) {
+                                      if (value != null) {
+                                        _updateSelection(
+                                          group.id!,
+                                          value,
+                                          'SINGLE',
+                                        );
+                                      }
+                                    },
+                                  ),
+                                  onTap: () {
+                                    _updateSelection(
+                                      group.id!,
+                                      option,
+                                      'SINGLE',
+                                    );
                                   },
                                 );
                               }),

@@ -2170,7 +2170,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
                     child: Text(
                       merchantCity != null
                           ? '$merchantName • $merchantCity'
-                          : merchantName,
+                          : merchantName ?? '',
                       style: Theme.of(context).textTheme.bodyMedium,
                     ),
                   ),
