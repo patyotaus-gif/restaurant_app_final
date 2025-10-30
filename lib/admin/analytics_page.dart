@@ -2,10 +2,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 import '../services/analytics_service.dart';
-
 class AnalyticsPage extends StatefulWidget {
-  AnalyticsPage({super.key, FirebaseFirestore? firestore})
-    : firestore = firestore ?? FirebaseFirestore.instance;
+  const AnalyticsPage({super.key, FirebaseFirestore? firestore})
+      : firestore = firestore ?? FirebaseFirestore.instance;
 
   final FirebaseFirestore firestore;
 
