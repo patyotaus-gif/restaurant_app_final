@@ -315,9 +315,8 @@ class _StoreManagementPageState extends State<StoreManagementPage> {
                                     content: Text(
                                       'Failed to update plugin: $error',
                                     ),
-                                    backgroundColor: Theme.of(
-                                      context,
-                                    ).colorScheme.error,
+                                    backgroundColor:
+                                        Theme.of(context).colorScheme.error,
                                   ),
                                 );
                               }
@@ -1323,9 +1322,10 @@ class _StoreManagementPageState extends State<StoreManagementPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Failed to update feature flag: $error'),
-          backgroundColor: Theme.of(context).colorScheme.error,
-        ),
-      );
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
     }
   }
 
