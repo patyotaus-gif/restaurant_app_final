@@ -689,9 +689,8 @@ Future<void> main() async {
       };
       if (kIsWeb) {
         setPathUrlStrategy();
-      } else {
-        await initializeWebview();
       }
+      await initializeWebview();
       PluginRegistry.registerDefaults();
       await Firebase.initializeApp(
         options: DefaultFirebaseOptions.currentPlatform,

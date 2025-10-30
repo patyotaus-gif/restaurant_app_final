@@ -333,15 +333,17 @@ Future<List<int>> _renderReceiptBytes(Map<String, dynamic> payload) async {
 }
 
 String _paperSizeToStorageKey(PaperSize paper) {
-  if (paper == PaperSize.mm58) {
-    return 'mm58';
-  }
-  return 'mm80';
+  return describeEnum(paper);
 }
 
 PaperSize _paperSizeFromStorageKey(String? key) {
-  if (key == 'mm58') {
-    return PaperSize.mm58;
+  if (key == null) {
+    return PaperSize.mm80;
+  }
+  for (final value in PaperSize.values) {
+    if (describeEnum(value) == key) {
+      return value;
+    }
   }
   return PaperSize.mm80;
 }
