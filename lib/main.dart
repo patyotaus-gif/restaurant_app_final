@@ -591,7 +591,7 @@ final _router = GoRouter(
                 Permission.manageStores,
                 Permission.viewInventory,
               }),
-              builder: (context, state) => AnalyticsPage(),
+              builder: (context, state) => const AnalyticsPage(),
             ),
           ),
         ),
@@ -690,6 +690,11 @@ Future<void> main() async {
       if (kIsWeb) {
         setPathUrlStrategy();
       }
+      final webViewVersion = await getWebViewVersion();
+      if (webViewVersion == null) {
+        runApp(UnsupportedPlatformApp());
+        return;
+      }
       await initializeWebview();
       PluginRegistry.registerDefaults();
       await Firebase.initializeApp(
@@ -701,7 +706,7 @@ Future<void> main() async {
           'Firebase Firestore is not supported on this platform; launching '
           'fallback experience.',
         );
-        runApp(UnsupportedPlatformApp());
+      runApp(UnsupportedPlatformApp());
         return;
       }
 
@@ -1148,7 +1153,7 @@ class UnsupportedPlatformApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
+    return const MaterialApp(
       debugShowCheckedModeBanner: false,
       home: Scaffold(
         body: Center(
