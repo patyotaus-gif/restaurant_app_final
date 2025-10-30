@@ -6,6 +6,7 @@ import 'package:esc_pos_utils_plus/esc_pos_utils_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 import 'package:restaurant_models/restaurant_models.dart';
+
 class PrinterDrawerException implements Exception {
   PrinterDrawerException(this.message);
 
@@ -112,30 +113,36 @@ Map<String, dynamic> _sanitizeOrderData(Map<String, dynamic> raw) {
 
   sanitized['items'] = (raw['items'] as List<dynamic>? ?? const [])
       .whereType<Map<String, dynamic>>()
-      .map((item) => <String, dynamic>{
-            'name': item['name']?.toString(),
-            'quantity': (item['quantity'] as num?)?.toDouble() ?? 0.0,
-            'price': (item['price'] as num?)?.toDouble(),
-            'total': (item['total'] as num?)?.toDouble(),
-          })
+      .map(
+        (item) => <String, dynamic>{
+          'name': item['name']?.toString(),
+          'quantity': (item['quantity'] as num?)?.toDouble() ?? 0.0,
+          'price': (item['price'] as num?)?.toDouble(),
+          'total': (item['total'] as num?)?.toDouble(),
+        },
+      )
       .toList();
 
   sanitized['payments'] = (raw['payments'] as List<dynamic>? ?? const [])
       .whereType<Map<String, dynamic>>()
-      .map((payment) => <String, dynamic>{
-            'method': payment['method']?.toString(),
-            'amount': (payment['amount'] as num?)?.toDouble() ?? 0.0,
-          })
+      .map(
+        (payment) => <String, dynamic>{
+          'method': payment['method']?.toString(),
+          'amount': (payment['amount'] as num?)?.toDouble() ?? 0.0,
+        },
+      )
       .toList();
 
   return sanitized;
 }
 
 Future<List<int>> _renderReceiptBytes(Map<String, dynamic> payload) async {
-  final Map<String, dynamic> order =
-      Map<String, dynamic>.from(payload['order'] as Map<String, dynamic>? ?? {});
-  final Map<String, dynamic> store =
-      Map<String, dynamic>.from(payload['store'] as Map<String, dynamic>? ?? {});
+  final Map<String, dynamic> order = Map<String, dynamic>.from(
+    payload['order'] as Map<String, dynamic>? ?? {},
+  );
+  final Map<String, dynamic> store = Map<String, dynamic>.from(
+    payload['store'] as Map<String, dynamic>? ?? {},
+  );
   final Map<String, dynamic>? tax = payload['tax'] != null
       ? Map<String, dynamic>.from(payload['tax'] as Map<String, dynamic>)
       : null;
@@ -226,9 +233,7 @@ Future<List<int>> _renderReceiptBytes(Map<String, dynamic> payload) async {
 
   final List<dynamic> items = order['items'] as List<dynamic>? ?? <dynamic>[];
   if (items.isNotEmpty) {
-    bytes.addAll(
-      generator.text('Items', styles: const PosStyles(bold: true)),
-    );
+    bytes.addAll(generator.text('Items', styles: const PosStyles(bold: true)));
     for (final dynamic raw in items) {
       if (raw is! Map<String, dynamic>) {
         continue;
@@ -236,7 +241,8 @@ Future<List<int>> _renderReceiptBytes(Map<String, dynamic> payload) async {
       final String name = raw['name']?.toString() ?? 'Item';
       final double quantity = (raw['quantity'] as num?)?.toDouble() ?? 1.0;
       final double price = (raw['price'] as num?)?.toDouble() ?? 0.0;
-      final double total = (raw['total'] as num?)?.toDouble() ?? price * quantity;
+      final double total =
+          (raw['total'] as num?)?.toDouble() ?? price * quantity;
       bytes.addAll(generator.text(name));
       bytes.addAll(
         generator.row([
@@ -332,18 +338,23 @@ Future<List<int>> _renderReceiptBytes(Map<String, dynamic> payload) async {
   return bytes;
 }
 
+const Map<PaperSize, String> _paperSizeLabels = <PaperSize, String>{
+  PaperSize.mm58: 'mm58',
+  PaperSize.mm80: 'mm80',
+};
+
+const Map<String, PaperSize> _paperSizeLookup = <String, PaperSize>{
+  'mm58': PaperSize.mm58,
+  'mm80': PaperSize.mm80,
+};
+
 String _paperSizeToStorageKey(PaperSize paper) {
-  return describeEnum(paper);
+  return _paperSizeLabels[paper] ?? 'mm80';
 }
 
 PaperSize _paperSizeFromStorageKey(String? key) {
   if (key == null) {
     return PaperSize.mm80;
   }
-  for (final value in PaperSize.values) {
-    if (describeEnum(value) == key) {
-      return value;
-    }
-  }
-  return PaperSize.mm80;
+  return _paperSizeLookup[key] ?? PaperSize.mm80;
 }
