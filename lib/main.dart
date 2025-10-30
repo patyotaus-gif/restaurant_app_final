@@ -591,7 +591,7 @@ final _router = GoRouter(
                 Permission.manageStores,
                 Permission.viewInventory,
               }),
-              builder: (context, state) => AnalyticsPage(),
+              builder: (context, state) => const AnalyticsPage(),
             ),
           ),
         ),
@@ -675,23 +675,6 @@ Locale? _matchSupportedLocale(
   return null;
 }
 
-Future<String?> getWebViewVersion() async {
-  if (kIsWeb) {
-    return 'web';
-  }
-
-  switch (defaultTargetPlatform) {
-    case TargetPlatform.android:
-    case TargetPlatform.iOS:
-    case TargetPlatform.macOS:
-    case TargetPlatform.windows:
-    case TargetPlatform.linux:
-      return 'embedded-webview';
-    default:
-      return null;
-  }
-}
-
 Future<void> main() async {
   OpsObservabilityService? observability;
   return runZonedGuarded(
@@ -723,7 +706,7 @@ Future<void> main() async {
           'Firebase Firestore is not supported on this platform; launching '
           'fallback experience.',
         );
-        runApp(UnsupportedPlatformApp());
+      runApp(UnsupportedPlatformApp());
         return;
       }
 
@@ -1170,7 +1153,7 @@ class UnsupportedPlatformApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
+    return const MaterialApp(
       debugShowCheckedModeBanner: false,
       home: Scaffold(
         body: Center(
