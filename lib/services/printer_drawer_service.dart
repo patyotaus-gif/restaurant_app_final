@@ -1,12 +1,11 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:esc_pos_utils_plus/esc_pos_utils_plus.dart'
-    hide PaperSize; // Hide the class
+import 'package:esc_pos_utils_plus/esc_pos_utils_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 import 'package:restaurant_models/restaurant_models.dart';
+
 class PrinterDrawerException implements Exception {
   PrinterDrawerException(this.message);
 
@@ -15,17 +14,11 @@ class PrinterDrawerException implements Exception {
   String toString() => 'PrinterDrawerException: $message';
 }
 
-// Re-define PaperSize as an enum as it was in older versions of the package
-enum PaperSize {
-  mm58,
-  mm72,
-  mm80,
-}
+import 'dart:io';
 
 class PrinterDrawerService {
   CapabilityProfile? _profile;
 
-  Future<void> printReceipt({
   Future<void> printReceipt({
     required String host,
     required Map<String, dynamic> orderData,
@@ -38,7 +31,7 @@ class PrinterDrawerService {
     final payload = <String, dynamic>{
       'order': _sanitizeOrderData(orderData),
       'store': storeDetails.toMap(),
-      'paperSize': _paperSizeToStorageKey(paperSize),
+      'paperSize': paperSize.name,
       if (taxDetails != null && taxDetails.hasData) 'tax': taxDetails.toMap(),
     };
 
@@ -340,16 +333,12 @@ Future<List<int>> _renderReceiptBytes(Map<String, dynamic> payload) async {
   return bytes;
 }
 
-String _paperSizeToStorageKey(PaperSize paper) {
-  return describeEnum(paper);
-}
-
 PaperSize _paperSizeFromStorageKey(String? key) {
   if (key == null) {
     return PaperSize.mm80;
   }
   for (final value in PaperSize.values) {
-    if (describeEnum(value) == key) {
+    if (value.name == key) {
       return value;
     }
   }

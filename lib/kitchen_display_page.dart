@@ -643,7 +643,7 @@ class _SkeletonOrderLine extends StatelessWidget {
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: const [
+            children: [
               _SkeletonBox(height: 16),
               SizedBox(height: 6),
               _SkeletonBox(width: 120, height: 10),

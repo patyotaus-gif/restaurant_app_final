@@ -78,6 +78,7 @@ class _StocktakePageState extends State<StocktakePage> {
                     const SizedBox(width: 12),
                     ElevatedButton.icon(
                       onPressed: () async {
+                        if (!mounted) return;
                         final scannedCode = await Navigator.of(context).push<String>(
                               MaterialPageRoute(
                                 builder: (_) => const BarcodeScannerPage(),
@@ -90,6 +91,7 @@ class _StocktakePageState extends State<StocktakePage> {
                             scannedCode,
                           );
                           if (ingredient != null) {
+                            if (!mounted) return;
                             await _showStocktakeOptions(
                               context,
                               ingredient,

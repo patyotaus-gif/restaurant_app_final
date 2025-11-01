@@ -72,7 +72,7 @@ class _StoreManagementPageState extends State<StoreManagementPage> {
           IconButton(
             onPressed: () async {
               await storeProvider.refreshRoleOverrides();
-              if (!context.mounted) return;
+              if (!mounted) return;
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('Role definitions refreshed.')),
               );
@@ -295,6 +295,7 @@ class _StoreManagementPageState extends State<StoreManagementPage> {
                       subtitle: Text(module.description),
                       onChanged: canManage
                           ? (value) async {
+                              if (!mounted) return;
                               try {
                                 await pluginProvider.setPluginState(
                                   module.id,
@@ -728,6 +729,7 @@ class _StoreManagementPageState extends State<StoreManagementPage> {
       supportedCurrencies: updatedSupported,
       displayCurrency: settings.effectiveDisplayCurrency,
     );
+    if (!mounted) return;
     await _persistCurrencySettings(
       context,
       store,
@@ -749,6 +751,7 @@ class _StoreManagementPageState extends State<StoreManagementPage> {
     final updatedSettings = settings.copyWith(
       displayCurrency: displayCurrency.toUpperCase(),
     );
+    if (!mounted) return;
     await _persistCurrencySettings(
       context,
       store,
@@ -775,6 +778,7 @@ class _StoreManagementPageState extends State<StoreManagementPage> {
     try {
       String? selected = available.isNotEmpty ? available.first : null;
 
+      if (!mounted) return;
       final chosen = await showDialog<String>(
         context: context,
         builder: (dialogContext) {
@@ -857,6 +861,7 @@ class _StoreManagementPageState extends State<StoreManagementPage> {
       final updatedSettings = settings.copyWith(
         supportedCurrencies: [...existing, chosen],
       );
+      if (!mounted) return;
       await _persistCurrencySettings(
         context,
         store,
@@ -898,6 +903,7 @@ class _StoreManagementPageState extends State<StoreManagementPage> {
       supportedCurrencies: supported,
       displayCurrency: display,
     );
+    if (!mounted) return;
     await _persistCurrencySettings(
       context,
       store,
@@ -919,6 +925,7 @@ class _StoreManagementPageState extends State<StoreManagementPage> {
     final controller = TextEditingController(
       text: currentRate != null ? currentRate.toStringAsFixed(4) : '',
     );
+    if (!mounted) return;
     final result = await showDialog<double>(
       context: context,
       builder: (context) {
@@ -1039,6 +1046,7 @@ class _StoreManagementPageState extends State<StoreManagementPage> {
     final updatedStore = store.copyWith(currencySettings: settings);
     try {
       await storeService.saveStore(updatedStore);
+      if (!mounted) return;
       await currencyProvider.applyStore(updatedStore);
       if (!mounted) return;
       if (successMessage != null && successMessage.isNotEmpty) {
@@ -1104,6 +1112,7 @@ class _StoreManagementPageState extends State<StoreManagementPage> {
     final addressController = TextEditingController();
     final timezoneController = TextEditingController();
 
+    if (!mounted) return;
     final shouldSave = await showDialog<bool>(
       context: context,
       builder: (context) {

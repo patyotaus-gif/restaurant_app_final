@@ -208,6 +208,7 @@ class _CustomerCheckoutPageState extends State<CustomerCheckoutPage> {
                           alignment: Alignment.centerLeft,
                           child: TextButton.icon(
                             onPressed: () async {
+                              if (!mounted) return;
                               final uri = Uri.parse('https://github.com/omise/omise-node');
                               final launched = await launchUrl(
                                 uri,

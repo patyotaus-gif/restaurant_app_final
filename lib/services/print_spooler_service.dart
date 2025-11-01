@@ -319,13 +319,14 @@ class PrintSpoolerService extends ChangeNotifier {
     switch (job.type) {
       case PrintJobType.receipt:
         final payload = job.payload as ReceiptPrintJobPayload;
-        await _printerService.printReceipt(payload: payload);
-        if (payload.openDrawer) {
-          await _printerService.openCashDrawer(
-            host: payload.host,
-            port: payload.port,
-          );
-        }
+        await _printerService.printReceipt(
+          host: payload.host,
+          port: payload.port,
+          orderData: payload.orderData,
+          storeDetails: payload.storeDetails,
+          taxDetails: payload.taxDetails,
+          openDrawer: payload.openDrawer,
+        );
         return;
     }
   }

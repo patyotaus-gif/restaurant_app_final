@@ -158,30 +158,21 @@ class _ModifierSelectionDialogState extends State<ModifierSelectionDialog> {
                             ),
                             if (group.selectionType == 'SINGLE')
                               ...group.options.map((option) {
-                                return ListTile(
+                                return RadioListTile<ModifierOption>(
                                   title: Text(option.optionName),
                                   subtitle: Text(
                                     '+${option.priceChange.toStringAsFixed(2)}',
                                   ),
-                                  leading: Radio<ModifierOption>(
-                                    value: option,
-                                    groupValue: _selectedOptions[group.id!],
-                                    onChanged: (value) {
-                                      if (value != null) {
-                                        _updateSelection(
-                                          group.id!,
-                                          value,
-                                          'SINGLE',
-                                        );
-                                      }
-                                    },
-                                  ),
-                                  onTap: () {
-                                    _updateSelection(
-                                      group.id!,
-                                      option,
-                                      'SINGLE',
-                                    );
+                                  value: option,
+                                  groupValue: _selectedOptions[group.id!],
+                                  onChanged: (value) {
+                                    if (value != null) {
+                                      _updateSelection(
+                                        group.id!,
+                                        value,
+                                        'SINGLE',
+                                      );
+                                    }
                                   },
                                 );
                               }),
