@@ -28,7 +28,7 @@ class PromotionRules {
       return const PromotionRules();
     }
 
-    DateTime? _parseDate(dynamic value) {
+    DateTime? parseDate(dynamic value) {
       if (value is Timestamp) {
         return value.toDate();
       }
@@ -41,7 +41,7 @@ class PromotionRules {
       return null;
     }
 
-    List<String> _stringList(dynamic value) {
+    List<String> stringList(dynamic value) {
       if (value is Iterable) {
         return value
             .map((e) => e.toString().trim())
@@ -51,7 +51,7 @@ class PromotionRules {
       return const [];
     }
 
-    List<int> _intList(dynamic value) {
+    List<int> intList(dynamic value) {
       if (value is Iterable) {
         return value
             .map((e) => int.tryParse(e.toString()))
@@ -63,7 +63,7 @@ class PromotionRules {
       return const [];
     }
 
-    String? _stringOrNull(dynamic value) {
+    String? stringOrNull(dynamic value) {
       if (value == null) return null;
       final text = value.toString().trim();
       return text.isEmpty ? null : text;
@@ -72,13 +72,13 @@ class PromotionRules {
     return PromotionRules(
       minSubtotal: (data['minSubtotal'] as num?)?.toDouble(),
       minQuantity: (data['minQuantity'] as num?)?.toInt(),
-      requiredCategories: _stringList(data['requiredCategories']),
-      orderTypes: _stringList(data['orderTypes']),
+      requiredCategories: stringList(data['requiredCategories']),
+      orderTypes: stringList(data['orderTypes']),
       startDate: _parseDate(data['startDate']),
       endDate: _parseDate(data['endDate']),
-      allowedWeekdays: _intList(data['allowedWeekdays']),
-      startTime: _stringOrNull(data['startTime']),
-      endTime: _stringOrNull(data['endTime']),
+      allowedWeekdays: intList(data['allowedWeekdays']),
+      startTime: stringOrNull(data['startTime']),
+      endTime: stringOrNull(data['endTime']),
     );
   }
 
@@ -192,7 +192,7 @@ class PromotionRules {
       return true;
     }
 
-    int? _parseMinutes(String? value) {
+    int? parseMinutes(String? value) {
       if (value == null) return null;
       final parts = value.split(':');
       if (parts.length != 2) return null;

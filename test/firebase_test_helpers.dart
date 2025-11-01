@@ -1,20 +1,33 @@
-// test/firebase_test_helpers.dart
-
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:firebase_core_platform_interface/firebase_core_platform_interface.dart';
 
-// A mock for Firebase.initializeApp
-Future<void> setupMockFirebaseApp() async {
+typedef Callback = void Function(MethodCall call);
+
+void setupFirebaseAuthMocks([Callback? customHandlers]) {
   TestWidgetsFlutterBinding.ensureInitialized();
-  final mockApp = MockFirebaseApp();
 
-  // Replace the default Firebase app with a mock
-  TestFirebaseCoreHostApi.setup(app: mockApp, apps: [mockApp]);
+  MethodChannelFirebase.channel.setMockMethodCallHandler((call) async {
+    if (call.method == 'Firebase#initialize') {
+      return {
+        'name': '[DEFAULT]',
+        'options': {
+          'apiKey': '123',
+          'appId': '123',
+          'messagingSenderId': '123',
+          'projectId': '123',
+        },
+        'pluginConstants': {},
+      };
+    }
+
+    if (customHandlers != null) {
+      customHandlers(call);
+    }
+
+    return null;
+  });
 }
 
-class MockFirebaseApp extends Mock implements FirebaseApp {
-  @override
-  String get name => '[DEFAULT]';
-}
+class MockFirebaseApp extends Mock implements FirebaseApp {}

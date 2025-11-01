@@ -218,9 +218,11 @@ class _ItemRefundPageState extends State<ItemRefundPage> {
     batch.update(orderDocRef, {'hasPartialRefund': true});
 
     try {
+      if (!mounted) return;
       await batch.commit();
 
       if (restockUsage.isNotEmpty) {
+        if (!mounted) return;
         await Provider.of<StockProvider>(
           context,
           listen: false,

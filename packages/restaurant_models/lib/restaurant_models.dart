@@ -1,5 +1,3 @@
-library restaurant_models;
-
 export 'src/app_mode.dart';
 export 'src/audit_log_entry.dart';
 export 'src/currency_settings.dart';
