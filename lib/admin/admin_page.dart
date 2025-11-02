@@ -350,6 +350,7 @@ class _AdminPageState extends State<AdminPage> {
   }
 
   void _handleMenuTap(BuildContext context, _AdminMenuItem item) {
+    if (!mounted) return;
     if (item.pageBuilder != null) {
       Navigator.of(context).push(
         MaterialPageRoute(builder: item.pageBuilder!),

@@ -14,9 +14,11 @@ class PrinterDrawerException implements Exception {
   String toString() => 'PrinterDrawerException: $message';
 }
 
+
 class PrinterDrawerService {
   CapabilityProfile? _profile;
 
+  Future<void> printReceipt({
   Future<void> printReceipt({
     required String host,
     required Map<String, dynamic> orderData,
@@ -332,7 +334,7 @@ Future<List<int>> _renderReceiptBytes(Map<String, dynamic> payload) async {
 }
 
 String _paperSizeToStorageKey(PaperSize paper) {
-  return describeEnum(paper);
+  return paper.name;
 }
 
 PaperSize _paperSizeFromStorageKey(String? key) {
@@ -340,7 +342,7 @@ PaperSize _paperSizeFromStorageKey(String? key) {
     return PaperSize.mm80;
   }
   for (final value in PaperSize.values) {
-    if (describeEnum(value) == key) {
+    if (value.name == key) {
       return value;
     }
   }
