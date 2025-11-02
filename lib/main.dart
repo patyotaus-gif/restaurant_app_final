@@ -128,19 +128,11 @@ CustomTransitionPage<void> _buildTransitionPage({required Widget child}) {
             ),
           );
 
-      final scaleAnimation = Tween<double>(begin: 0.98, end: 1).animate(
-        CurvedAnimation(
-          parent: animation,
-          curve: Curves.easeOutBack,
-          reverseCurve: Curves.easeIn,
-        ),
-      );
-
       return FadeTransition(
         opacity: fadeAnimation,
         child: SlideTransition(
           position: slideAnimation,
-          child: ScaleTransition(scale: scaleAnimation, child: child),
+          child: child,
         ),
       );
     },
@@ -684,8 +676,6 @@ Future<String?> getWebViewVersion() async {
     case TargetPlatform.android:
     case TargetPlatform.iOS:
     case TargetPlatform.macOS:
-    case TargetPlatform.windows:
-    case TargetPlatform.windows:
       return 'native';
     default:
       return null;
@@ -728,6 +718,12 @@ Future<void> main() async {
       }
 
       final remoteConfig = _obtainRemoteConfigInstance();
+
+      // Note: the 'settings' setter was removed from newer cloud_firestore versions.
+      // Persistence and cache configuration should be handled using the current API.
+      // By default, persistence is enabled on mobile platforms; if you need to
+      // configure persistence for web or tweak cache size, use the platform-specific
+      // APIs provided by the version of cloud_firestore you depend on.
 
       observability = OpsObservabilityService(FirebaseFirestore.instance);
       FlutterError.onError = (details) {

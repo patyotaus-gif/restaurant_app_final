@@ -8,8 +8,6 @@ import '../notifications_repository.dart';
 import 'ops_observability_service.dart';
 import 'printer_drawer_service.dart';
 
-final Random _printJobRandom = Random();
-
 enum PrintJobType { receipt }
 
 enum PrintJobStatus {
@@ -499,7 +497,7 @@ class _PrintJob {
 
   static String _generateId() {
     final millis = DateTime.now().millisecondsSinceEpoch;
-    final rand = _printJobRandom.nextInt(1 << 32);
+    final rand = Random().nextInt(1 << 32);
     return 'print-$millis-$rand';
   }
 }

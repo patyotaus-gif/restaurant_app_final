@@ -48,6 +48,8 @@ class _PinLoginPageState extends State<PinLoginPage> {
     final l10n = AppLocalizations.of(context)!;
     final success = await authService.loginWithPin(_pin);
 
+    if (!mounted) return;
+
     if (success) {
       router.go('/order-type-selection');
       return;
