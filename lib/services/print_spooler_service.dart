@@ -326,6 +326,12 @@ class PrintSpoolerService extends ChangeNotifier {
           storeDetails: payload.storeDetails,
           taxDetails: payload.taxDetails,
         );
+        if (payload.openDrawer) {
+          await _printerService.openCashDrawer(
+            host: payload.host,
+            port: payload.port,
+          );
+        }
         return;
     }
   }
