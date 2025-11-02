@@ -325,7 +325,6 @@ class PrintSpoolerService extends ChangeNotifier {
           orderData: payload.orderData,
           storeDetails: payload.storeDetails,
           taxDetails: payload.taxDetails,
-          openDrawer: payload.openDrawer,
         );
         return;
     }

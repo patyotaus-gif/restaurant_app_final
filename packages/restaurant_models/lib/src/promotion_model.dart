@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
+
 class PromotionRules {
   final double? minSubtotal;
   final int? minQuantity;
@@ -74,8 +75,8 @@ class PromotionRules {
       minQuantity: (data['minQuantity'] as num?)?.toInt(),
       requiredCategories: stringList(data['requiredCategories']),
       orderTypes: stringList(data['orderTypes']),
-      startDate: _parseDate(data['startDate']),
-      endDate: _parseDate(data['endDate']),
+      startDate: parseDate(data['startDate']),
+      endDate: parseDate(data['endDate']),
       allowedWeekdays: intList(data['allowedWeekdays']),
       startTime: stringOrNull(data['startTime']),
       endTime: stringOrNull(data['endTime']),
@@ -203,8 +204,8 @@ class PromotionRules {
       return hour * 60 + minute;
     }
 
-    final startMinutes = hasStart ? _parseMinutes(startTime) : null;
-    final endMinutes = hasEnd ? _parseMinutes(endTime) : null;
+    final startMinutes = hasStart ? parseMinutes(startTime!.trim()) : null;
+    final endMinutes = hasEnd ? parseMinutes(endTime!.trim()) : null;
     final currentMinutes = now.hour * 60 + now.minute;
 
     if (startMinutes == null && endMinutes == null) {

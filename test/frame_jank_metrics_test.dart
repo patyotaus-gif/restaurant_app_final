@@ -6,6 +6,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:restaurant_app_final/admin/backoffice_schema_page.dart';
 import 'firebase_test_helpers.dart';
 
+Future<void> setupMockFirebaseApp() async {
+  TestWidgetsFlutterBinding.ensureInitialized();
+}
+
 void main() {
   setUpAll(() async {
     await setupMockFirebaseApp();
