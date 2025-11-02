@@ -684,6 +684,7 @@ Future<String?> getWebViewVersion() async {
     case TargetPlatform.android:
     case TargetPlatform.iOS:
     case TargetPlatform.macOS:
+    case TargetPlatform.windows:
       return 'native';
     default:
       return null;
