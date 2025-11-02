@@ -6,10 +6,6 @@ import 'package:restaurant_app_final/admin/analytics_page.dart';
 
 import '../firebase_test_helpers.dart';
 
-Future<void> setupMockFirebaseApp() async {
-  TestWidgetsFlutterBinding.ensureInitialized();
-}
-
 void main() {
   late FakeFirebaseFirestore firestore;
 
@@ -26,23 +22,21 @@ void main() {
       'requestedAt': Timestamp.fromDate(requestedAt),
       'status': 'completed',
       'table': 'orders',
-      'rangeStart': Timestamp.fromDate(
-        requestedAt.subtract(const Duration(days: 1)),
-      ),
+      'rangeStart': Timestamp.fromDate(requestedAt.subtract(const Duration(days: 1))),
       'rangeEnd': Timestamp.fromDate(requestedAt),
     });
   }
 
-  testWidgets('AnalyticsPage only shows recent export jobs', (
-    WidgetTester tester,
-  ) async {
+  testWidgets('AnalyticsPage only shows recent export jobs', (WidgetTester tester) async {
     // Add a recent export job
     await addExportJob(DateTime.now().subtract(const Duration(days: 15)));
     // Add an old export job
     await addExportJob(DateTime.now().subtract(const Duration(days: 45)));
 
     await tester.pumpWidget(
-      MaterialApp(home: AnalyticsPage(firestore: firestore)),
+      MaterialApp(
+        home: AnalyticsPage(firestore: firestore),
+      ),
     );
 
     await tester.pumpAndSettle();

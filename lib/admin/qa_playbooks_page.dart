@@ -408,7 +408,7 @@ class _SectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SelectableText(
+    return Text(
       title,
       style: Theme.of(
         context,
