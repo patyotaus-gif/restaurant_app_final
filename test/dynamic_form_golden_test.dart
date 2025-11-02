@@ -116,3 +116,7 @@ Future<void> _ensureGoldenExists(
   await file.parent.create(recursive: true);
   await file.writeAsBytes(byteData.buffer.asUint8List());
 }
+
+Future<void> setupMockFirebaseApp() async {
+  TestWidgetsFlutterBinding.ensureInitialized();
+}

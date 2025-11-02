@@ -1762,7 +1762,9 @@ class _CheckoutPageState extends State<CheckoutPage> {
 
     final statusValue = normalizedCharge['status'] ?? data['status'];
     final status = statusValue is String ? statusValue.toLowerCase() : null;
-    final authorized = _coerceToBool(normalizedCharge['authorized'] ?? charge['authorized']);
+    final authorized = _coerceToBool(
+      normalizedCharge['authorized'] ?? charge?['authorized'],
+    );
     final paid = _coerceToBool(normalizedCharge['paid']);
     final captured = _coerceToBool(normalizedCharge['captured']);
     final refunded = _coerceToBool(
