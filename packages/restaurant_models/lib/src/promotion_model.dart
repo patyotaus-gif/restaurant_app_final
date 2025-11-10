@@ -1,5 +1,30 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
+
+DateTime? _parseDate(dynamic value) {
+  if (value is Timestamp) {
+    return value.toDate();
+  }
+  if (value is DateTime) {
+    return value;
+  }
+  if (value is String && value.isNotEmpty) {
+    return DateTime.tryParse(value);
+  }
+  return null;
+}
+
+int? _parseMinutes(String? value) {
+  if (value == null) return null;
+  final parts = value.split(':');
+  if (parts.length != 2) return null;
+  final hour = int.tryParse(parts[0]);
+  final minute = int.tryParse(parts[1]);
+  if (hour == null || minute == null) return null;
+  if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return null;
+  return hour * 60 + minute;
+}
+
 class PromotionRules {
   final double? minSubtotal;
   final int? minQuantity;
@@ -26,19 +51,6 @@ class PromotionRules {
   factory PromotionRules.fromMap(Map<String, dynamic>? data) {
     if (data == null || data.isEmpty) {
       return const PromotionRules();
-    }
-
-    DateTime? parseDate(dynamic value) {
-      if (value is Timestamp) {
-        return value.toDate();
-      }
-      if (value is DateTime) {
-        return value;
-      }
-      if (value is String && value.isNotEmpty) {
-        return DateTime.tryParse(value);
-      }
-      return null;
     }
 
     List<String> stringList(dynamic value) {
@@ -190,17 +202,6 @@ class PromotionRules {
 
     if (!hasStart && !hasEnd) {
       return true;
-    }
-
-    int? parseMinutes(String? value) {
-      if (value == null) return null;
-      final parts = value.split(':');
-      if (parts.length != 2) return null;
-      final hour = int.tryParse(parts[0]);
-      final minute = int.tryParse(parts[1]);
-      if (hour == null || minute == null) return null;
-      if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return null;
-      return hour * 60 + minute;
     }
 
     final startMinutes = hasStart ? _parseMinutes(startTime) : null;
