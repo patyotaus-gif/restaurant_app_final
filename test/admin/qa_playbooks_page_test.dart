@@ -31,17 +31,14 @@ void main() {
     );
   });
 
-  testWidgets('Selecting older revision updates checklist and metadata',
-      (tester) async {
+  testWidgets('Selecting older revision updates checklist and metadata', (
+    tester,
+  ) async {
     tester.view.physicalSize = const Size(1200, 800);
     tester.view.devicePixelRatio = 1.0;
 
     await tester.pumpWidget(
-      const MaterialApp(
-        home: Scaffold(
-          body: QaPlaybooksPage(),
-        ),
-      ),
+      const MaterialApp(home: Scaffold(body: QaPlaybooksPage())),
     );
     await tester.pump();
 
@@ -52,10 +49,7 @@ void main() {
       ),
       findsOneWidget,
     );
-    expect(
-      find.textContaining('Power-cycle the card reader'),
-      findsOneWidget,
-    );
+    expect(find.textContaining('Power-cycle the card reader'), findsOneWidget);
 
     await tester.tap(find.byKey(const Key('revisionDropdown')));
     await tester.pump();
@@ -71,29 +65,26 @@ void main() {
       findsOneWidget,
     );
     expect(
-      find.textContaining('Contact vendor support to confirm if there is a regional outage.'),
+      find.textContaining(
+        'Contact vendor support to confirm if there is a regional outage.',
+      ),
       findsOneWidget,
     );
+    expect(find.textContaining('Power-cycle the card reader'), findsNothing);
     expect(
-      find.textContaining('Power-cycle the card reader'),
-      findsNothing,
-    );
-    expect(
-      find.textContaining('Original draft with emphasis on vendor support confirmation.'),
+      find.textContaining(
+        'Original draft with emphasis on vendor support confirmation.',
+      ),
       findsOneWidget,
     );
   });
 
-  testWidgets('Tag filtering works with automatically generated tags',
-      (tester) async {
+  testWidgets('Tag filtering works with automatically generated tags', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       const MaterialApp(
-        home: Scaffold(
-          body: SizedBox(
-            height: 800,
-            child: QaPlaybooksPage(),
-          ),
-        ),
+        home: Scaffold(body: SizedBox(height: 800, child: QaPlaybooksPage())),
       ),
     );
     await tester.pump();
@@ -113,11 +104,17 @@ void main() {
       ),
       findsOneWidget,
     );
-    expect(find.text('Kitchen Display Queue Stalling'), findsNothing);
+    expect(
+      find.widgetWithText(ListTile, 'Kitchen Display Queue Stalling'),
+      findsNothing,
+    );
 
     await tester.tap(paymentsChip);
-    await tester.pump();
+    await tester.pumpAndSettle();
 
-    expect(find.text('Kitchen Display Queue Stalling'), findsOneWidget);
+    expect(
+      find.widgetWithText(ListTile, 'Kitchen Display Queue Stalling'),
+      findsOneWidget,
+    );
   });
 }

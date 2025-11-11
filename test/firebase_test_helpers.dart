@@ -4,7 +4,20 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
 // Mocks
-class MockFirebasePlatform extends Mock implements FirebasePlatform {}
+class MockFirebasePlatform extends Mock implements FirebasePlatform {
+  @override
+  FirebaseApp app([String name = Firebase.appCheck().app.name]) {
+    return MockFirebaseApp();
+  }
+
+  @override
+  Future<FirebaseApp> initializeApp({
+    String? name,
+    FirebaseOptions? options,
+  }) async {
+    return MockFirebaseApp();
+  }
+}
 
 class MockFirebaseApp extends Mock implements FirebaseApp {}
 
@@ -15,13 +28,4 @@ Future<void> setupMockFirebaseApp() async {
   TestWidgetsFlutterBinding.ensureInitialized();
   final mockCore = MockFirebasePlatform();
   Firebase.delegatePackingProperty = mockCore;
-  when(
-    () => mockCore.initializeApp(
-      name: any(named: 'name'),
-      options: any(named: 'options'),
-    ),
-  ).thenAnswer((_) async => mockCore); // Return the mockCore itself
-  when(() => mockCore.app(any())).thenReturn(MockFirebaseApp());
-  // Mock the .options getter
-  when(() => mockCore.options).thenReturn(MockFirebaseOptions());
 }
