@@ -18,15 +18,14 @@ class PrinterDrawerException implements Exception {
 class PrinterDrawerService {
   CapabilityProfile? _profile;
 
-  Future<void> printReceipt({
-  Future<void> printReceipt({
+  Future<void> Function({
     required String host,
     required Map<String, dynamic> orderData,
     required StoreReceiptDetails storeDetails,
     TaxInvoiceDetails? taxDetails,
     int port = 9100,
     PaperSize paperSize = PaperSize.mm80,
-  }) async {
+  }) printReceipt async {
     await _loadProfile();
     final payload = <String, dynamic>{
       'order': _sanitizeOrderData(orderData),
@@ -115,7 +114,7 @@ Map<String, dynamic> _sanitizeOrderData(Map<String, dynamic> raw) {
       .whereType<Map<String, dynamic>>()
       .map((item) => <String, dynamic>{
             'name': item['name']?.toString(),
-            'quantity': (item['quantity'] as num?)?.toDouble() ?? 0.0,
+            'quantity': (item['quantity'] as num?)?.toInt() ?? 0,
             'price': (item['price'] as num?)?.toDouble(),
             'total': (item['total'] as num?)?.toDouble(),
           })
